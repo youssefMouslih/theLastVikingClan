@@ -1,0 +1,16 @@
+# Netlify config for theLastVikingClan.
+# NOTE: VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are set in the Netlify UI
+# (Site settings → Environment variables), NOT in this file.
+# The Supabase anon key is public by design (RLS protects the data), so we
+# omit those two keys from secrets scanning — everything else is still scanned.
+
+[build]
+  base = "app"
+  command = "npm run build"
+  publish = "dist"
+  environment = { SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY, VITE_SUPABASE_URL" }
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

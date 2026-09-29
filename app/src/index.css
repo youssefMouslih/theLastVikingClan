@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+/* VIK Clan design system — generated via ui-ux-pro-max (gaming/esports).
+   Style: immersive depth | Colors: neon violet + rose on deep navy
+   Type: Russo One (display) / Chakra Petch (body) */
+
+@theme {
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #7c3aed;
+  --color-brand-600: #6d28d9;
+  --color-brand-700: #5b21b6;
+  --color-accent-400: #fb7185;
+  --color-accent-500: #f43f5e;
+  --color-accent-600: #e11d48;
+  --color-abyss-800: #1e1c35;
+  --color-abyss-850: #17162a;
+  --color-abyss-900: #0f0f23;
+  --color-abyss-950: #0a0a18;
+  --font-display: "Russo One", system-ui, sans-serif;
+  --font-sans: "Chakra Petch", system-ui, sans-serif;
+}
+
+:root {
+  --bg: #0f0f23;
+  --surface: #1e1c35;
+  --surface-2: #27273b;
+  --border: #4c1d95;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f1eefb;
+    --surface: #ffffff;
+    --surface-2: #ede9fe;
+    --border: #d8ccfa;
+    --text: #1a1033;
+    --muted: #5b5675;
+    color-scheme: light;
+  }
+}
+
+html, body, #root {
+  min-height: 100svh;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(60rem 30rem at 80% -10%, rgba(124, 58, 237, 0.22), transparent 60%),
+    radial-gradient(50rem 26rem at 10% 0%, rgba(244, 63, 94, 0.12), transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* iPhone standalone: keep the app clear of the notch/status bar and
+   home indicator. env() is 0 where no safe area is needed. */
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Large touch targets for mobile-first eFootball users (§106) */
+button, a, [role="button"] {
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* Visible keyboard focus */
+:focus-visible {
+  outline: 2px solid var(--color-brand-400);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Status must not rely on color alone (§120) */
+.status-badge {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Base button (top-level: usable in @apply and in HTML) */
+@utility btn {
+  display: inline-flex;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform 150ms ease, box-shadow 200ms ease, background-color 200ms ease;
+}
+
+@utility btn-active {
+  transition: transform 150ms ease, box-shadow 200ms ease, background-color 200ms ease;
+}
+
+@layer components {
+  .page {
+    @apply mx-auto w-full max-w-2xl p-4 pb-24;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 12px 32px -16px rgba(0, 0, 0, 0.55),
+      0 0 0 1px rgba(0, 0, 0, 0.15);
+  }
+  .card-title {
+    @apply text-xs font-bold uppercase tracking-wider;
+    color: var(--muted);
+  }
+  .btn-primary {
+    @apply btn text-white;
+    background: linear-gradient(180deg, #8b5cf6, #7c3aed 60%, #6d28d9);
+    box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+  }
+  .btn-primary:hover {
+    box-shadow: 0 10px 28px -8px rgba(124, 58, 237, 0.85), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+  }
+  .btn-primary:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn-cta {
+    @apply btn text-white;
+    background: linear-gradient(180deg, #fb7185, #f43f5e 60%, #e11d48);
+    box-shadow: 0 8px 24px -8px rgba(244, 63, 94, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+  }
+  .btn-cta:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn-dark {
+    @apply btn;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost {
+    @apply btn;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover {
+    background: color-mix(in srgb, var(--brand-500, #7c3aed) 12%, transparent);
+  }
+  .btn-danger {
+    @apply btn;
+    background: transparent;
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+  }
+  .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+  .input {
+    height: 2.75rem;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg) 60%, transparent);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    outline: none;
+  }
+  .input:focus {
+    border-color: var(--color-brand-400);
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
+  }
+  .label {
+    @apply flex flex-col gap-1 text-sm font-semibold;
+  }
+  /* Immersive hero: layered depth + neon glow */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    color: #fff;
+    background:
+      radial-gradient(24rem 12rem at 85% -30%, rgba(244, 63, 94, 0.35), transparent 65%),
+      radial-gradient(30rem 16rem at 15% -40%, rgba(124, 58, 237, 0.55), transparent 65%),
+      linear-gradient(160deg, #241b4d 0%, #17162a 55%, #0f0f23 100%);
+    border: 1px solid rgba(167, 139, 250, 0.35);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.12) inset,
+      0 20px 48px -20px rgba(124, 58, 237, 0.55);
+  }
+  .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
