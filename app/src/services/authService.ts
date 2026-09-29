@@ -48,6 +48,10 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
 function mapAuthError(msg: string): string {
   if (/invalid login/i.test(msg)) return 'Invalid email or password.';
   if (/email not confirmed/i.test(msg)) return 'Please confirm your email, then log in.';
+  if (/email rate limit exceeded/i.test(msg)) {
+    return 'Too many signup emails sent — Supabase limits these per hour. Wait ~1 hour, or turn off “Confirm email” in Supabase → Authentication → Providers → Email (recommended while testing).';
+  }
+  if (/user already registered/i.test(msg)) return 'An account with this email already exists — log in instead.';
   return msg;
 }
 
