@@ -107,6 +107,8 @@ export interface RecentMatch {
   status: string;
   kind: 'match' | 'battle';
   battle_id?: string;
+  compType?: string | null;
+  battleType?: string | null;
   opponent: { id: string; username: string; display_name: string | null; avatar_url: string | null };
   mine: number;
   theirs: number;
@@ -160,10 +162,22 @@ export async function getRecentMatches(playerId: string, limit = 5): Promise<Rec
   rows.sort((a, b2) => b2.at - a.at);
   const top = rows.slice(0, limit);
   const oppIds = [...new Set(top.map((r) => r.opp))];
+  const compIds = [...new Set(top.filter((r) => r.competition_id).map((r) => r.competition_id as string))];
   let profMap = new Map<string, { id: string; username: string; display_name: string | null; avatar_url: string | null }>();
-  if (oppIds.length > 0) {
-    const { data: profs } = await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', oppIds);
-    profMap = new Map(((profs ?? []) as { id: string; username: string; display_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
+  let compMap = new Map<string, string>();
+  const [profsRes, compsRes] = await Promise.all([
+    oppIds.length > 0 ? supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', oppIds) : Promise.resolve({ data: [] }),
+    compIds.length > 0 ? supabase.from('competitions').select('id,type').in('id', compIds) : Promise.resolve({ data: [] }),
+  ]);
+  profMap = new Map((((profsRes as { data: unknown }).data ?? []) as { id: string; username: string; display_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
+  compMap = new Map((((compsRes as { data: unknown }).data ?? []) as { id: string; type: string }[]).map((c) => [c.id, c.type]));
+  const battleTypes = new Map<string, string>();
+  {
+    const bids = top.filter((r) => r.kind === 'battle').map((r) => r.id);
+    if (bids.length > 0) {
+      const { data: bt } = await supabase.from('challenges').select('id,type').in('id', bids);
+      for (const b of ((bt ?? []) as { id: string; type: string }[])) battleTypes.set(b.id, b.type);
+    }
   }
   return top.map((r) => {
     const opp = profMap.get(r.opp) ?? { id: r.opp, username: '?', display_name: null, avatar_url: null };
@@ -173,6 +187,8 @@ export async function getRecentMatches(playerId: string, limit = 5): Promise<Rec
       player_a_id: r.me, player_b_id: r.opp,
       score_a: r.scoreMine, score_b: r.scoreTheirs, status: 'CONFIRMED',
       kind: r.kind, battle_id: r.kind === 'battle' ? r.id : undefined,
+      compType: r.kind === 'match' ? (compMap.get(r.competition_id as string) ?? null) : null,
+      battleType: r.kind === 'battle' ? (battleTypes.get(r.id) ?? null) : null,
       opponent: opp, mine: r.scoreMine, theirs: r.scoreTheirs,
       result: (r.scoreMine > r.scoreTheirs ? 'W' : r.scoreMine < r.scoreTheirs ? 'L' : 'D') as 'W' | 'D' | 'L',
     };

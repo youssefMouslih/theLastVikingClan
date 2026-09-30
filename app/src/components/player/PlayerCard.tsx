@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
 import StatusBadge from '../ui/StatusBadge';
-import { useLocale } from '../../i18n/LocaleContext';
+import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
 import { getHonours, getRecentMatches, type CareerStats } from '../../services/statisticsService';
@@ -201,27 +201,29 @@ export default function PlayerCard({
           {recent.length === 0 ? (
             <p className="text-sm opacity-60">{t('player.noMatches')}</p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
-              {recent.map((m) => (
-                <li key={m.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
-                  m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
-                }`}>
-                  <Link to={`/players/${m.opponent.id}`} className="flex min-w-0 flex-1 items-center gap-2">
-                    <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-8 w-8 text-xs" />
-                    <span className="truncate font-semibold underline-offset-2 hover:underline">{m.opponent.display_name ?? m.opponent.username}</span>
+            <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
+              {recent.map((m) => {
+                const label = m.kind === 'match'
+                  ? (m.compType ? statusLabel(t, m.compType) : '')
+                  : (m.battleType ? t(`battle.t${m.battleType}` as 'battle.tHEAD').split('—')[0].trim() : '');
+                const to = m.kind === 'match' ? `/matches/${m.id}` : '/battles';
+                const color = m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300';
+                return (
+                  <Link
+                    key={m.id}
+                    to={to}
+                    className={`flex w-[84px] shrink-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center ${
+                      m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
+                    }`}
+                  >
+                    <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-11 w-11 text-sm" />
+                    <span className="w-full truncate text-[10px] opacity-80">{m.opponent.display_name ?? m.opponent.username}</span>
+                    <span className={`font-mono text-sm font-bold ${color}`}>{m.mine}–{m.theirs}</span>
+                    <span className="text-[10px] leading-tight opacity-60">{label}</span>
                   </Link>
-                  {m.kind === 'match' ? (
-                    <Link to={`/matches/${m.id}`} className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
-                      {m.mine}–{m.theirs}
-                    </Link>
-                  ) : (
-                    <Link to="/battles" className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
-                      {m.mine}–{m.theirs}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
