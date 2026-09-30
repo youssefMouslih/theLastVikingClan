@@ -128,6 +128,14 @@ export async function submitResult(
   }
   if (match.status === 'CONFIRMED') throw new Error('Players cannot modify confirmed results (Rule 8).');
   if (!evidence) throw new Error('Screenshot evidence is required — no photo, no result.');
+  // Replace previous evidence so resubmits don't orphan files.
+  try {
+    const { data: old } = await supabase.from('match_evidence').select('id,file_path').eq('match_id', match.id);
+    for (const r of ((old ?? []) as { id: string; file_path: string }[])) {
+      await supabase.storage.from('match-evidence').remove([r.file_path]);
+    }
+    if (old?.length) await supabase.from('match_evidence').delete().eq('match_id', match.id);
+  } catch { /* keep going; round purge cleans leftovers */ }
   await uploadMatchEvidence(evidence, match.competition_id, match.id, userId);
   const { error } = await supabase
     .from('matches')

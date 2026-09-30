@@ -33,6 +33,7 @@ import {
   type CompetitionEdit,
 } from '../services/competitionService';
 import { generateKnockoutFixtures, generateLeagueFixtures, listCompetitionMatches, markOverdue } from '../services/matchService';
+import { purgeCompletedEvidence } from '../services/storageService';
 import { getStandings } from '../services/standingsService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -300,13 +301,37 @@ export default function CompetitionDetailPage() {
                 {comp.type === 'LEAGUE' ? t('detail.generateLeague') : t('detail.generateCup')}
               </button>
               <button disabled={busy} onClick={() => run(() => markOverdue(comp.id).then((n) => setMsg(t('detail.overdueMarked', { n }))), '')} className="btn-ghost h-10 px-3 text-xs">{t('detail.checkDeadlines')}</button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    const n = await purgeCompletedEvidence(comp.id);
+                    setMsg(t('detail.purged', { n }));
+                  }, '')
+                }
+                className="btn-ghost h-10 px-3 text-xs"
+              >
+                {t('detail.freeStorage')}
+              </button>
               <button disabled={busy} onClick={() => run(async () => { const c = await regenerateJoinCode(comp.id); setMsg(t('detail.newCode', { code: c })); }, '')} className="btn-ghost h-10 px-3 text-xs">{t('detail.regenCode')}</button>
               <button disabled={busy} onClick={() => run(() => setJoinEnabled(comp.id, !comp.join_enabled), t('detail.joinToggled'))} className="btn-ghost h-10 px-3 text-xs">{comp.join_enabled ? t('detail.disableJoin') : t('detail.enableJoin')}</button>
               <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'REGISTRATION_CLOSED'), t('detail.regClosed'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.closeReg')}</button>
               {(comp.status === 'REGISTRATION_CLOSED' || comp.status === 'DRAFT') && (
                 <button disabled={busy} onClick={() => run(() => reopenRegistration(comp).then((note) => setMsg(note)), '')} className="btn-ghost h-10 px-3 text-xs">{t('detail.reopenReg')}</button>
               )}
-              <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'FINISHED'), t('detail.finished'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.finish')}</button>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  run(async () => {
+                    await setCompetitionStatus(comp.id, 'FINISHED');
+                    const n = await purgeCompletedEvidence(comp.id).catch(() => 0);
+                    setMsg(`${t('detail.finished')} ${t('detail.purged', { n })}`);
+                  }, '')
+                }
+                className="btn-ghost h-10 px-3 text-xs"
+              >
+                {t('detail.finish')}
+              </button>
               <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'ARCHIVED'), t('detail.archived'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.archive')}</button>
               {hasStarted ? (
                 !pendingDelete && (

@@ -223,7 +223,39 @@ export default function MatchPage() {
         </section>
       )}
 
-      {isAdmin && (
+      {isAdmin && (m.status === 'RESULT_SUBMITTED' || m.status === 'DISPUTED') ? (
+        <section className="card mt-3 border-brand-500/40" aria-label={t('match.reviewTitle')}>
+          <h2 className="card-title">{t('match.reviewTitle')}</h2>
+          <p className="font-display mt-1 text-center text-3xl">{m.score_a ?? '–'}–{m.score_b ?? '–'}</p>
+          <p className="text-center text-xs opacity-70">
+            {names[m.player_a_id] ?? ''} vs {names[m.player_b_id] ?? ''}
+            {m.submitted_by ? ` • ${t('match.submittedBy', { name: names[m.submitted_by] ?? m.submitted_by.slice(0, 8), date: m.submitted_at ? fmtDate(m.submitted_at) : '—' })}` : ''}
+          </p>
+          {(evidenceQuery.data ?? []).length > 0 && (
+            <div className="mt-2 flex flex-col gap-2">
+              {evidenceQuery.data!.map((e) => (
+                e.url ? (
+                  <img key={e.id} src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+                ) : (
+                  <p key={e.id} className="text-sm opacity-60">{t('match.noAccess')}</p>
+                )
+              ))}
+            </div>
+          )}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <input type="number" min={0} placeholder={t('match.scoreA')} aria-label={t('match.scoreA')} value={scoreA} onChange={(e) => setScoreA(e.target.value)} className="input text-center" />
+            <input type="number" min={0} placeholder={t('match.scoreB')} aria-label={t('match.scoreB')} value={scoreB} onChange={(e) => setScoreB(e.target.value)} className="input text-center" />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2 text-sm">
+            {m.score_a != null && (
+              <button disabled={busy} onClick={() => run(() => adminSetResult(m.id, m.score_a!, m.score_b!, me!.id, m.competition_id, m.player_a_id, m.player_b_id), t('match.resultSet'))} className="btn-primary h-10 flex-1 px-3 text-xs">{t('match.confirmSubmitted')}</button>
+            )}
+            <button disabled={busy || scoreA === '' || scoreB === ''} onClick={() => run(() => adminSetResult(m.id, Number(scoreA), Number(scoreB), me!.id, m.competition_id, m.player_a_id, m.player_b_id), t('match.resultSet'))} className="btn-ghost h-10 px-3 text-xs">{t('match.setResult')}</button>
+            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_a_id, m.player_b_id, me!.id), t('match.forfeitMsgA'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitA')}</button>
+            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_b_id, m.player_a_id, me!.id), t('match.forfeitB'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitB')}</button>
+          </div>
+        </section>
+      ) : isAdmin && (
         <section className="card mt-3">
           <h2 className="card-title">{t('match.adminResolve')}</h2>
           <div className="mt-2 grid grid-cols-2 gap-2">

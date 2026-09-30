@@ -140,6 +140,11 @@ export async function submitBattleResult(ch: ChallengeRow, userId: string, score
   if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) throw new Error('Scores must be whole numbers >= 0.');
   if (ch.status !== 'ACCEPTED') throw new Error('Challenge is not active.');
   if (!evidence) throw new Error('Screenshot evidence is required — no photo, no result.');
+  if (ch.evidence_path) {
+    try {
+      await supabase.storage.from('match-evidence').remove([ch.evidence_path]);
+    } catch { /* keep going */ }
+  }
   const path = await uploadBattleEvidence(evidence, ch.id, userId);
   const { error } = await supabase
     .from('challenges')

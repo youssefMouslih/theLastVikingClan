@@ -99,4 +99,47 @@ export async function getBannerUrl(filePath: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, client: supabase };
+// Delete a single stored file (best-effort: missing bucket/policy never throws).
+export async function deleteStoredFile(bucket: 'avatars' | 'match-evidence' | 'clan-assets', path: string): Promise<void> {
+  try {
+    await supabase.storage.from(bucket).remove([path]);
+  } catch (e) {
+    console.warn('storage delete skipped:', e instanceof Error ? e.message : e);
+  }
+}
+
+// Free storage: delete evidence of rounds where EVERY match is final
+// (CONFIRMED/FORFEIT/CANCELLED). History (scores) stays in the database.
+export async function purgeCompletedEvidence(competitionId: string): Promise<number> {
+  const { data: matches, error } = await supabase
+    .from('matches')
+    .select('id,round_id,status')
+    .eq('competition_id', competitionId);
+  if (error) throw new Error(error.message);
+  const FINAL = ['CONFIRMED', 'FORFEIT', 'CANCELLED'];
+  const byRound = new Map<string, { total: number; open: number; ids: string[] }>();
+  for (const m of ((matches ?? []) as { id: string; round_id: string | null; status: string }[])) {
+    const key = m.round_id ?? `solo:${m.id}`;
+    let g = byRound.get(key);
+    if (!g) {
+      g = { total: 0, open: 0, ids: [] };
+      byRound.set(key, g);
+    }
+    g.total++;
+    g.ids.push(m.id);
+    if (!FINAL.includes(m.status)) g.open++;
+  }
+  const purgeIds = [...byRound.values()].filter((g) => g.open === 0).flatMap((g) => g.ids);
+  if (purgeIds.length === 0) return 0;
+  const { data: rows } = await supabase.from('match_evidence').select('id,file_path').in('match_id', purgeIds);
+  const list = (rows ?? []) as { id: string; file_path: string }[];
+  for (const r of list) {
+    await deleteStoredFile('match-evidence', r.file_path);
+  }
+  if (list.length > 0) {
+    await supabase.from('match_evidence').delete().in('id', list.map((r) => r.id));
+  }
+  return list.length;
+}
+
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, deleteStoredFile, purgeCompletedEvidence, client: supabase };

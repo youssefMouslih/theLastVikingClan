@@ -7,7 +7,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { updateOwnProfile } from '../services/playerService';
 import { getPlayerCareer } from '../services/statisticsService';
-import { uploadAvatar, uploadBanner } from '../services/storageService';
+import { deleteStoredFile, uploadAvatar, uploadBanner } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
 
 // Pro player card (eFootball style): view by default, Edit reveals the form.
@@ -42,8 +42,10 @@ export default function ProfilePage() {
   async function changePhoto(file: File) {
     setBusy(true); setMsg(null);
     try {
+      const old = me!.avatar_url;
       const path = await uploadAvatar(file, me!.id);
       await updateOwnProfile(me!.id, { avatar_url: path });
+      if (old && old !== path) await deleteStoredFile('avatars', old);
       await init();
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Upload failed.');
@@ -77,8 +79,10 @@ export default function ProfilePage() {
     setBusy(true); setMsg(null);
     try {
       let avatar_url = me!.avatar_url;
+      const oldAvatar = me!.avatar_url;
       if (avatarFile) avatar_url = await uploadAvatar(avatarFile, me!.id);
       let banner_image = me!.banner_image;
+      const oldBanner = me!.banner_image;
       if (bannerFile) {
         banner_image = await uploadBanner(bannerFile, me!.id);
       } else if (form.banner_color) {
@@ -103,6 +107,9 @@ export default function ProfilePage() {
         whatsapp: form.whatsapp.replace(/[^\d+]/g, '') || null,
         avatar_url,
       });
+      // Delete replaced files so the server doesn't fill with orphans.
+      if (oldAvatar && oldAvatar !== avatar_url) await deleteStoredFile('avatars', oldAvatar);
+      if (oldBanner && oldBanner !== banner_image) await deleteStoredFile('avatars', oldBanner);
       await init();
       setEditing(false);
     } catch (err) {
