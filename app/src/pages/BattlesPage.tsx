@@ -59,7 +59,8 @@ export default function BattlesPage() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<'issue' | 'incoming' | 'open' | 'squads' | 'history' | 'commands'>('issue');
+  const initialTab = (['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const).find((tb) => tb === params.get('tab')) ?? 'issue';
+  const [tab, setTab] = useState<'issue' | 'incoming' | 'open' | 'squads' | 'history' | 'commands'>(initialTab);
   const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
   const [rivalName, setRivalName] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});
@@ -182,7 +183,11 @@ export default function BattlesPage() {
                 <input type="number" min={0} placeholder={chalName} aria-label={chalName} value={s.a} onChange={(e) => set({ a: e.target.value })} className="input h-10 text-center" />
                 <input type="number" min={0} placeholder={oppName} aria-label={oppName} value={s.b} onChange={(e) => set({ b: e.target.value })} className="input h-10 text-center" />
               </div>
-              <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={t('match.evidence')} onChange={(e) => setShots({ ...shots, [ch.id]: e.target.files?.[0] ?? null })} className="w-full text-xs" />
+              <label className="file-upload text-xs">
+                <span>{t('match.uploadCta')}</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={t('match.evidence')} onChange={(e) => setShots({ ...shots, [ch.id]: e.target.files?.[0] ?? null })} />
+                {shots[ch.id] && <span className="file-name">{shots[ch.id]!.name}</span>}
+              </label>
               <button disabled={busy || !shots[ch.id]} onClick={() => run(() => submitBattleResult(ch, me!.id, Number(s.a), Number(s.b), shots[ch.id]), t('battle.submitted'))} className="btn-primary h-10 flex-1 text-xs">{t('battle.submitScore')}</button>
             </div>
           )}
@@ -252,12 +257,18 @@ export default function BattlesPage() {
       </nav>
       {tab === 'issue' && (
         <form onSubmit={issue} className="card mt-3 flex flex-col gap-2">
-          {form.type === 'FRIENDLY' && (
-            <label className="flex items-start gap-2 rounded-xl bg-white/5 p-2 text-sm">
-              <input type="checkbox" checked={form.openCall} onChange={(e) => setForm({ ...form, openCall: e.target.checked, opponent_id: '', opponent_label: '' })} className="mt-1 h-5 w-5 accent-[#eab308]" />
-              <span>{t('battle.openCall')} <span className="opacity-70">({t('battle.openCallDesc')})</span></span>
-            </label>
-          )}
+          <label className="flex items-start gap-2 rounded-xl bg-white/5 p-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.openCall}
+              onChange={(e) => {
+                if (e.target.checked) setForm({ ...form, openCall: true, type: 'FRIENDLY', opponent_id: '', opponent_label: '' });
+                else setForm({ ...form, openCall: false });
+              }}
+              className="mt-1 h-5 w-5 accent-[#eab308]"
+            />
+            <span>{t('battle.openCall')} <span className="opacity-70">({t('battle.openCallDesc')})</span></span>
+          </label>
           {!form.openCall && (
           <label className="label">{t('battle.opponent')}
             <select value={form.opponent_id} onChange={(e) => setForm({ ...form, opponent_id: e.target.value, opponent_label: '' })} className="input text-sm">
@@ -272,7 +283,7 @@ export default function BattlesPage() {
             </label>
           )}
           <label className="label">{t('battle.type')}
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as ChallengeType })} className="input text-sm">
+            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as ChallengeType, openCall: e.target.value === 'FRIENDLY' ? form.openCall : false })} className="input text-sm">
               {TYPES.map((ty) => <option key={ty} value={ty}>{t(`battle.t${ty}` as 'battle.tHEAD')}</option>)}
             </select>
           </label>
@@ -330,7 +341,30 @@ export default function BattlesPage() {
 
       {tab === 'incoming' && (
         <div className="mt-3 flex flex-col gap-2">
-          {incoming.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('battle.incoming')} hint={t('battle.emptyIn')} />}
+          {openBattles.length > 0 && (
+            <>
+              <h2 className="card-title">{t('battle.openMat')}</h2>
+              {openBattles.map((ch) => (
+                <article key={ch.id} className="card border-accent-500/40 p-3 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Avatar path={ch.challenger?.avatar_url} name={nameOf(ch.challenger, '?')} className="h-9 w-9 text-sm" />
+                    <div className="flex-1">
+                      <p className="font-bold">{nameOf(ch.challenger, '?')}</p>
+                      <p className="text-xs opacity-70">{t('battle.tFRIENDLY')} • {ch.stakes}</p>
+                    </div>
+                    <button
+                      disabled={busy}
+                      onClick={() => run(() => acceptOpenBattle(ch, me!.id), t('battle.taken'))}
+                      className="btn-cta h-10 px-4 text-xs"
+                    >
+                      {t('battle.takeFight')}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </>
+          )}
+          {incoming.length === 0 && openBattles.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('battle.incoming')} hint={t('battle.emptyIn')} />}
           {incoming.map((ch, i) => <FadeIn key={ch.id} delay={Math.min(i * 60, 360)}><BattleCard ch={ch} incoming /></FadeIn>)}
         </div>
       )}

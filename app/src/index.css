@@ -50,6 +50,23 @@ html, body, #root {
   min-height: 100svh;
 }
 
+html, body {
+  overflow-x: clip;
+  overscroll-behavior-y: auto;
+}
+
+/* Sticky action bar: key buttons stay reachable above the bottom nav */
+.sticky-actions {
+  position: sticky;
+  bottom: 4.5rem;
+  z-index: 5;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+}
+
 body {
   margin: 0;
   background:
@@ -188,6 +205,28 @@ button, a, [role="button"] {
   }
   .label {
     @apply flex flex-col gap-1 text-sm font-semibold;
+  }
+  /* Styled file picker: visible upload button instead of bare input */
+  .file-upload {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px dashed var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .file-upload input {
+    display: none;
+  }
+  .file-upload .file-name {
+    font-weight: 400;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   /* Immersive hero: forged steel + Valhalla Gold glow */
   .hero {

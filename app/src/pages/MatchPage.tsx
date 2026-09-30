@@ -42,6 +42,7 @@ export default function MatchPage() {
   const [busy, setBusy] = useState(false);
   const [disputeReason, setDisputeReason] = useState<string>(REASON_KEYS[0]);
   const [disputeText, setDisputeText] = useState('');
+  const [disputing, setDisputing] = useState(false);
 
   const matchQuery = useQuery({ queryKey: ['match', id], queryFn: () => getMatch(id ?? ''), enabled: !!id });
   const m = matchQuery.data;
@@ -136,7 +137,12 @@ export default function MatchPage() {
             <label className="label">{t('match.oppScore', { name: names[m.player_b_id] ?? '' })}<input required type="number" min={0} max={30} inputMode="numeric" className="input h-14 text-center text-2xl font-bold" value={scoreB} onChange={(e) => setScoreB(e.target.value)} /></label>
           </div>
           <label className="label">{t('match.evidence')}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="h-11 w-full text-sm" />
+            <span className="file-upload">
+              <Icon name="camera" className="h-5 w-5 shrink-0 text-brand-400" />
+              <span>{t('match.uploadCta')}</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              {file && <span className="file-name">{file.name}</span>}
+            </span>
           </label>
           <div className="rounded-xl bg-white/5 p-2 text-sm">
             <label className="flex items-start gap-2 py-1">
@@ -176,7 +182,7 @@ export default function MatchPage() {
                 }
               }, reports.length > 0 ? t('match.reportFiled') : t('match.submitted'));
             }}
-            className="btn-cta h-12"
+            className="btn-cta sticky-actions h-12 w-full"
           >
             {busy ? t('match.submitting') : t('match.submit')}
           </button>
@@ -188,17 +194,17 @@ export default function MatchPage() {
           <h2 className="font-bold">{t('match.oppSubmitted', { a: m.score_a ?? 0, b: m.score_b ?? 0 })}</h2>
           <div className="mt-2 flex gap-2">
             <button disabled={busy} onClick={() => run(() => confirmResult(m, me!.id), t('match.confirmed'))} className="btn-primary h-12 flex-1">{t('match.confirm')}</button>
+            <button disabled={busy} onClick={() => setDisputing((d) => !d)} className="btn-danger h-12 flex-1">{t('match.wrongBtn')}</button>
           </div>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-sm underline">{t('match.disputeInstead')}</summary>
-            <div className="mt-2 flex flex-col gap-2">
+          {disputing && (
+            <div className="mt-2 flex flex-col gap-2 rounded-xl bg-white/5 p-2">
               <select aria-label={t('match.disputeReason')} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} className="input">
                 {REASON_KEYS.map((r) => <option key={r} value={r}>{t(r)}</option>)}
               </select>
               <textarea value={disputeText} onChange={(e) => setDisputeText(e.target.value)} rows={3} placeholder={t('match.disputePlaceholder')} className="input h-auto py-2" />
               <button disabled={busy} onClick={() => run(() => disputeResult(m.id, me!.id, REASON_EN[disputeReason] ?? disputeReason, disputeText), t('match.disputed'))} className="btn-ghost">{t('match.submitDispute')}</button>
             </div>
-          </details>
+          )}
         </div>
       )}
 

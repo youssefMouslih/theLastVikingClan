@@ -184,9 +184,9 @@ export default function PlayerCard({
         {/* Wins / Draws / Losses record bar */}
         <div className="mt-3">
           <div className="flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
-            <div className="bg-green-500 text-zinc-950" style={{ width: `${total ? ((career?.wins ?? 0) / total) * 100 : 0}%` }}>{t('player.wins')}</div>
-            <div className="bg-zinc-500 text-white" style={{ width: `${total ? ((career?.draws ?? 0) / total) * 100 : 0}%` }}>{t('player.draws')}</div>
-            <div className="bg-red-500 text-white" style={{ width: `${total ? ((career?.losses ?? 0) / total) * 100 : 0}%` }}>{t('player.losses')}</div>
+            <div className="min-w-[64px] bg-green-500 text-zinc-950" style={{ width: `${total ? ((career?.wins ?? 0) / total) * 100 : 0}%` }}>{t('player.wins')}</div>
+            <div className="min-w-[64px] bg-zinc-500 text-white" style={{ width: `${total ? ((career?.draws ?? 0) / total) * 100 : 0}%` }}>{t('player.draws')}</div>
+            <div className="min-w-[64px] flex-1 bg-red-500 text-white">{t('player.losses')}</div>
           </div>
           <div className="mt-1 grid grid-cols-3 text-center text-sm">
             <div className="font-display text-lg">{career?.wins ?? '—'}</div>
@@ -203,18 +203,15 @@ export default function PlayerCard({
           ) : (
             <ul className="flex flex-col gap-1.5">
               {recent.map((m) => (
-                <li key={m.id}>
-                  <Link
-                    to={`/matches/${m.id}`}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
-                      m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
-                    }`}
-                  >
+                <li key={m.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                  m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
+                }`}>
+                  <Link to={`/players/${m.opponent.id}`} className="flex min-w-0 flex-1 items-center gap-2">
                     <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-8 w-8 text-xs" />
-                    <span className="flex-1 truncate font-semibold">{m.opponent.display_name ?? m.opponent.username}</span>
-                    <span className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
-                      {m.mine}–{m.theirs}
-                    </span>
+                    <span className="truncate font-semibold underline-offset-2 hover:underline">{m.opponent.display_name ?? m.opponent.username}</span>
+                  </Link>
+                  <Link to={`/matches/${m.id}`} className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
+                    {m.mine}–{m.theirs}
                   </Link>
                 </li>
               ))}

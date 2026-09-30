@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .env
+.vapid-private
 
 # Editor directories and files
 .vscode/*

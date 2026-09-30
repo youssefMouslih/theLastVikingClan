@@ -79,7 +79,11 @@ export default function ProfilePage() {
       let avatar_url = me!.avatar_url;
       if (avatarFile) avatar_url = await uploadAvatar(avatarFile, me!.id);
       let banner_image = me!.banner_image;
-      if (bannerFile) banner_image = await uploadBanner(bannerFile, me!.id);
+      if (bannerFile) {
+        banner_image = await uploadBanner(bannerFile, me!.id);
+      } else if (form.banner_color) {
+        banner_image = null; // solid color replaces the image
+      }
       await updateOwnProfile(me!.id, {
         display_name: form.display_name || null,
         efootball_name: form.efootball_name || null,
@@ -145,7 +149,11 @@ export default function ProfilePage() {
       {editing && (
         <form onSubmit={save} className="card mt-3 flex flex-col gap-2">
           <label className="label">{t('profile.avatar')}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} className="h-11 w-full text-sm" />
+            <span className="file-upload text-xs">
+              <span>{t('match.uploadCta')}</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
+              {avatarFile && <span className="file-name">{avatarFile.name}</span>}
+            </span>
           </label>
           <label className="label">{t('profile.displayName')}<input className="input" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></label>
           <label className="label">{t('profile.efootballName')}<input className="input" value={form.efootball_name} onChange={(e) => setForm({ ...form, efootball_name: e.target.value })} /></label>
@@ -179,11 +187,15 @@ export default function ProfilePage() {
               </div>
             </div>
             <label className="label">{t('profile.bannerImage')}
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} className="h-11 w-full text-xs" />
+              <span className="file-upload text-xs">
+                <span>{t('match.uploadCta')}</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} />
+                {bannerFile && <span className="file-name">{bannerFile.name}</span>}
+              </span>
             </label>
           </div>
           {msg && <p className="text-sm opacity-80">{msg}</p>}
-          <div className="flex gap-2">
+          <div className="sticky-actions flex gap-2">
             <button type="submit" disabled={busy} className="btn-primary h-12 flex-1">
               {busy ? t('profile.saving') : t('profile.save')}
             </button>
