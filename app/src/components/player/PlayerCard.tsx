@@ -67,7 +67,7 @@ export default function PlayerCard({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#12121f] shadow-xl">
+    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#12121f] text-[#e2e8f0] shadow-xl">
       {/* Custom banner: uploaded image, chosen color, or Konami stripes */}
       <div
         className={`relative h-24 ${!bannerImg && !member.banner_color ? 'efoot-banner' : ''}`}
