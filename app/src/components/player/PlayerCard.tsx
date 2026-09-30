@@ -53,6 +53,9 @@ export default function PlayerCard({
   const recent = recentQuery.data ?? [];
   const honours = honoursQuery.data ?? [];
   const total = (career?.wins ?? 0) + (career?.draws ?? 0) + (career?.losses ?? 0);
+  const ig = socialLink('instagram', member.instagram);
+  const tk = socialLink('tiktok', member.tiktok);
+  const kk = socialLink('kick', member.kick);
 
   async function share() {
     const url = `${window.location.origin}/players/${member.id}`;
@@ -116,20 +119,20 @@ export default function PlayerCard({
           {member.country && <span>• {member.country}</span>}
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
-        {(member.instagram || member.tiktok || member.kick) && (
+        {(ig || tk || kk) && (
           <div className="mt-2 flex gap-2">
-            {socialLink('instagram', member.instagram) && (
-              <a href={socialLink('instagram', member.instagram)} target="_blank" rel="noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+            {ig && (
+              <a href={ig} target="_blank" rel="noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
                 <Icon name="instagram" className="h-5 w-5" />
               </a>
             )}
-            {socialLink('tiktok', member.tiktok) && (
-              <a href={socialLink('tiktok', member.tiktok)} target="_blank" rel="noreferrer" aria-label="TikTok" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+            {tk && (
+              <a href={tk} target="_blank" rel="noreferrer" aria-label="TikTok" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
                 <Icon name="tiktok" className="h-5 w-5" />
               </a>
             )}
-            {socialLink('kick', member.kick) && (
-              <a href={socialLink('kick', member.kick)} target="_blank" rel="noreferrer" aria-label="Kick" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+            {kk && (
+              <a href={kk} target="_blank" rel="noreferrer" aria-label="Kick" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
                 <Icon name="kick" className="h-5 w-5" />
               </a>
             )}
