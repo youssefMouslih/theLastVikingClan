@@ -188,10 +188,11 @@ export default function BattlesPage() {
                 <input type="number" min={0} placeholder={oppName} aria-label={oppName} value={s.b} onChange={(e) => set({ b: e.target.value })} className="input h-10 text-center" />
               </div>
               <label className="file-upload text-xs">
-                <span>{t('match.uploadCta')}</span>
+                <span>{t('match.uploadCta')} *</span>
                 <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={t('match.evidence')} onChange={(e) => setShots({ ...shots, [ch.id]: e.target.files?.[0] ?? null })} />
                 {shots[ch.id] && <span className="file-name">{shots[ch.id]!.name}</span>}
               </label>
+              {!shots[ch.id] && <p className="text-xs font-medium text-amber-500">{t('battle.needShot')}</p>}
               <button disabled={busy || !shots[ch.id]} onClick={() => run(() => submitBattleResult(ch, me!.id, Number(s.a), Number(s.b), shots[ch.id]), t('battle.submitted'))} className="btn-primary h-10 flex-1 text-xs">{t('battle.submitScore')}</button>
             </div>
           )}

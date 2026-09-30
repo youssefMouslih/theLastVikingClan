@@ -149,11 +149,12 @@ export default function MatchPage() {
           <label className="label">{t('match.evidence')}
             <span className="file-upload">
               <Icon name="camera" className="h-5 w-5 shrink-0 text-brand-400" />
-              <span>{t('match.uploadCta')}</span>
+              <span>{t('match.uploadCta')} *</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               {file && <span className="file-name">{file.name}</span>}
             </span>
           </label>
+          {!file && <p className="text-xs font-medium text-amber-500">{t('battle.needShot')}</p>}
           <label className="label">{t('match.addComment')}
             <input value={comment} onChange={(e) => setComment(e.target.value)} maxLength={200} placeholder={t('match.addCommentPh')} className="input text-sm" />
           </label>
