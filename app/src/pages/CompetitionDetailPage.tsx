@@ -379,14 +379,14 @@ export default function CompetitionDetailPage() {
           <div className="flex flex-col gap-2">
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('detail.tabMatches')} hint={t('detail.noFixtures')} />}
-            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} /></FadeIn>)}
+            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}
           </div>
         )}
         {tab === 'Bracket' && (
           <div className="flex flex-col gap-2">
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="trophy" className="h-8 w-8" />} title={t('detail.tabBracket')} hint={t('detail.noBracket')} />}
-            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} /></FadeIn>)}
+            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}
           </div>
         )}
         {tab === 'Players' && (

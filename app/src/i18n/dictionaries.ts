@@ -182,6 +182,8 @@ const en = {
   'join.waitlist': 'Join waitlist',
 
   'match.back': '← Competition',
+  'match.dmChat': 'Message opponent',
+  'match.dmText': 'Hey {name}, we have a match of {comp} to play, deadline {date}.',
   'match.loading': 'Loading match…',
   'match.notFound': 'Match not found.',
   'match.deadline': 'Deadline: {date}',
@@ -849,6 +851,8 @@ const fr: Dict = {
   'join.waitlist': 'Liste d’attente',
 
   'match.back': '← Compétition',
+  'match.dmChat': 'Message à l’adversaire',
+  'match.dmText': 'Salut {name}, on a un match de {comp} à jouer, échéance le {date}.',
   'match.loading': 'Chargement du match…',
   'match.notFound': 'Match introuvable.',
   'match.deadline': 'Échéance : {date}',
@@ -1514,6 +1518,8 @@ const ar: Dict = {
   'join.waitlist': 'قائمة الانتظار',
 
   'match.back': '← البطولة',
+  'match.dmChat': 'راسل الخصم',
+  'match.dmText': 'مرحباً {name}، عندنا مباراة في {comp}، والموعد {date}.',
   'match.loading': 'جارٍ تحميل المباراة…',
   'match.notFound': 'المباراة غير موجودة.',
   'match.deadline': 'الموعد: {date}',

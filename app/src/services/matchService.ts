@@ -7,14 +7,19 @@ import { awardXP } from './sagaService';
 import { checkStreakBadges, getPlayerCareer } from './statisticsService';
 import { uploadMatchEvidence } from './storageService';
 
-export async function listCompetitionMatches(competitionId: string): Promise<Match[]> {
+export async function listCompetitionMatches(competitionId: string): Promise<MatchWithPhones[]> {
   const { data, error } = await supabase
     .from('matches')
-    .select('*')
+    .select('*,pa:profiles!matches_player_a_id_fkey(username,display_name,whatsapp),pb:profiles!matches_player_b_id_fkey(username,display_name,whatsapp)')
     .eq('competition_id', competitionId)
     .order('deadline', { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
-  return (data ?? []) as Match[];
+  return (data ?? []) as unknown as MatchWithPhones[];
+}
+
+export interface MatchWithPhones extends Match {
+  pa?: { username: string; display_name: string | null; whatsapp: string | null } | null;
+  pb?: { username: string; display_name: string | null; whatsapp: string | null } | null;
 }
 
 export async function getMatch(id: string): Promise<Match | null> {
