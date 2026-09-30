@@ -204,7 +204,7 @@ export default function CompetitionDetailPage() {
                 {t('detail.joinWaitlist', { count: parts.length, max: comp.max_players })}
               </button>
             ) : (
-              <button disabled={busy || state !== 'OPEN'} onClick={() => run(() => joinCompetition(comp, me!.id), t('detail.registered'))} className="btn-primary flex-1">
+              <button disabled={busy || state !== 'OPEN'} onClick={() => run(() => joinCompetition(comp, me!.id), t('detail.registered')).then(() => setTab('Players'))} className="btn-primary flex-1">
                 {t('detail.join')}
               </button>
             )
@@ -288,9 +288,13 @@ export default function CompetitionDetailPage() {
       )}
 
       <nav aria-label="Competition tabs" className="mt-3 flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/10">
-        {TABS.map((label, i) => (
-          <button key={TAB_KEYS[i]} onClick={() => setTab(TAB_KEYS[i])} className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === TAB_KEYS[i] ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}>{label}</button>
-        ))}
+        {TABS.map((label, i) => {
+          const key = TAB_KEYS[i];
+          const count = key === 'Players' ? ` (${parts.length})` : key === 'Matches' || key === 'Bracket' ? ` (${matches.length})` : '';
+          return (
+            <button key={key} onClick={() => setTab(key)} className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === key ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}>{label}{count}</button>
+          );
+        })}
       </nav>
 
       <section className="mt-3">
@@ -326,7 +330,8 @@ export default function CompetitionDetailPage() {
         )}
         {tab === 'Players' && (
           <div className="flex flex-col gap-2">
-            {parts.length === 0 && <p className="text-sm opacity-70">{t('detail.noPlayers')}</p>}
+            {partsQuery.isError && <p className="text-sm text-red-500">{t('clan.membersError')}</p>}
+            {parts.length === 0 && !partsQuery.isError && <p className="text-sm opacity-70">{t('detail.noPlayers')}</p>}
             {parts.map((p) => (
               <div key={p.id} className="card p-3 text-sm">
                 <div className="flex items-center gap-2">
