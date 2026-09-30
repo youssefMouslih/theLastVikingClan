@@ -16,10 +16,12 @@ export default function PlayerCard({
   member,
   career,
   action,
+  onAvatarClick,
 }: {
   member: Profile;
   career?: CareerStats | null;
   action?: React.ReactNode;
+  onAvatarClick?: () => void;
 }) {
   const { t } = useLocale();
   const [shared, setShared] = useState(false);
@@ -75,7 +77,20 @@ export default function PlayerCard({
       >
         <img src={clanQuery.data?.logo_url ?? '/logo.png'} alt="" aria-hidden className="absolute end-3 top-3 h-9 w-9 rounded-lg object-cover shadow" />
         <div className="absolute -bottom-7 start-4">
-          {avatar ? (
+          {onAvatarClick ? (
+            <button type="button" onClick={onAvatarClick} aria-label={t('profile.avatar')} className="group relative block rounded-full">
+              {avatar ? (
+                <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
+              ) : (
+                <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
+                  {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition group-hover:opacity-100">
+                <Icon name="camera" className="h-6 w-6 text-white" />
+              </span>
+            </button>
+          ) : avatar ? (
             <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
           ) : (
             <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
@@ -101,6 +116,25 @@ export default function PlayerCard({
           {member.country && <span>• {member.country}</span>}
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
+        {(member.instagram || member.tiktok || member.kick) && (
+          <div className="mt-2 flex gap-2">
+            {socialLink('instagram', member.instagram) && (
+              <a href={socialLink('instagram', member.instagram)} target="_blank" rel="noreferrer" aria-label="Instagram" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                <Icon name="instagram" className="h-5 w-5" />
+              </a>
+            )}
+            {socialLink('tiktok', member.tiktok) && (
+              <a href={socialLink('tiktok', member.tiktok)} target="_blank" rel="noreferrer" aria-label="TikTok" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                <Icon name="tiktok" className="h-5 w-5" />
+              </a>
+            )}
+            {socialLink('kick', member.kick) && (
+              <a href={socialLink('kick', member.kick)} target="_blank" rel="noreferrer" aria-label="Kick" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                <Icon name="kick" className="h-5 w-5" />
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Honors */}
         {honours.length > 0 && (
@@ -169,4 +203,13 @@ export default function PlayerCard({
       </div>
     </section>
   );
+}
+
+function socialLink(kind: 'instagram' | 'tiktok' | 'kick', value: string | null): string | null {
+  if (!value?.trim()) return null;
+  const v = value.trim().replace(/^@/, '');
+  if (/^https?:\/\//i.test(v)) return v;
+  if (kind === 'instagram') return `https://instagram.com/${v}`;
+  if (kind === 'tiktok') return `https://tiktok.com/@${v}`;
+  return `https://kick.com/${v}`;
 }

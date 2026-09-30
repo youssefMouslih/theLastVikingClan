@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
@@ -25,14 +25,31 @@ export default function ProfilePage() {
     bio: me?.bio ?? '',
     division_pvp: me?.division_pvp ?? '',
     banner_color: me?.banner_color ?? '',
+    instagram: me?.instagram ?? '',
+    tiktok: me?.tiktok ?? '',
+    kick: me?.kick ?? '',
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const avatarInput = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const careerQuery = useQuery({ queryKey: ['career', me?.id], queryFn: () => getPlayerCareer(me!.id), enabled: !!me });
 
   if (!me) return <main className="page text-sm">{t('profile.notLogged')}</main>;
+
+  async function changePhoto(file: File) {
+    setBusy(true); setMsg(null);
+    try {
+      const path = await uploadAvatar(file, me!.id);
+      await updateOwnProfile(me!.id, { avatar_url: path });
+      await init();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function startEdit() {
     setForm({
@@ -43,6 +60,9 @@ export default function ProfilePage() {
       bio: me?.bio ?? '',
       division_pvp: me?.division_pvp ?? '',
       banner_color: me?.banner_color ?? '',
+      instagram: me?.instagram ?? '',
+      tiktok: me?.tiktok ?? '',
+      kick: me?.kick ?? '',
     });
     setAvatarFile(null);
     setBannerFile(null);
@@ -71,6 +91,9 @@ export default function ProfilePage() {
         fav_player_position: null,
         banner_color: form.banner_color || null,
         banner_image,
+        instagram: form.instagram || null,
+        tiktok: form.tiktok || null,
+        kick: form.kick || null,
         avatar_url,
       });
       await init();
@@ -92,12 +115,29 @@ export default function ProfilePage() {
       <PlayerCard
         member={me}
         career={careerQuery.data ?? null}
+        onAvatarClick={() => avatarInput.current?.click()}
         action={
           <button type="button" onClick={startEdit} aria-label={t('common.edit')} className="btn-ghost h-10 w-10 !px-0 text-white">
             <Icon name="pencil" className="h-5 w-5" />
           </button>
         }
       />
+
+      <input
+        ref={avatarInput}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        aria-hidden
+        tabIndex={-1}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) void changePhoto(f);
+        }}
+      />
+
+      {msg && !editing && <p role="status" className="mt-2 text-sm">{msg}</p>}
 
       {editing && (
         <form onSubmit={save} className="card mt-3 flex flex-col gap-2">
@@ -110,6 +150,14 @@ export default function ProfilePage() {
           <label className="label">{t('profile.country')}<input className="input" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} /></label>
           <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
           <label className="label">{t('profile.divisionPvp')}<input className="input" value={form.division_pvp} onChange={(e) => setForm({ ...form, division_pvp: e.target.value })} placeholder="Division 3" /></label>
+          <div>
+            <p className="text-sm font-semibold">{t('profile.social')}</p>
+            <div className="mt-1 grid grid-cols-1 gap-2">
+              <label className="label">{t('profile.instagram')}<input className="input" value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} placeholder="@handle" dir="ltr" /></label>
+              <label className="label">{t('profile.tiktok')}<input className="input" value={form.tiktok} onChange={(e) => setForm({ ...form, tiktok: e.target.value })} placeholder="@handle" dir="ltr" /></label>
+              <label className="label">{t('profile.kick')}<input className="input" value={form.kick} onChange={(e) => setForm({ ...form, kick: e.target.value })} placeholder="channel" dir="ltr" /></label>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-sm font-semibold">{t('profile.bannerColor')}</p>

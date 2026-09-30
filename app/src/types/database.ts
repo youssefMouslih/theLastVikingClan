@@ -48,6 +48,9 @@ export interface Profile {
   oath_accepted_at: string | null;
   banner_color: string | null;
   banner_image: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  kick: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
