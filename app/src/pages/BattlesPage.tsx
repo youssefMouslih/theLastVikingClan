@@ -211,6 +211,16 @@ export default function BattlesPage() {
               {t('battle.confirmScore')}
             </button>
           )}
+          {ch.status === 'ACCEPTED' && other && (other as { whatsapp?: string | null }).whatsapp && (
+            <a
+              href={`https://wa.me/${((other as { whatsapp?: string | null }).whatsapp ?? '').replace(/[^\d]/g, '')}?text=${encodeURIComponent(t('battle.waFight', { name: nameOf(other, '?') }))}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-10 items-center justify-center gap-1 rounded-xl bg-[#25d366] px-3 text-xs font-bold text-white"
+            >
+              <Icon name="chat" className="h-4 w-4" /> WhatsApp
+            </a>
+          )}
           {ch.status === 'RESULT_SUBMITTED' && iSubmit && (
             <p className="text-xs opacity-70">{t('match.submitted')}</p>
           )}

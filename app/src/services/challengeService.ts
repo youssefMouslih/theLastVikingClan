@@ -17,11 +17,11 @@ export interface IssueChallengeInput {
 }
 
 export interface ChallengeRow extends Challenge {
-  challenger?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
-  opponent?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
+  challenger?: { id: string; username: string; display_name: string | null; avatar_url: string | null; whatsapp: string | null } | null;
+  opponent?: { id: string; username: string; display_name: string | null; avatar_url: string | null; whatsapp: string | null } | null;
 }
 
-const WITH_PROFILES = '*,challenger:profiles!challenges_challenger_id_fkey(id,username,display_name,avatar_url),opponent:profiles!challenges_opponent_id_fkey(id,username,display_name,avatar_url)';
+const WITH_PROFILES = '*,challenger:profiles!challenges_challenger_id_fkey(id,username,display_name,avatar_url,whatsapp),opponent:profiles!challenges_opponent_id_fkey(id,username,display_name,avatar_url,whatsapp)';
 
 export async function issueChallenge(input: IssueChallengeInput, challengerId: string): Promise<Challenge> {
   if (input.openCall) {
