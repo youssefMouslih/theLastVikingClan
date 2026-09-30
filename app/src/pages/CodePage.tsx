@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import AppBar from '../components/ui/AppBar';
 import CopyButton from '../components/ui/CopyButton';
+import { usePersistentTab } from '../hooks/usePersistentTab';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
 import { useOath } from '../hooks/useOath';
@@ -16,7 +17,7 @@ export default function CodePage() {
   const { sworn, swear } = useOath();
   const [params] = useSearchParams();
   const initialTab = params.get('tab') === 'oath' || params.get('tab') === 'legacy' ? params.get('tab') as 'oath' | 'legacy' : 'code';
-  const [tab, setTab] = useState<'code' | 'oath' | 'legacy'>(initialTab);
+  const [tab, setTab] = usePersistentTab('vik-tab-code', initialTab, ['code', 'oath', 'legacy'] as const);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 

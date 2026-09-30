@@ -29,6 +29,10 @@ const en = {
   'common.copied': 'Copied',
   'common.inviteLink': 'Copy invite link',
 
+  'pwa.update': 'New version available',
+  'pwa.refresh': 'Refresh',
+  'pwa.offline': 'You are offline — showing cached data.',
+
   'settings.title': 'Settings',
   'settings.language': 'Language',
   'settings.theme': 'Appearance',
@@ -699,6 +703,10 @@ const fr: Dict = {
   'common.copied': 'Copié',
   'common.inviteLink': 'Copier le lien',
 
+  'pwa.update': 'Nouvelle version disponible',
+  'pwa.refresh': 'Actualiser',
+  'pwa.offline': 'Hors ligne — données en cache affichées.',
+
   'settings.title': 'Réglages',
   'settings.language': 'Langue',
   'settings.theme': 'Apparence',
@@ -1366,6 +1374,10 @@ const ar: Dict = {
   'common.copy': 'نسخ',
   'common.copied': 'تم النسخ',
   'common.inviteLink': 'نسخ رابط الدعوة',
+
+  'pwa.update': 'نسخة جديدة متوفرة',
+  'pwa.refresh': 'تحديث',
+  'pwa.offline': 'أنت دون اتصال — تُعرض بيانات مخزنة.',
 
   'settings.title': 'الإعدادات',
   'settings.language': 'اللغة',

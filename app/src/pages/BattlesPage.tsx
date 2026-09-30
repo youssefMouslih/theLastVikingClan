@@ -5,6 +5,7 @@ import Avatar from '../components/ui/Avatar';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
+import { usePersistentTab } from '../hooks/usePersistentTab';
 import { Lightbox } from '../components/ui/Motion';
 import Icon from '../components/ui/Icon';
 import { EmptyState, FadeIn } from '../components/ui/Motion';
@@ -64,7 +65,7 @@ export default function BattlesPage() {
   const me = useAuthStore((s) => s.profile);
   const [params] = useSearchParams();
   const initialTab = (['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const).find((tb) => tb === params.get('tab')) ?? 'issue';
-  const [tab, setTab] = useState<'issue' | 'incoming' | 'open' | 'squads' | 'history' | 'commands'>(initialTab);
+  const [tab, setTab] = usePersistentTab('vik-tab-battles', initialTab, ['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const);
   const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
   const [rivalName, setRivalName] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});

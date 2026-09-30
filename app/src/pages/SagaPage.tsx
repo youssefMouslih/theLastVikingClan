@@ -3,6 +3,7 @@ import { useState } from 'react';
 import BottomNav from '../components/ui/BottomNav';
 import Avatar from '../components/ui/Avatar';
 import CoinImg from '../components/ui/CoinImg';
+import { usePersistentTab } from '../hooks/usePersistentTab';
 import { CountUp, FadeIn } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import Icon from '../components/ui/Icon';
@@ -14,7 +15,7 @@ import { useAuthStore } from '../stores/authStore';
 export default function SagaPage() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
-  const [tab, setTab] = useState<'quests' | 'ranks' | 'gifts'>('quests');
+  const [tab, setTab] = usePersistentTab('vik-tab-saga', 'quests' as 'quests' | 'ranks' | 'gifts', ['quests', 'ranks', 'gifts'] as const);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [giftBusy, setGiftBusy] = useState<string | null>(null);

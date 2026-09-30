@@ -7,6 +7,7 @@ import HonoursTab from '../components/admin/HonoursTab';
 import MembersTab from '../components/admin/MembersTab';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
+import { usePersistentTab } from '../hooks/usePersistentTab';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
 import { createCompetition, listCompetitions, type CreateCompetitionInput } from '../services/competitionService';
@@ -22,7 +23,7 @@ export default function AdminPage() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const isAdmin = me?.role === 'OWNER' || me?.role === 'ADMIN';
-  const [tab, setTab] = useState<Tab>('competitions');
+  const [tab, setTab] = usePersistentTab('vik-tab-admin', 'competitions' as Tab, ['competitions', 'members', 'disputes', 'announcements', 'honours'] as const);
   const [form, setForm] = useState({
     name: '', type: 'LEAGUE' as CompetitionType, min_players: 4, max_players: 8,
     registration_deadline: '', match_deadline_hours: 48, description: '',

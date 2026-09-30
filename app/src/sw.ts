@@ -1,11 +1,16 @@
 /// <reference lib="webworker" />
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: unknown };
 
 // App shell precache (injected at build time).
 precacheAndRoute(self.__WB_MANIFEST as never);
 cleanupOutdatedCaches();
+
+// Offline-first navigations: every route serves the cached app shell,
+// so cold/slow launches open instantly with no network at all.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 
 interface PushPayload {
   title?: string;
