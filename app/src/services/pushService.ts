@@ -16,6 +16,22 @@ export function pushSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
+export function isIOS(): boolean {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  return /Mac/i.test(ua) && navigator.maxTouchPoints > 1;
+}
+
+export function isStandalone(): boolean {
+  if (window.matchMedia?.('(display-mode: standalone)').matches) return true;
+  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+// iOS only allows push inside the home-screen app, never in Safari itself.
+export function needsInstallFirst(): boolean {
+  return isIOS() && !isStandalone();
+}
+
 export function vapidKey(): string | null {
   return (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) || null;
 }
@@ -62,4 +78,4 @@ export async function unsubscribePush(playerId: string): Promise<void> {
   }
 }
 
-export const pushService = { pushSupported, vapidKey, pushStatus, subscribePush, unsubscribePush, client: supabase };
+export const pushService = { pushSupported, isIOS, isStandalone, needsInstallFirst, vapidKey, pushStatus, subscribePush, unsubscribePush, client: supabase };

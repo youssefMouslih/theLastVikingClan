@@ -4,7 +4,7 @@ import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { LOCALES } from '../i18n/dictionaries';
 import { useLocale } from '../i18n/LocaleContext';
-import { pushStatus, subscribePush, unsubscribePush } from '../services/pushService';
+import { pushStatus, subscribePush, unsubscribePush, needsInstallFirst } from '../services/pushService';
 import { useAuthStore } from '../stores/authStore';
 import { useTheme, type ThemePref } from '../theme';
 
@@ -19,11 +19,15 @@ export default function SettingsPage() {
   const { t, locale, setLocale } = useLocale();
   const { pref, setPref } = useTheme();
   const me = useAuthStore((s) => s.profile);
-  const [push, setPush] = useState<'on' | 'off' | 'unsupported' | 'no-key' | 'checking'>('checking');
+  const [push, setPush] = useState<'on' | 'off' | 'unsupported' | 'no-key' | 'install-first' | 'checking'>('checking');
   const [pushMsg, setPushMsg] = useState<string | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
 
   useEffect(() => {
+    if (needsInstallFirst()) {
+      setPush('install-first');
+      return;
+    }
     if (me) pushStatus(me.id).then(setPush).catch(() => setPush('off'));
   }, [me]);
 
@@ -88,11 +92,11 @@ export default function SettingsPage() {
         <p className="mt-1 text-xs opacity-70">{t('push.desc')}</p>
         {pushMsg && <p className="mt-1 text-xs">{pushMsg}</p>}
         <button
-          disabled={pushBusy || push === 'checking' || push === 'unsupported' || push === 'no-key'}
+          disabled={pushBusy || push === 'checking' || push === 'unsupported' || push === 'no-key' || push === 'install-first'}
           onClick={togglePush}
           className={push === 'on' ? 'btn-ghost mt-2 h-11 w-full text-sm' : 'btn-primary mt-2 h-11 w-full text-sm'}
         >
-          {pushBusy ? t('common.loading') : push === 'on' ? t('push.disable') : push === 'no-key' ? t('push.nokey') : push === 'unsupported' ? t('push.off') : t('push.enable')}
+          {pushBusy ? t('common.loading') : push === 'on' ? t('push.disable') : push === 'no-key' ? t('push.nokey') : push === 'install-first' ? t('push.needInstall') : push === 'unsupported' ? t('push.off') : t('push.enable')}
         </button>
         {push === 'on' && <p className="mt-1 text-xs font-bold text-green-400">{t('push.on')}</p>}
       </section>

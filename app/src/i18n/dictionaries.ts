@@ -356,6 +356,7 @@ const en = {
   'push.on': 'Raven Messages on',
   'push.off': 'Not supported here',
   'push.nokey': 'Push not configured yet',
+  'push.needInstall': 'On iPhone, add the app to the Home Screen first, then enable here.',
 
   'admin.title': 'Admin',
   'admin.tabCompetitions': 'Competitions',
@@ -1030,6 +1031,7 @@ const fr: Dict = {
   'push.on': 'Messages du Corbeau activés',
   'push.off': 'Non supporté ici',
   'push.nokey': 'Push pas encore configuré',
+  'push.needInstall': 'Sur iPhone, ajoutez d’abord l’app à l’écran d’accueil, puis activez ici.',
 
   'admin.title': 'Admin',
   'admin.tabCompetitions': 'Compétitions',
@@ -1702,6 +1704,7 @@ const ar: Dict = {
   'push.on': 'رسائل الغراب مفعّلة',
   'push.off': 'غير مدعوم هنا',
   'push.nokey': 'الدفع غير مُعد بعد',
+  'push.needInstall': 'على الآيفون، أضف التطبيق للشاشة الرئيسية أولاً ثم فعّل هنا.',
 
   'admin.title': 'الإدارة',
   'admin.tabCompetitions': 'البطولات',
