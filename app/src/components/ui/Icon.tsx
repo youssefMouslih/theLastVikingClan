@@ -107,6 +107,12 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M17 4.5 8.5 12l8.5 7.5" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M4 6.5h16v9H9.5L4 19.5Z" />
+      <path d="M8 10.5h8M8 13.5h5" />
+    </>
+  ),
   scroll: (
     <>
       <path d="M8 4h9a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H8" />

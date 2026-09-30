@@ -27,7 +27,7 @@ export async function getMember(id: string): Promise<Profile | null> {
 export type OwnProfilePatch = Partial<Pick<Profile,
   'display_name' | 'efootball_name' | 'efootball_id' | 'bio' | 'country' | 'avatar_url' |
   'division_pvp' | 'division_ai' | 'fav_player_name' | 'fav_player_rating' | 'fav_player_position' |
-  'banner_color' | 'banner_image' | 'instagram' | 'tiktok' | 'kick'
+  'banner_color' | 'banner_image' | 'instagram' | 'tiktok' | 'kick' | 'whatsapp'
 >>;
 
 export async function updateOwnProfile(userId: string, patch: OwnProfilePatch) {

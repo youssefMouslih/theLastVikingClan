@@ -28,6 +28,7 @@ export default function ProfilePage() {
     instagram: me?.instagram ?? '',
     tiktok: me?.tiktok ?? '',
     kick: me?.kick ?? '',
+    whatsapp: me?.whatsapp ?? '',
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -63,6 +64,7 @@ export default function ProfilePage() {
       instagram: me?.instagram ?? '',
       tiktok: me?.tiktok ?? '',
       kick: me?.kick ?? '',
+      whatsapp: me?.whatsapp ?? '',
     });
     setAvatarFile(null);
     setBannerFile(null);
@@ -94,6 +96,7 @@ export default function ProfilePage() {
         instagram: form.instagram || null,
         tiktok: form.tiktok || null,
         kick: form.kick || null,
+        whatsapp: form.whatsapp.replace(/[^\d+]/g, '') || null,
         avatar_url,
       });
       await init();
@@ -156,6 +159,7 @@ export default function ProfilePage() {
               <label className="label">{t('profile.instagram')}<input className="input" value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} placeholder="@handle" dir="ltr" /></label>
               <label className="label">{t('profile.tiktok')}<input className="input" value={form.tiktok} onChange={(e) => setForm({ ...form, tiktok: e.target.value })} placeholder="@handle" dir="ltr" /></label>
               <label className="label">{t('profile.kick')}<input className="input" value={form.kick} onChange={(e) => setForm({ ...form, kick: e.target.value })} placeholder="channel" dir="ltr" /></label>
+              <label className="label">{t('profile.whatsapp')}<input type="tel" className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+212600000000" dir="ltr" /></label>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">

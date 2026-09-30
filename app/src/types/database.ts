@@ -51,6 +51,7 @@ export interface Profile {
   instagram: string | null;
   tiktok: string | null;
   kick: string | null;
+  whatsapp: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;

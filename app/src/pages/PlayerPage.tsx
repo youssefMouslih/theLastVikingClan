@@ -39,6 +39,7 @@ export default function PlayerPage() {
   const m = query.data;
   if (!m) return <main className="page text-sm">{t('player.notFound')}</main>;
   const r = ratingQuery.data;
+  const waNumber = (m.whatsapp ?? '').replace(/[^\d]/g, '');
 
   async function submitRating() {
     setBusy(true); setMsg(null);
@@ -70,6 +71,16 @@ export default function PlayerPage() {
   return (
     <main className="page">
       <PlayerCard member={m} career={careerQuery.data ?? null} />
+      {!isSelf && waNumber && (
+        <a
+          href={`https://wa.me/${waNumber}?text=${encodeURIComponent(`Salam ${m.display_name ?? m.username} — VIK Clan`)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25d366] text-base font-bold text-white"
+        >
+          <Icon name="chat" className="h-5 w-5" /> WhatsApp
+        </a>
+      )}
       {!isSelf && me && (
         <section className="card mt-3" aria-label={t('profile.rateTitle')}>
           <h2 className="card-title">{t('profile.rateTitle', { name: m.display_name ?? m.username })}</h2>
