@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -118,6 +119,11 @@ export default function ProfilePage() {
         </form>
       )}
 
+      {(me.role === 'OWNER' || me.role === 'ADMIN') && (
+        <Link to="/admin" className="btn-primary mt-3 flex w-full items-center justify-center gap-2">
+          <Icon name="shield" className="h-5 w-5" /> {t('admin.title')}
+        </Link>
+      )}
       <section className="card mt-3" aria-label={t('profile.language')}>
         <h2 className="card-title">{t('profile.language')}</h2>
         <div className="mt-2 grid grid-cols-3 gap-2">
