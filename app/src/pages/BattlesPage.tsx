@@ -31,14 +31,9 @@ import { getBattleEvidenceUrl } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
 
 function BattleEvidence({ path }: { path: string }) {
-  const { t } = useLocale();
   const query = useQuery({ queryKey: ['battle-evidence', path], queryFn: () => getBattleEvidenceUrl(path) });
   if (!query.data) return null;
-  return (
-    <a href={query.data} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-400 underline">
-      {t('match.viewShot')}
-    </a>
-  );
+  return <img src={query.data} alt="Battle evidence" className="mt-1 max-h-64 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />;
 }
 
 const TYPES: ChallengeType[] = ['HEAD', 'FRIENDLY', 'HONOR', 'REMATCH', 'WAR'];

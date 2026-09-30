@@ -211,9 +211,13 @@ export default function MatchPage() {
       {evidenceQuery.data && evidenceQuery.data.length > 0 && (
         <section className="card mt-3">
           <h2 className="card-title">{t('match.evidenceTitle')}</h2>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-col gap-2">
             {evidenceQuery.data.map((e) => (
-              <span key={e.id} className="flex items-center gap-1 text-sm"><Icon name="camera" className="h-4 w-4" />{e.url ? <a href={e.url} target="_blank" rel="noreferrer" className="underline">{t('match.viewShot')}</a> : t('match.noAccess')}</span>
+              e.url ? (
+                <img key={e.id} src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+              ) : (
+                <p key={e.id} className="text-sm opacity-60">{t('match.noAccess')}</p>
+              )
             ))}
           </div>
         </section>
