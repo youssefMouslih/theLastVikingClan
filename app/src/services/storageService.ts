@@ -108,30 +108,20 @@ export async function deleteStoredFile(bucket: 'avatars' | 'match-evidence' | 'c
   }
 }
 
-// Free storage: delete evidence of rounds where EVERY match is final
-// (CONFIRMED/FORFEIT/CANCELLED). History (scores) stays in the database.
+// Free storage: delete evidence of matches that have been final
+// (CONFIRMED/FORFEIT/CANCELLED) for over 24h. Scores stay forever.
 export async function purgeCompletedEvidence(competitionId: string): Promise<number> {
+  const cutoff = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { data: matches, error } = await supabase
     .from('matches')
-    .select('id,round_id,status')
-    .eq('competition_id', competitionId);
+    .select('id')
+    .eq('competition_id', competitionId)
+    .in('status', ['CONFIRMED', 'FORFEIT', 'CANCELLED'])
+    .lt('updated_at', cutoff);
   if (error) throw new Error(error.message);
-  const FINAL = ['CONFIRMED', 'FORFEIT', 'CANCELLED'];
-  const byRound = new Map<string, { total: number; open: number; ids: string[] }>();
-  for (const m of ((matches ?? []) as { id: string; round_id: string | null; status: string }[])) {
-    const key = m.round_id ?? `solo:${m.id}`;
-    let g = byRound.get(key);
-    if (!g) {
-      g = { total: 0, open: 0, ids: [] };
-      byRound.set(key, g);
-    }
-    g.total++;
-    g.ids.push(m.id);
-    if (!FINAL.includes(m.status)) g.open++;
-  }
-  const purgeIds = [...byRound.values()].filter((g) => g.open === 0).flatMap((g) => g.ids);
-  if (purgeIds.length === 0) return 0;
-  const { data: rows } = await supabase.from('match_evidence').select('id,file_path').in('match_id', purgeIds);
+  const ids = ((matches ?? []) as { id: string }[]).map((m) => m.id);
+  if (ids.length === 0) return 0;
+  const { data: rows } = await supabase.from('match_evidence').select('id,file_path').in('match_id', ids);
   const list = (rows ?? []) as { id: string; file_path: string }[];
   for (const r of list) {
     await deleteStoredFile('match-evidence', r.file_path);

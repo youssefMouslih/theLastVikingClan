@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { useLocale } from '../../i18n/LocaleContext';
 
 const KEY = 'pwa-just-updated';
+const DISMISS_KEY = 'pwa-update-dismissed';
 
-// "New version available" banner: user chooses when to refresh, and the
-// prompt never nags again right after updating.
+// "New version available" banner: user chooses when to refresh.
+// Dismiss sticks for 24h; post-update suppression avoids instant nagging.
 export default function UpdateBanner() {
   const { t } = useLocale();
   const { needRefresh, updateServiceWorker } = useRegisterSW();
@@ -14,11 +15,21 @@ export default function UpdateBanner() {
   useEffect(() => {
     if (!needRefresh) return;
     try {
-      const at = Number(localStorage.getItem(KEY) ?? 0);
-      if (Date.now() - at < 30_000) return;
+      const now = Date.now();
+      const updatedAt = Number(localStorage.getItem(KEY) ?? 0);
+      if (now - updatedAt < 30_000) return;
+      const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) ?? 0);
+      if (now - dismissedAt < 24 * 3600_000) return;
     } catch { /* ignore */ }
     setShow(true);
   }, [needRefresh, setShow]);
+
+  function dismiss() {
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    } catch { /* ignore */ }
+    setShow(false);
+  }
 
   if (!show) return null;
   return (
@@ -37,7 +48,7 @@ export default function UpdateBanner() {
         >
           {t('pwa.refresh')}
         </button>
-        <button type="button" onClick={() => setShow(false)} className="btn-ghost h-10 px-3 text-xs" aria-label={t('common.close')}>
+        <button type="button" onClick={dismiss} className="btn-ghost h-10 px-3 text-xs" aria-label={t('common.close')}>
           ✕
         </button>
       </div>
