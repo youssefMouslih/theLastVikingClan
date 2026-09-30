@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { FadeIn } from '../components/ui/Motion';
 import { LOCALES } from '../i18n/dictionaries';
 import { useLocale } from '../i18n/LocaleContext';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -67,6 +68,7 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-svh max-w-sm flex-col justify-center p-4">
+      <FadeIn>
       <div className="mb-6 text-center">
         <img src="/logo.png" alt="VIK Clan logo" className="mx-auto h-24 w-24 rounded-3xl object-cover shadow-xl shadow-brand-500/30" />
         <div className="font-display mt-3 bg-gradient-to-r from-brand-400 via-brand-500 to-accent-400 bg-clip-text text-3xl tracking-wide text-transparent">VIK CLAN</div>
@@ -178,6 +180,7 @@ export default function LoginPage() {
           </button>
         ))}
       </div>
+      </FadeIn>
     </main>
   );
 }

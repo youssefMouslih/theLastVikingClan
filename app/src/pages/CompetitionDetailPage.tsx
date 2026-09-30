@@ -8,6 +8,7 @@ import Avatar from '../components/ui/Avatar';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
 import Icon from '../components/ui/Icon';
+import { Countdown, EmptyState, FadeIn, SkeletonList } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import { statusLabel, useLocale } from '../i18n/LocaleContext';
 import { useOath } from '../hooks/useOath';
@@ -209,6 +210,11 @@ export default function CompetitionDetailPage() {
           {comp.registration_deadline ? `${t('detail.closes', { date: fmtDate(comp.registration_deadline) })} ` : ''}
           {isFull ? t('detail.full') : t('detail.slotsLeft', { n: comp.max_players - parts.length })}
         </p>
+        {state === 'OPEN' && comp.registration_deadline && (
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm">
+            <span className="live-dot" aria-hidden /> <Countdown deadline={comp.registration_deadline} urgentHours={12} />
+          </p>
+        )}
         {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
         <div className="mt-2 flex flex-wrap gap-2">
           {!isRegistered ? (
@@ -346,14 +352,16 @@ export default function CompetitionDetailPage() {
         )}
         {tab === 'Matches' && (
           <div className="flex flex-col gap-2">
-            {matches.length === 0 && <p className="card text-sm opacity-70">{t('detail.noFixtures')}</p>}
-            {matches.map((m) => <MatchCard key={m.id} match={m} names={names} avatars={avatars} />)}
+            {matchesQuery.isLoading && <SkeletonList rows={4} />}
+            {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('detail.tabMatches')} hint={t('detail.noFixtures')} />}
+            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} /></FadeIn>)}
           </div>
         )}
         {tab === 'Bracket' && (
           <div className="flex flex-col gap-2">
-            {matches.length === 0 && <p className="card text-sm opacity-70">{t('detail.noBracket')}</p>}
-            {matches.map((m) => <MatchCard key={m.id} match={m} names={names} avatars={avatars} />)}
+            {matchesQuery.isLoading && <SkeletonList rows={4} />}
+            {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="trophy" className="h-8 w-8" />} title={t('detail.tabBracket')} hint={t('detail.noBracket')} />}
+            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} /></FadeIn>)}
           </div>
         )}
         {tab === 'Players' && (

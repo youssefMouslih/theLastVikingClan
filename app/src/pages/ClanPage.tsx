@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import MemberRow from '../components/player/MemberRow';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
+import { FadeIn, SkeletonList } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
 import { getClanSettings, updateClanSettings } from '../services/clanService';
 import { listCompetitions } from '../services/competitionService';
@@ -107,14 +108,14 @@ export default function ClanPage() {
       <section aria-label="Members" className="mt-4">
         <h2 className="card-title mb-2">{t('clan.members', { n: members.length })}</h2>
         {membersQuery.isLoading ? (
-          <p className="text-sm">{t('clan.loadingMembers')}</p>
+          <SkeletonList rows={5} />
         ) : membersQuery.isError ? (
           <p role="alert" className="text-sm text-red-500">{t('clan.membersError')}{membersQuery.error instanceof Error ? ` (${membersQuery.error.message})` : ''}</p>
         ) : members.length === 0 ? (
           <p className="card text-sm opacity-70">{t('clan.noMembers')}</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {members.map((m) => <MemberRow key={m.id} member={m} />)}
+            {members.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 40, 320)}><MemberRow member={m} /></FadeIn>)}
           </div>
         )}
       </section>

@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Avatar from '../components/ui/Avatar';
 import Icon from '../components/ui/Icon';
+import { Countdown } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import { supabase } from '../lib/supabase';
@@ -115,6 +116,11 @@ export default function MatchPage() {
         <p className="mt-1 flex items-center justify-center gap-1 text-xs opacity-70">
           <Icon name="clock" className="h-3.5 w-3.5" /> {t('match.deadline', { date: m.deadline ? fmtDate(m.deadline) : t('match.noDeadline') })}{deadlinePassed && m.status !== 'CONFIRMED' && m.status !== 'FORFEIT' ? t('match.passed') : ''}
         </p>
+        {m.deadline && !deadlinePassed && m.status !== 'CONFIRMED' && m.status !== 'FORFEIT' && (
+          <p className="mt-1 flex items-center justify-center gap-1.5">
+            <span className="live-dot" aria-hidden /> <Countdown deadline={m.deadline} />
+          </p>
+        )}
       </div>
 
       {msg && <p role="status" className="mt-2 text-sm font-medium">{msg}</p>}

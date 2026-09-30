@@ -3,6 +3,7 @@ import { useState } from 'react';
 import BottomNav from '../components/ui/BottomNav';
 import Avatar from '../components/ui/Avatar';
 import CoinImg from '../components/ui/CoinImg';
+import { CountUp, FadeIn } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
@@ -35,7 +36,7 @@ export default function SagaPage() {
         <div className="flex items-end justify-between">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-70">{t(level.nameKey)}</p>
-            <p className="font-display flex items-center gap-1.5 text-3xl"><CoinImg className="h-7 w-7" />{xp} <span className="text-sm opacity-70">GP</span></p>          </div>
+            <p className="font-display flex items-center gap-1.5 text-3xl"><CoinImg className="h-7 w-7" /><CountUp value={xp} /> <span className="text-sm opacity-70">GP</span></p>          </div>
           {next && <p className="text-xs opacity-70">{t('saga.nextLevel', { name: t(next.nameKey), n: next.min - xp })}</p>}
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
@@ -54,9 +55,7 @@ export default function SagaPage() {
 
       {tab === 'quests' && (
         <div className="mt-3 flex flex-col gap-2">
-          {QUESTS.map((q) => (
-            <QuestRow key={q.key} quest={q} userId={me!.id} busyKey={busyKey} setBusyKey={setBusyKey} setMsg={setMsg} />
-          ))}
+          {QUESTS.map((q, i) => <FadeIn key={q.key} delay={Math.min(i * 60, 300)}><QuestRow quest={q} userId={me!.id} busyKey={busyKey} setBusyKey={setBusyKey} setMsg={setMsg} /></FadeIn>)}
         </div>
       )}
 
@@ -125,12 +124,14 @@ export default function SagaPage() {
       {tab === 'ranks' && (
         <div className="mt-3 flex flex-col gap-2">
           {(boardQuery.data ?? []).map((b, i) => (
-            <div key={b.player_id} className={`card flex items-center gap-2 p-3 text-sm ${b.player_id === me?.id ? 'border-brand-500/60' : ''}`}>
+            <FadeIn key={b.player_id} delay={Math.min(i * 50, 400)}>
+            <div className={`card flex items-center gap-2 p-3 text-sm ${b.player_id === me?.id ? 'border-brand-500/60' : ''}`}>
               <span className="font-display w-6 text-center">{i + 1}</span>
               <Avatar path={b.avatar_url} name={b.display_name ?? b.username} className="h-9 w-9 text-sm" />
               <span className="flex-1 truncate font-semibold">{b.display_name ?? b.username}</span>
               <span className="font-display flex items-center gap-1 text-brand-300"><CoinImg className="h-4 w-4" />{b.xp}</span>
             </div>
+            </FadeIn>
           ))}
           {(boardQuery.data ?? []).length === 0 && <p className="card text-sm opacity-70">{t('saga.emptyBoard')}</p>}
         </div>

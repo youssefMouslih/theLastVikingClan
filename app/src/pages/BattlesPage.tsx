@@ -5,6 +5,8 @@ import Avatar from '../components/ui/Avatar';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
+import Icon from '../components/ui/Icon';
+import { EmptyState, FadeIn } from '../components/ui/Motion';
 import SquadsTab from '../components/battle/SquadsTab';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
@@ -328,8 +330,8 @@ export default function BattlesPage() {
 
       {tab === 'incoming' && (
         <div className="mt-3 flex flex-col gap-2">
-          {incoming.length === 0 && <p className="card text-sm opacity-70">{t('battle.emptyIn')}</p>}
-          {incoming.map((ch) => <BattleCard key={ch.id} ch={ch} incoming />)}
+          {incoming.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('battle.incoming')} hint={t('battle.emptyIn')} />}
+          {incoming.map((ch, i) => <FadeIn key={ch.id} delay={Math.min(i * 60, 360)}><BattleCard ch={ch} incoming /></FadeIn>)}
         </div>
       )}
 
@@ -343,8 +345,8 @@ export default function BattlesPage() {
               {outgoing.map((ch) => <BattleCard key={ch.id} ch={ch} incoming={false} />)}
             </>
           )}
-          {history.length === 0 && outgoing.length === 0 && <p className="card text-sm opacity-70">{t('battle.emptyHist')}</p>}
-          {history.map((ch) => <BattleCard key={ch.id} ch={ch} incoming={false} />)}
+          {history.length === 0 && outgoing.length === 0 && <EmptyState icon={<Icon name="scroll" className="h-8 w-8" />} title={t('battle.history')} hint={t('battle.emptyHist')} />}
+          {history.map((ch, i) => <FadeIn key={ch.id} delay={Math.min(i * 60, 360)}><BattleCard ch={ch} incoming={false} /></FadeIn>)}
         </div>
       )}
 
