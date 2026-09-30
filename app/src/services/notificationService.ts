@@ -52,7 +52,9 @@ export async function markAllRead(userId: string) {
 }
 
 // Fire-and-forget: never break the core flow if notification RLS blocks.
-// Requires migration 0002 (notifications INSERT policy) — run it in Supabase dashboard.
+// Requires migration 0002 (notifications INSERT policy).
+// After storing, nudges the send-push Edge Function (if deployed) so the
+// raven also lands on the device. Missing function = warn only.
 export async function notify(
   userId: string,
   type: NotificationType,
@@ -61,15 +63,25 @@ export async function notify(
   entity?: { type: string; id: string },
 ): Promise<void> {
   try {
-    const { error } = await supabase.from('notifications').insert({
+    const { data, error } = await supabase.from('notifications').insert({
       user_id: userId,
       type,
       title,
       message,
       entity_type: entity?.type ?? null,
       entity_id: entity?.id ?? null,
-    });
-    if (error) console.warn('notify skipped:', error.message);
+    }).select('id').single();
+    if (error) {
+      console.warn('notify skipped:', error.message);
+      return;
+    }
+    const nid = (data as { id: string } | null)?.id;
+    if (!nid) return;
+    try {
+      await supabase.functions.invoke('send-push', { body: { notification_id: nid } });
+    } catch (e) {
+      console.warn('push skipped (function not deployed?):', e instanceof Error ? e.message : e);
+    }
   } catch (e) {
     console.warn('notify skipped:', e instanceof Error ? e.message : e);
   }
