@@ -105,7 +105,7 @@ export default function ClanPage() {
         {membersQuery.isLoading ? (
           <p className="text-sm">{t('clan.loadingMembers')}</p>
         ) : membersQuery.isError ? (
-          <p className="text-sm text-red-500">{t('clan.membersError')}</p>
+          <p role="alert" className="text-sm text-red-500">{t('clan.membersError')}{membersQuery.error instanceof Error ? ` (${membersQuery.error.message})` : ''}</p>
         ) : members.length === 0 ? (
           <p className="card text-sm opacity-70">{t('clan.noMembers')}</p>
         ) : (

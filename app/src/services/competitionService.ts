@@ -107,9 +107,10 @@ export interface ParticipantRow {
 }
 
 export async function listParticipants(competitionId: string): Promise<ParticipantRow[]> {
+  // Explicit FK hint: two FKs point to profiles (player_id, replacement_for).
   const { data, error } = await supabase
     .from('competition_participants')
-    .select('id,competition_id,player_id,status,joined_at,player:profiles(id,username,display_name,avatar_url)')
+    .select('id,competition_id,player_id,status,joined_at,player:profiles!competition_participants_player_id_fkey(id,username,display_name,avatar_url)')
     .eq('competition_id', competitionId)
     .order('joined_at', { ascending: true });
   if (error) throw new Error(error.message);
