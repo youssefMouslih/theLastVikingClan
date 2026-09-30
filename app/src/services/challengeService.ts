@@ -12,6 +12,7 @@ export interface IssueChallengeInput {
   stakes?: string | null;
   for_throne?: boolean;
   forced?: boolean;
+  openCall?: boolean;
 }
 
 export interface ChallengeRow extends Challenge {
@@ -22,8 +23,12 @@ export interface ChallengeRow extends Challenge {
 const WITH_PROFILES = '*,challenger:profiles!challenges_challenger_id_fkey(id,username,display_name,avatar_url),opponent:profiles!challenges_opponent_id_fkey(id,username,display_name,avatar_url)';
 
 export async function issueChallenge(input: IssueChallengeInput, challengerId: string): Promise<Challenge> {
-  if (!input.opponent_id && !input.opponent_label?.trim()) throw new Error('Name an opponent.');
-  if (input.opponent_id === challengerId) throw new Error('You cannot challenge yourself.');
+  if (input.openCall) {
+    if (input.type !== 'FRIENDLY') throw new Error('Only friendlies can be open calls.');
+  } else {
+    if (!input.opponent_id && !input.opponent_label?.trim()) throw new Error('Name an opponent.');
+    if (input.opponent_id === challengerId) throw new Error('You cannot challenge yourself.');
+  }
   if (input.forced) {
     if (input.type !== 'HEAD') throw new Error('Only Calls for a Head can be unrefusable.');
     if (!input.opponent_id) throw new Error('Unrefusable calls target a clan member.');
@@ -35,20 +40,54 @@ export async function issueChallenge(input: IssueChallengeInput, challengerId: s
     .insert({
       challenger_id: challengerId,
       opponent_id: input.opponent_id ?? null,
-      opponent_label: input.opponent_label?.trim() || null,
+      opponent_label: input.opponent_id ? null : input.opponent_label?.trim() || null,
       type: input.type,
       conditions: input.conditions ?? null,
       stakes: input.stakes ?? null,
       for_throne: input.for_throne ?? false,
       forced: input.forced ?? false,
+      is_open: input.openCall ?? false,
     })
     .select('*')
     .single();
   if (error) throw new Error(error.message);
-  if (input.opponent_id) {
-    await notify(input.opponent_id, 'COMPETITION_INVITATION', 'You have been challenged', 'A clan battle awaits your answer.', { type: 'battle', id: (data as Challenge).id });
+  const created = data as Challenge;
+  if (input.openCall) {
+    // Clan-wide raven: every active member sees the open mat.
+    try {
+      const { data: members } = await supabase.from('profiles').select('id').eq('status', 'ACTIVE');
+      for (const mm of ((members ?? []) as { id: string }[]).filter((mm) => mm.id !== challengerId)) {
+        await notify(mm.id, 'COMPETITION_INVITATION', 'Open mat: friendly wanted', 'A brother seeks a friendly — take the fight.', { type: 'battle', id: created.id });
+      }
+    } catch { /* alerts never break issuing */ }
+  } else if (input.opponent_id) {
+    await notify(input.opponent_id, 'COMPETITION_INVITATION', 'You have been challenged', 'A clan battle awaits your answer.', { type: 'battle', id: created.id });
   }
-  return data as Challenge;
+  return created;
+}
+
+export async function listOpenBattles(myId: string): Promise<ChallengeRow[]> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select(WITH_PROFILES)
+    .eq('is_open', true)
+    .eq('status', 'PENDING')
+    .neq('challenger_id', myId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as ChallengeRow[];
+}
+
+export async function acceptOpenBattle(ch: ChallengeRow, userId: string): Promise<void> {
+  if (!ch.is_open || ch.status !== 'PENDING') throw new Error('Already taken.');
+  if (ch.challenger_id === userId) throw new Error('That is your own call.');
+  const { error } = await supabase
+    .from('challenges')
+    .update({ opponent_id: userId, is_open: false, status: 'ACCEPTED', responded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', ch.id)
+    .eq('status', 'PENDING');
+  if (error) throw new Error(error.message);
+  await notify(ch.challenger_id, 'COMPETITION_STARTED', 'Open call answered', 'A brother took your fight. To battle.');
 }
 
 export async function listIncoming(userId: string): Promise<ChallengeRow[]> {
@@ -160,6 +199,8 @@ export const challengeService = {
   listIncoming,
   listOutgoing,
   listBattleHistory,
+  listOpenBattles,
+  acceptOpenBattle,
   respondChallenge,
   submitBattleResult,
   confirmBattleResult,

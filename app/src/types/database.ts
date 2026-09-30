@@ -147,6 +147,7 @@ export interface Challenge {
   submitted_by: string | null;
   for_throne: boolean;
   forced: boolean;
+  is_open: boolean;
   created_at: string;
   responded_at: string | null;
   updated_at: string;

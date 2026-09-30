@@ -9,11 +9,13 @@ import SquadsTab from '../components/battle/SquadsTab';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import {
+  acceptOpenBattle,
   cancelChallenge,
   confirmBattleResult,
   issueChallenge,
   listBattleHistory,
   listIncoming,
+  listOpenBattles,
   listOutgoing,
   respondChallenge,
   submitBattleResult,
@@ -43,8 +45,8 @@ export default function BattlesPage() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<'issue' | 'incoming' | 'history' | 'commands' | 'squads'>('issue');
-  const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false });
+  const [tab, setTab] = useState<'issue' | 'incoming' | 'open' | 'squads' | 'history' | 'commands'>('issue');
+  const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
   const [rivalName, setRivalName] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});
   const [msg, setMsg] = useState<string | null>(null);
@@ -57,6 +59,8 @@ export default function BattlesPage() {
   const incoming = incomingQuery.data ?? [];
   const history = historyQuery.data ?? [];
   const outgoing = outgoingQuery.data ?? [];
+  const openQuery = useQuery({ queryKey: ['battles-open'], queryFn: () => listOpenBattles(me!.id), enabled: !!me });
+  const openBattles = openQuery.data ?? [];
   const reignQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
   const holderId = reignQuery.data?.holder_id ?? null;
   const candidates = (membersQuery.data ?? []).filter((m) => m.id !== me?.id);
@@ -65,7 +69,7 @@ export default function BattlesPage() {
     setBusy(true); setMsg(null);
     try {
       await fn();
-      await Promise.all([incomingQuery.refetch(), outgoingQuery.refetch(), historyQuery.refetch()]);
+      await Promise.all([incomingQuery.refetch(), outgoingQuery.refetch(), historyQuery.refetch(), openQuery.refetch()]);
       if (ok) setMsg(ok);
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Failed.');
@@ -80,7 +84,7 @@ export default function BattlesPage() {
       async () => {
         if (form.for_throne) {
           if (form.type !== 'HONOR') throw new Error('Throne battles must be Honor Duels.');
-          if (!holderId) throw new Error('The throne is vacant — ask an admin to crown a champion.');
+          if (!holderId) throw new Error('The throne is vacant - ask an admin to crown a champion.');
           if (form.opponent_id !== holderId) throw new Error(t('throne.mustTarget'));
         }
         await issueChallenge(
@@ -92,13 +96,14 @@ export default function BattlesPage() {
             stakes: form.for_throne ? t('throne.title') : t(form.stakes as 'battle.sNONE'),
             for_throne: form.for_throne,
             forced: form.forced && form.type === 'HEAD' && !!form.opponent_id,
+            openCall: form.openCall && form.type === 'FRIENDLY',
           },
           me!.id,
         );
       },
       t('battle.issued'),
     );
-    setForm({ opponent_id: '', opponent_label: '', type: 'HEAD', conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false });
+    setForm({ opponent_id: '', opponent_label: '', type: 'HEAD', conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
   }
 
   function rematchOf(ch: ChallengeRow) {
@@ -110,6 +115,7 @@ export default function BattlesPage() {
       stakes: 'battle.sNONE',
       for_throne: false,
       forced: false,
+      openCall: false,
     });
     setTab('issue');
   }
@@ -213,26 +219,33 @@ export default function BattlesPage() {
       {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
 
       <nav aria-label="Battles" className="mt-2 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
-        {(['issue', 'incoming', 'squads', 'history', 'commands'] as const).map((tb) => (
+        {(['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const).map((tb) => (
           <button
             key={tb}
             onClick={() => setTab(tb)}
             className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === tb ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}
           >
-            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'squads' ? t('squad.title') : tb === 'history' ? t('battle.history') : t('battle.commands')}
+            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'open' ? `${t('battle.openMat')}${openBattles.length ? ` (${openBattles.length})` : ''}` : tb === 'squads' ? t('squad.title') : tb === 'history' ? t('battle.history') : t('battle.commands')}
           </button>
         ))}
       </nav>
-
       {tab === 'issue' && (
         <form onSubmit={issue} className="card mt-3 flex flex-col gap-2">
+          {form.type === 'FRIENDLY' && (
+            <label className="flex items-start gap-2 rounded-xl bg-white/5 p-2 text-sm">
+              <input type="checkbox" checked={form.openCall} onChange={(e) => setForm({ ...form, openCall: e.target.checked, opponent_id: '', opponent_label: '' })} className="mt-1 h-5 w-5 accent-[#eab308]" />
+              <span>{t('battle.openCall')} <span className="opacity-70">({t('battle.openCallDesc')})</span></span>
+            </label>
+          )}
+          {!form.openCall && (
           <label className="label">{t('battle.opponent')}
             <select value={form.opponent_id} onChange={(e) => setForm({ ...form, opponent_id: e.target.value, opponent_label: '' })} className="input text-sm">
               <option value="">{t('battle.selectOpp')}</option>
               {candidates.map((m) => <option key={m.id} value={m.id}>{m.display_name ?? m.username}</option>)}
             </select>
           </label>
-          {!form.opponent_id && (
+          )}
+          {!form.opponent_id && !form.openCall && (
             <label className="label">{t('battle.external')}
               <input value={form.opponent_label} onChange={(e) => setForm({ ...form, opponent_label: e.target.value })} className="input text-sm" />
             </label>
@@ -268,6 +281,30 @@ export default function BattlesPage() {
           )}
           <button disabled={busy} className="btn-cta h-12">{busy ? t('battle.issuing') : t('battle.send')}</button>
         </form>
+      )}
+
+      {tab === 'open' && (
+        <div className="mt-3 flex flex-col gap-2">
+          {openBattles.length === 0 && <p className="card text-sm opacity-70">{t('battle.emptyOpen')}</p>}
+          {openBattles.map((ch) => (
+            <article key={ch.id} className="card p-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Avatar path={ch.challenger?.avatar_url} name={nameOf(ch.challenger, '?')} className="h-9 w-9 text-sm" />
+                <div className="flex-1">
+                  <p className="font-bold">{nameOf(ch.challenger, '?')}</p>
+                  <p className="text-xs opacity-70">{t('battle.tFRIENDLY')} • {ch.stakes}</p>
+                </div>
+                <button
+                  disabled={busy}
+                  onClick={() => run(() => acceptOpenBattle(ch, me!.id), t('battle.taken'))}
+                  className="btn-cta h-10 px-4 text-xs"
+                >
+                  {t('battle.takeFight')}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
 
       {tab === 'incoming' && (

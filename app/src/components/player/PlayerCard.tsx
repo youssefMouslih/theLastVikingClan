@@ -8,6 +8,7 @@ import { useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
 import { getHonours, getRecentMatches, type CareerStats } from '../../services/statisticsService';
+import { profilePoster, shareFile } from '../../utils/shareBattle';
 import type { Profile } from '../../types/database';
 
 // eFootball-style player card: custom banner, avatar, game-name bar,
@@ -58,17 +59,34 @@ export default function PlayerCard({
   const kk = socialLink('kick', member.kick);
 
   async function share() {
-    const url = `${window.location.origin}/players/${member.id}`;
-    const text = `${member.display_name ?? member.username} — ${career?.wins ?? 0}W/${career?.draws ?? 0}D/${career?.losses ?? 0}L, ${career?.winRate ?? 0}% — VIK Clan`;
+    const name = member.display_name ?? member.username;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: member.display_name ?? member.username, text, url });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-        setShared(true);
-        setTimeout(() => setShared(false), 2000);
-      }
-    } catch { /* dismissed */ }
+      const file = await profilePoster({
+        name,
+        wins: career?.wins ?? 0,
+        draws: career?.draws ?? 0,
+        losses: career?.losses ?? 0,
+        winRate: career?.winRate ?? 0,
+        division: member.division_pvp,
+        titles: career?.titles ?? 0,
+        avatarUrl: avatar,
+      });
+      await shareFile(file, `${name} — VIK Clan`);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch {
+      // Fallback: share the profile link as text.
+      const url = `${window.location.origin}/players/${member.id}`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: name, text: `${name} — VIK Clan`, url });
+        } else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          setShared(true);
+          setTimeout(() => setShared(false), 2000);
+        }
+      } catch { /* dismissed */ }
+    }
   }
 
   return (
