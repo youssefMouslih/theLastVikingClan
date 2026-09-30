@@ -326,13 +326,17 @@ export default function BattlesPage() {
                   <p className="font-bold">{nameOf(ch.challenger, '?')}</p>
                   <p className="text-xs opacity-70">{t('battle.tFRIENDLY')} • {ch.stakes}</p>
                 </div>
-                <button
-                  disabled={busy}
-                  onClick={() => run(() => acceptOpenBattle(ch, me!.id), t('battle.taken'))}
-                  className="btn-cta h-10 px-4 text-xs"
-                >
-                  {t('battle.takeFight')}
-                </button>
+                {ch.challenger_id === me?.id ? (
+                  <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-300">{t('battle.yours')}</span>
+                ) : (
+                  <button
+                    disabled={busy}
+                    onClick={() => run(() => acceptOpenBattle(ch, me!.id), t('battle.taken'))}
+                    className="btn-cta h-10 px-4 text-xs"
+                  >
+                    {t('battle.takeFight')}
+                  </button>
+                )}
               </div>
             </article>
           ))}
@@ -345,20 +349,24 @@ export default function BattlesPage() {
             <>
               <h2 className="card-title">{t('battle.openMat')}</h2>
               {openBattles.map((ch) => (
-                <article key={ch.id} className="card border-accent-500/40 p-3 text-sm">
+                <article key={`in-${ch.id}`} className="card border-accent-500/40 p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Avatar path={ch.challenger?.avatar_url} name={nameOf(ch.challenger, '?')} className="h-9 w-9 text-sm" />
                     <div className="flex-1">
                       <p className="font-bold">{nameOf(ch.challenger, '?')}</p>
                       <p className="text-xs opacity-70">{t('battle.tFRIENDLY')} • {ch.stakes}</p>
                     </div>
-                    <button
-                      disabled={busy}
-                      onClick={() => run(() => acceptOpenBattle(ch, me!.id), t('battle.taken'))}
-                      className="btn-cta h-10 px-4 text-xs"
-                    >
-                      {t('battle.takeFight')}
-                    </button>
+                    {ch.challenger_id === me?.id ? (
+                      <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-300">{t('battle.yours')}</span>
+                    ) : (
+                      <button
+                        disabled={busy}
+                        onClick={() => run(() => acceptOpenBattle(ch, me!.id), t('battle.taken'))}
+                        className="btn-cta h-10 px-4 text-xs"
+                      >
+                        {t('battle.takeFight')}
+                      </button>
+                    )}
                   </div>
                 </article>
               ))}

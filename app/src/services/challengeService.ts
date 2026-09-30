@@ -73,9 +73,9 @@ export async function listOpenBattles(myId: string): Promise<ChallengeRow[]> {
     .select(WITH_PROFILES)
     .eq('is_open', true)
     .eq('status', 'PENDING')
-    .neq('challenger_id', myId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
+  void myId;
   return (data ?? []) as unknown as ChallengeRow[];
 }
 
