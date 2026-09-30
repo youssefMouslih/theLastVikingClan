@@ -84,4 +84,51 @@ export async function getHallOfFame(): Promise<{ competitionId: string; name: st
   return out;
 }
 
-export const statisticsService = { getPlayerCareer, getHeadToHead, getClanTotals, getHallOfFame, client: supabase };
+export interface RecentMatch {
+  id: string;
+  competition_id: string;
+  player_a_id: string;
+  player_b_id: string;
+  score_a: number | null;
+  score_b: number | null;
+  status: string;
+  opponent: { id: string; username: string; display_name: string | null; avatar_url: string | null };
+  mine: number;
+  theirs: number;
+  result: 'W' | 'D' | 'L';
+}
+
+// Last N confirmed matches with opponent identity (for profile history).
+export async function getRecentMatches(playerId: string, limit = 5): Promise<RecentMatch[]> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id,competition_id,player_a_id,player_b_id,score_a,score_b,status')
+    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
+    .in('status', ['CONFIRMED', 'FORFEIT'])
+    .order('confirmed_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  const ms = (data ?? []) as { id: string; competition_id: string; player_a_id: string; player_b_id: string; score_a: number | null; score_b: number | null; status: string }[];
+  const oppIds = [...new Set(ms.map((m) => (m.player_a_id === playerId ? m.player_b_id : m.player_a_id)))];
+  let profMap = new Map<string, { id: string; username: string; display_name: string | null; avatar_url: string | null }>();
+  if (oppIds.length > 0) {
+    const { data: profs } = await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', oppIds);
+    profMap = new Map(((profs ?? []) as { id: string; username: string; display_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
+  }
+  return ms
+    .filter((m) => m.score_a != null && m.score_b != null)
+    .map((m) => {
+      const isA = m.player_a_id === playerId;
+      const mine = isA ? m.score_a! : m.score_b!;
+      const theirs = isA ? m.score_b! : m.score_a!;
+      const oppId = isA ? m.player_b_id : m.player_a_id;
+      const opp = profMap.get(oppId) ?? { id: oppId, username: '?', display_name: null, avatar_url: null };
+      return {
+        id: m.id, competition_id: m.competition_id, player_a_id: m.player_a_id, player_b_id: m.player_b_id,
+        score_a: m.score_a, score_b: m.score_b, status: m.status, opponent: opp, mine, theirs,
+        result: (mine > theirs ? 'W' : mine < theirs ? 'L' : 'D') as 'W' | 'D' | 'L',
+      };
+    });
+}
+
+export const statisticsService = { getPlayerCareer, getHeadToHead, getClanTotals, getHallOfFame, getRecentMatches, client: supabase };

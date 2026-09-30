@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
+import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
 import StatusBadge from '../ui/StatusBadge';
 import { useLocale } from '../../i18n/LocaleContext';
 import { getAvatarUrl } from '../../services/storageService';
-import type { CareerStats } from '../../services/statisticsService';
+import { getRecentMatches, type CareerStats } from '../../services/statisticsService';
 import type { Profile } from '../../types/database';
 
-// eFootball "User Information" style card: banner, avatar, game-name bar,
-// achievement tiles, Highest VS AI / PvP divisions, favourite player card.
+// eFootball-style player card: banner, avatar, game-name bar, W/D/L record
+// bar, Highest PvP division, and last-5 match history vs player avatars.
 export default function PlayerCard({
   member,
   career,
@@ -25,7 +27,14 @@ export default function PlayerCard({
     enabled: !!member.avatar_url,
     staleTime: 1000 * 60 * 60,
   });
+  const recentQuery = useQuery({
+    queryKey: ['recent', member.id],
+    queryFn: () => getRecentMatches(member.id, 5),
+    staleTime: 30_000,
+  });
   const avatar = avatarQuery.data ?? null;
+  const recent = recentQuery.data ?? [];
+  const total = (career?.wins ?? 0) + (career?.draws ?? 0) + (career?.losses ?? 0);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#12121f] shadow-xl">
@@ -57,73 +66,60 @@ export default function PlayerCard({
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
 
-        {/* Achievement tiles */}
-        <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-white/5 p-3 text-center">
+        {/* Highest PvP division */}
+        <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/5 p-3">
+          <span className="font-display flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 text-base">★</span>
           <div>
-            <Icon name="swords" className="mx-auto h-7 w-7 text-brand-300" />
-            <div className="font-display mt-1 text-lg">{career?.played ?? '—'}</div>
-            <div className="text-[11px] opacity-60">{t('player.matches')}</div>
+            <p className="text-xs opacity-60">{t('profile.highestPvp')}</p>
+            <p className="font-display text-lg leading-tight">{member.division_pvp ?? t('profile.divisionNA')}</p>
           </div>
-          <div>
-            <Icon name="shield" className="mx-auto h-7 w-7 text-brand-300" />
-            <div className="font-display mt-1 text-lg">{career ? `${career.winRate}%` : '—'}</div>
-            <div className="text-[11px] opacity-60">{t('player.winRate')}</div>
-          </div>
-          <div>
-            <Icon name="trophy" className="mx-auto h-7 w-7 text-brand-300" />
-            <div className="font-display mt-1 text-lg">{career?.titles ?? '—'}</div>
-            <div className="text-[11px] opacity-60">{t('player.titles')}</div>
+          <div className="ms-auto text-right text-xs opacity-70">
+            <div className="font-display text-lg text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
+            <div>{t('player.winRate')}</div>
           </div>
         </div>
 
-        <div className="mt-3 flex gap-3">
-          {/* Divisions */}
-          <div className="grid flex-1 grid-cols-2 gap-2">
-            <div>
-              <p className="text-xs opacity-60">{t('profile.highestAi')}</p>
-              <DivisionBadge value={member.division_ai} na={t('profile.divisionNA')} />
-            </div>
-            <div>
-              <p className="text-xs opacity-60">{t('profile.highestPvp')}</p>
-              <DivisionBadge value={member.division_pvp} na={t('profile.divisionNA')} />
-            </div>
-            {/* Clan record strip */}
-            <div className="col-span-2 mt-1 grid grid-cols-3 gap-2 border-t border-white/10 pt-2 text-center text-xs">
-              <div><div className="font-display text-base">{career?.wins ?? '—'}</div><div className="opacity-60">{t('player.wins')}</div></div>
-              <div><div className="font-display text-base">{career?.goals_for ?? '—'}</div><div className="opacity-60">{t('player.goals')}</div></div>
-              <div><div className="font-display text-base">{career && career.form.length ? career.form.map((f) => (f === 'W' ? '🟢' : f === 'L' ? '🔴' : '⚪')).join('') : '—'}</div><div className="opacity-60">{t('player.form')}</div></div>
-            </div>
+        {/* Wins / Draws / Losses record bar */}
+        <div className="mt-3">
+          <div className="flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
+            <div className="bg-green-500 text-zinc-950" style={{ width: `${total ? ((career?.wins ?? 0) / total) * 100 : 0}%` }}>{t('player.wins')}</div>
+            <div className="bg-zinc-500 text-white" style={{ width: `${total ? ((career?.draws ?? 0) / total) * 100 : 0}%` }}>{t('player.draws')}</div>
+            <div className="bg-red-500 text-white" style={{ width: `${total ? ((career?.losses ?? 0) / total) * 100 : 0}%` }}>{t('player.losses')}</div>
           </div>
-          {/* Favourite player mini-card */}
-          <div className="w-28 shrink-0">
-            <p className="mb-1 text-xs opacity-60">{t('profile.favourite')}</p>
-            <div className="fav-card flex min-h-[132px] flex-col justify-between rounded-lg p-2">
-              <div>
-                <div className="font-display text-xl leading-none">{member.fav_player_rating ?? '–'}</div>
-                <div className="text-[11px] font-bold opacity-80">{member.fav_player_position ?? ''}</div>
-              </div>
-              <div className="text-xs font-bold leading-tight">{member.fav_player_name ?? '—'}</div>
-            </div>
+          <div className="mt-1 grid grid-cols-3 text-center text-sm">
+            <div className="font-display text-lg">{career?.wins ?? '—'}</div>
+            <div className="font-display text-lg">{career?.draws ?? '—'}</div>
+            <div className="font-display text-lg">{career?.losses ?? '—'}</div>
           </div>
+        </div>
+
+        {/* Last 5: opponent avatar + name + score */}
+        <div className="mt-3 border-t border-white/10 pt-2">
+          <p className="mb-2 text-xs opacity-60">{t('profile.lastMatches')}</p>
+          {recent.length === 0 ? (
+            <p className="text-sm opacity-60">{t('player.noMatches')}</p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {recent.map((m) => (
+                <li key={m.id}>
+                  <Link
+                    to={`/matches/${m.id}`}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${
+                      m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
+                    }`}
+                  >
+                    <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-8 w-8 text-xs" />
+                    <span className="flex-1 truncate font-semibold">{m.opponent.display_name ?? m.opponent.username}</span>
+                    <span className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
+                      {m.mine}–{m.theirs}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </section>
-  );
-}
-
-function DivisionBadge({ value, na }: { value: string | null; na: string }) {
-  if (!value) {
-    return (
-      <div className="mt-1 flex items-center gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-dashed border-white/20" />
-        <span className="font-display text-lg opacity-60">{na}</span>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-1 flex items-center gap-2">
-      <span className="font-display flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 text-sm">★</span>
-      <span className="font-display text-base">{value}</span>
-    </div>
   );
 }

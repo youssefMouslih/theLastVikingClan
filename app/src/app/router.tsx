@@ -12,6 +12,7 @@ import MatchPage from '../pages/MatchPage';
 import NotificationsPage from '../pages/NotificationsPage';
 import PlayerPage from '../pages/PlayerPage';
 import ProfilePage from '../pages/ProfilePage';
+import SettingsPage from '../pages/SettingsPage';
 import { useAuthStore } from '../stores/authStore';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
   { path: '/clan', element: guard(<ClanPage />) },
   { path: '/notifications', element: guard(<NotificationsPage />) },
   { path: '/profile', element: guard(<ProfilePage />) },
+  { path: '/settings', element: guard(<SettingsPage />) },
   { path: '/admin', element: guard(<AdminPage />) },
   { path: '/admin/disputes', element: guard(<AdminPage />) },
   { path: '/admin/competitions', element: guard(<AdminPage />) },

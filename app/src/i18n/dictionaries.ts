@@ -25,6 +25,17 @@ const en = {
   'common.close': 'Close',
   'common.view': 'View',
   'common.refresh': 'Refresh',
+  'common.copy': 'Copy',
+  'common.copied': 'Copied',
+  'common.inviteLink': 'Copy invite link',
+
+  'settings.title': 'Settings',
+  'settings.language': 'Language',
+  'settings.theme': 'Appearance',
+  'settings.system': 'System',
+  'settings.dark': 'Dark',
+  'settings.light': 'Light',
+  'settings.back': 'Back to profile',
 
   'auth.tagline': 'Private clan access — invite only, no public signup.',
   'auth.offline': 'Backend not configured — copy .env.example to .env and add your Supabase URL + anon key, then restart npm run dev.',
@@ -266,6 +277,7 @@ const en = {
   'profile.favRating': 'Rating',
   'profile.favPos': 'Position (e.g. AMF)',
   'profile.avatar': 'Photo',
+  'profile.lastMatches': 'Match History',
 
   'admin.title': 'Admin',
   'admin.tabCompetitions': 'Competitions',
@@ -413,6 +425,17 @@ const fr: Dict = {
   'common.close': 'Fermer',
   'common.view': 'Voir',
   'common.refresh': 'Actualiser',
+  'common.copy': 'Copier',
+  'common.copied': 'Copié',
+  'common.inviteLink': 'Copier le lien',
+
+  'settings.title': 'Réglages',
+  'settings.language': 'Langue',
+  'settings.theme': 'Apparence',
+  'settings.system': 'Système',
+  'settings.dark': 'Sombre',
+  'settings.light': 'Clair',
+  'settings.back': 'Retour au profil',
 
   'auth.tagline': 'Accès privé du clan — sur invitation uniquement.',
   'auth.offline': 'Backend non configuré — copiez .env.example vers .env, ajoutez l’URL Supabase + clé anon, puis relancez npm run dev.',
@@ -654,6 +677,7 @@ const fr: Dict = {
   'profile.favRating': 'Note',
   'profile.favPos': 'Poste (ex. MOC)',
   'profile.avatar': 'Photo',
+  'profile.lastMatches': 'Historique des matchs',
 
   'admin.title': 'Admin',
   'admin.tabCompetitions': 'Compétitions',
@@ -799,6 +823,17 @@ const ar: Dict = {
   'common.close': 'إغلاق',
   'common.view': 'عرض',
   'common.refresh': 'تحديث',
+  'common.copy': 'نسخ',
+  'common.copied': 'تم النسخ',
+  'common.inviteLink': 'نسخ رابط الدعوة',
+
+  'settings.title': 'الإعدادات',
+  'settings.language': 'اللغة',
+  'settings.theme': 'المظهر',
+  'settings.system': 'النظام',
+  'settings.dark': 'داكن',
+  'settings.light': 'فاتح',
+  'settings.back': 'عودة للحساب',
 
   'auth.tagline': 'دخول خاص بالعشيرة — بالدعوة فقط.',
   'auth.offline': 'الخادم غير مُعد — انسخ .env.example إلى .env وأضف رابط Supabase والمفتاح، ثم أعد تشغيل npm run dev.',
@@ -1040,6 +1075,7 @@ const ar: Dict = {
   'profile.favRating': 'التقييم',
   'profile.favPos': 'المركز (مثال: AMF)',
   'profile.avatar': 'الصورة',
+  'profile.lastMatches': 'سجل المباريات',
 
   'admin.title': 'الإدارة',
   'admin.tabCompetitions': 'البطولات',

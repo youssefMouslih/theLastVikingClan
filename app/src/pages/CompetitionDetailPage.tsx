@@ -4,7 +4,9 @@ import { Link, useNavigate, useParams } from 'react-router';
 import MatchCard from '../components/match/MatchCard';
 import ReplacePlayerButton from '../components/competition/ReplacePlayerButton';
 import StandingsTable from '../components/competition/StandingsTable';
+import Avatar from '../components/ui/Avatar';
 import BottomNav from '../components/ui/BottomNav';
+import CopyButton from '../components/ui/CopyButton';
 import Icon from '../components/ui/Icon';
 import StatusBadge from '../components/ui/StatusBadge';
 import { statusLabel, useLocale } from '../i18n/LocaleContext';
@@ -73,6 +75,8 @@ export default function CompetitionDetailPage() {
   const isFull = parts.length >= (comp?.max_players ?? Infinity);
   const names: Record<string, string> = {};
   for (const p of parts) names[p.player_id] = p.player?.display_name ?? p.player?.username ?? p.player_id.slice(0, 8);
+  const avatars: Record<string, string | null> = {};
+  for (const p of parts) avatars[p.player_id] = p.player?.avatar_url ?? null;
 
   // Automatic lifecycle (§26, §99): close registration / finish / flag overdue on view.
   const autoRan = useRef<string | null>(null);
@@ -211,6 +215,16 @@ export default function CompetitionDetailPage() {
           )}
         </div>
         <p className="mt-2 text-xs opacity-70">{t('detail.joinLink')} <code>/join/{comp.join_code}</code>{comp.join_enabled ? '' : ` ${t('detail.disabled')}`}</p>
+        {parts.length > 0 && (
+          <div className="mt-2 flex items-center gap-1" aria-label={t('detail.tabPlayers')}>
+            <div className="flex -space-x-2">
+              {parts.slice(0, 8).map((p) => (
+                <Avatar key={p.player_id} path={p.player?.avatar_url} name={names[p.player_id]} className="h-7 w-7 border-2 border-[var(--surface)] text-[10px]" />
+              ))}
+            </div>
+            {parts.length > 8 && <span className="text-xs opacity-70">+{parts.length - 8}</span>}
+          </div>
+        )}
       </section>
 
       {isAdmin && (
@@ -220,6 +234,10 @@ export default function CompetitionDetailPage() {
             {!editing && <button onClick={startEdit} className="btn-ghost h-9 px-3 text-xs">{t('common.edit')}</button>}
           </div>
           <p className="mt-1 font-mono text-sm">{t('detail.code')} {comp.join_code}</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <CopyButton text={comp.join_code} label={t('common.copy')} />
+            <CopyButton text={`${window.location.origin}/join/${comp.join_code}`} label={t('common.inviteLink')} />
+          </div>
           {editing ? (
             <form onSubmit={saveEdit} className="mt-2 flex flex-col gap-2">
               <label className="label">{t('detail.editName')}<input required className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
@@ -297,13 +315,13 @@ export default function CompetitionDetailPage() {
         {tab === 'Matches' && (
           <div className="flex flex-col gap-2">
             {matches.length === 0 && <p className="card text-sm opacity-70">{t('detail.noFixtures')}</p>}
-            {matches.map((m) => <MatchCard key={m.id} match={m} names={names} />)}
+            {matches.map((m) => <MatchCard key={m.id} match={m} names={names} avatars={avatars} />)}
           </div>
         )}
         {tab === 'Bracket' && (
           <div className="flex flex-col gap-2">
             {matches.length === 0 && <p className="card text-sm opacity-70">{t('detail.noBracket')}</p>}
-            {matches.map((m) => <MatchCard key={m.id} match={m} names={names} />)}
+            {matches.map((m) => <MatchCard key={m.id} match={m} names={names} avatars={avatars} />)}
           </div>
         )}
         {tab === 'Players' && (
@@ -312,6 +330,7 @@ export default function CompetitionDetailPage() {
             {parts.map((p) => (
               <div key={p.id} className="card p-3 text-sm">
                 <div className="flex items-center gap-2">
+                  <Avatar path={p.player?.avatar_url} name={names[p.player_id]} className="h-9 w-9 text-sm" />
                   <Link to={`/players/${p.player_id}`} className="flex-1">
                     <span className="font-semibold">{p.player?.display_name ?? p.player?.username ?? p.player_id}</span>
                     <span className="opacity-60"> • {t('detail.joined', { date: new Date(p.joined_at).toLocaleDateString() })}</span>

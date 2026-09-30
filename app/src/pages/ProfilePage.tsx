@@ -4,7 +4,6 @@ import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import PlayerCard from '../components/player/PlayerCard';
-import { LOCALES } from '../i18n/dictionaries';
 import { useLocale } from '../i18n/LocaleContext';
 import { updateOwnProfile } from '../services/playerService';
 import { getPlayerCareer } from '../services/statisticsService';
@@ -13,7 +12,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Pro player card (eFootball style): view by default, Edit reveals the form.
 export default function ProfilePage() {
-  const { t, locale, setLocale } = useLocale();
+  const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const init = useAuthStore((s) => s.init);
   const logout = useAuthStore((s) => s.logout);
@@ -25,10 +24,6 @@ export default function ProfilePage() {
     country: me?.country ?? '',
     bio: me?.bio ?? '',
     division_pvp: me?.division_pvp ?? '',
-    division_ai: me?.division_ai ?? '',
-    fav_player_name: me?.fav_player_name ?? '',
-    fav_player_rating: me?.fav_player_rating?.toString() ?? '',
-    fav_player_position: me?.fav_player_position ?? '',
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -45,10 +40,6 @@ export default function ProfilePage() {
       country: me?.country ?? '',
       bio: me?.bio ?? '',
       division_pvp: me?.division_pvp ?? '',
-      division_ai: me?.division_ai ?? '',
-      fav_player_name: me?.fav_player_name ?? '',
-      fav_player_rating: me?.fav_player_rating?.toString() ?? '',
-      fav_player_position: me?.fav_player_position ?? '',
     });
     setAvatarFile(null);
     setMsg(null);
@@ -68,10 +59,10 @@ export default function ProfilePage() {
         country: form.country || null,
         bio: form.bio || null,
         division_pvp: form.division_pvp || null,
-        division_ai: form.division_ai || null,
-        fav_player_name: form.fav_player_name || null,
-        fav_player_rating: form.fav_player_rating === '' ? null : Math.max(0, Math.min(99, Number(form.fav_player_rating) || 0)),
-        fav_player_position: form.fav_player_position || null,
+        division_ai: null,
+        fav_player_name: null,
+        fav_player_rating: null,
+        fav_player_position: null,
         avatar_url,
       });
       await init();
@@ -85,6 +76,11 @@ export default function ProfilePage() {
 
   return (
     <main className="page">
+      <div className="mb-2 flex justify-end">
+        <Link to="/settings" aria-label={t('settings.title')} className="btn-ghost h-10 w-10 !px-0">
+          <Icon name="gear" className="h-5 w-5" />
+        </Link>
+      </div>
       <PlayerCard
         member={me}
         career={careerQuery.data ?? null}
@@ -105,15 +101,7 @@ export default function ProfilePage() {
           <label className="label">{t('profile.efootballId')}<input className="input" value={form.efootball_id} onChange={(e) => setForm({ ...form, efootball_id: e.target.value })} /></label>
           <label className="label">{t('profile.country')}<input className="input" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} /></label>
           <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="label">{t('profile.divisionPvp')}<input className="input" value={form.division_pvp} onChange={(e) => setForm({ ...form, division_pvp: e.target.value })} placeholder="Division 3" /></label>
-            <label className="label">{t('profile.divisionAi')}<input className="input" value={form.division_ai} onChange={(e) => setForm({ ...form, division_ai: e.target.value })} placeholder="Legend" /></label>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <label className="label col-span-2">{t('profile.favName')}<input className="input" value={form.fav_player_name} onChange={(e) => setForm({ ...form, fav_player_name: e.target.value })} /></label>
-            <label className="label">{t('profile.favRating')}<input type="number" min={0} max={99} className="input" value={form.fav_player_rating} onChange={(e) => setForm({ ...form, fav_player_rating: e.target.value })} /></label>
-          </div>
-          <label className="label">{t('profile.favPos')}<input className="input" value={form.fav_player_position} onChange={(e) => setForm({ ...form, fav_player_position: e.target.value })} placeholder="AMF" /></label>
+          <label className="label">{t('profile.divisionPvp')}<input className="input" value={form.division_pvp} onChange={(e) => setForm({ ...form, division_pvp: e.target.value })} placeholder="Division 3" /></label>
           {msg && <p className="text-sm opacity-80">{msg}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={busy} className="btn-primary h-12 flex-1">
@@ -129,21 +117,6 @@ export default function ProfilePage() {
           <Icon name="shield" className="h-5 w-5" /> {t('admin.title')}
         </Link>
       )}
-      <section className="card mt-3" aria-label={t('profile.language')}>
-        <h2 className="card-title">{t('profile.language')}</h2>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {LOCALES.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              onClick={() => setLocale(l.code)}
-              className={locale === l.code ? 'btn-primary h-11 text-sm' : 'btn-ghost h-11 text-sm'}
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-      </section>
       <button onClick={logout} className="btn-ghost mt-3 w-full">{t('profile.logout')}</button>
       <BottomNav />
     </main>

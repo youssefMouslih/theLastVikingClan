@@ -2,9 +2,10 @@ import { Link } from 'react-router';
 import { matchShouldBeOverdue } from '../../competition/deadlineEngine';
 import type { Match } from '../../types/database';
 import { useLocale } from '../../i18n/LocaleContext';
+import Avatar from '../ui/Avatar';
 import StatusBadge from '../ui/StatusBadge';
 
-export default function MatchCard({ match, names }: { match: Match; names?: Record<string, string> }) {
+export default function MatchCard({ match, names, avatars }: { match: Match; names?: Record<string, string>; avatars?: Record<string, string | null> }) {
   const { t } = useLocale();
   const a = names?.[match.player_a_id] ?? match.player_a_id.slice(0, 6);
   const b = names?.[match.player_b_id] ?? match.player_b_id.slice(0, 6);
@@ -20,9 +21,11 @@ export default function MatchCard({ match, names }: { match: Match; names?: Reco
   return (
     <Link to={`/matches/${match.id}`} className="card block p-3 transition hover:shadow-md">
       <div className="flex items-center gap-2 text-sm font-semibold">
+        <Avatar path={avatars?.[match.player_a_id]} name={a} className="h-7 w-7 text-xs" />
         <span className="flex-1 truncate">{a}</span>
         <span className="font-mono text-base">{scored ? `${match.score_a}–${match.score_b}` : 'vs'}</span>
         <span className="flex-1 truncate text-right">{b}</span>
+        <Avatar path={avatars?.[match.player_b_id]} name={b} className="h-7 w-7 text-xs" />
       </div>
       <div className="mt-1 flex items-center gap-2 text-xs opacity-70">
         <StatusBadge value={match.status} />

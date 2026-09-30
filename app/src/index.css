@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Dark variant follows the Settings theme (data-theme), not just the OS. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 /* VIK Clan design system — generated via ui-ux-pro-max (gaming/esports).
    Style: immersive depth | Colors: neon violet + rose on deep navy
    Type: Russo One (display) / Chakra Petch (body) */
@@ -31,16 +34,15 @@
   color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f1eefb;
-    --surface: #ffffff;
-    --surface-2: #ede9fe;
-    --border: #d8ccfa;
-    --text: #1a1033;
-    --muted: #5b5675;
-    color-scheme: light;
-  }
+/* Explicit light theme (Settings → Theme). System follows OS via data-theme. */
+:root[data-theme='light'] {
+  --bg: #f1eefb;
+  --surface: #ffffff;
+  --surface-2: #ede9fe;
+  --border: #d8ccfa;
+  --text: #1a1033;
+  --muted: #5b5675;
+  color-scheme: light;
 }
 
 html, body, #root {

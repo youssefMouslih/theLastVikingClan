@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useLocale } from '../i18n/LocaleContext';
+import Avatar from '../components/ui/Avatar';
 import { getCompetitionByCode, joinCompetition, joinWaitlist, listParticipants } from '../services/competitionService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -47,6 +48,15 @@ export default function JoinPage() {
       <p className="text-sm opacity-70">{comp.type} • {t('join.capacity', { max: comp.max_players })}</p>
       <p className="mt-1 text-sm">{t('join.regCloses', { date: comp.registration_deadline ? fmtDate(comp.registration_deadline) : '—' })}</p>
       <p className="mt-1 font-semibold">{t('join.current', { count, max: comp.max_players })}{isFull ? t('join.fullSuffix') : ''}</p>
+      {(partsQuery.data ?? []).length > 0 && (
+        <div className="mt-2 flex items-center justify-center gap-1">
+          <div className="flex -space-x-2">
+            {(partsQuery.data ?? []).slice(0, 10).map((p) => (
+              <Avatar key={p.player_id} path={p.player?.avatar_url} name={p.player?.display_name ?? p.player?.username ?? '?'} className="h-8 w-8 border-2 border-[var(--surface)] text-xs" />
+            ))}
+          </div>
+        </div>
+      )}
       {msg && <p role="alert" className="mt-2 text-sm font-medium">{msg}</p>}
       {isFull ? (
         <button onClick={async () => { setBusy(true); try { await joinWaitlist(comp.id, me!.id); setMsg(t('detail.waitlistAdded')); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setBusy(false); } }} disabled={busy} className="btn-primary mt-4 w-full">

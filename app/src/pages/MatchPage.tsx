@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
+import Avatar from '../components/ui/Avatar';
 import Icon from '../components/ui/Icon';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
@@ -42,12 +43,19 @@ export default function MatchPage() {
     queryFn: async () => {
       const [a, b] = await Promise.all([getMember(m!.player_a_id), getMember(m!.player_b_id)]);
       return {
-        [m!.player_a_id]: a?.display_name ?? a?.username ?? 'Player A',
-        [m!.player_b_id]: b?.display_name ?? b?.username ?? 'Player B',
-      } as Record<string, string>;
+        names: {
+          [m!.player_a_id]: a?.display_name ?? a?.username ?? 'Player A',
+          [m!.player_b_id]: b?.display_name ?? b?.username ?? 'Player B',
+        } as Record<string, string>,
+        avatarPaths: {
+          [m!.player_a_id]: a?.avatar_url ?? null,
+          [m!.player_b_id]: b?.avatar_url ?? null,
+        } as Record<string, string | null>,
+      };
     },
   });
-  const names = namesQuery.data ?? {};
+  const names = namesQuery.data?.names ?? {};
+  const avatarPaths = namesQuery.data?.avatarPaths ?? {};
 
   const evidenceQuery = useQuery({
     queryKey: ['evidence', id],
@@ -84,11 +92,17 @@ export default function MatchPage() {
     <main className="page">
       <Link to={`/competitions/${m.competition_id}`} className="text-sm font-medium text-brand-400">{t('match.back')}</Link>
       <div className="hero mt-2 p-5 text-center">
-        <div className="font-display text-lg tracking-wide">{names[m.player_a_id] ?? '…'}</div>
+        <div className="flex items-center justify-center gap-3">
+          <Avatar path={avatarPaths[m.player_a_id]} name={names[m.player_a_id] ?? 'A'} className="h-12 w-12 text-lg" />
+          <div className="font-display text-lg tracking-wide">{names[m.player_a_id] ?? '…'}</div>
+        </div>
         <div className="font-display my-1 text-5xl tracking-wide">
           {m.score_a != null && m.score_b != null ? `${m.score_a}–${m.score_b}` : 'vs'}
         </div>
-        <div className="font-display text-lg tracking-wide">{names[m.player_b_id] ?? '…'}</div>
+        <div className="flex items-center justify-center gap-3">
+          <Avatar path={avatarPaths[m.player_b_id]} name={names[m.player_b_id] ?? 'B'} className="h-12 w-12 text-lg" />
+          <div className="font-display text-lg tracking-wide">{names[m.player_b_id] ?? '…'}</div>
+        </div>
         <p className="mt-2"><StatusBadge value={m.status} /></p>
         <p className="mt-1 flex items-center justify-center gap-1 text-xs opacity-70">
           <Icon name="clock" className="h-3.5 w-3.5" /> {t('match.deadline', { date: m.deadline ? fmtDate(m.deadline) : t('match.noDeadline') })}{deadlinePassed && m.status !== 'CONFIRMED' && m.status !== 'FORFEIT' ? t('match.passed') : ''}

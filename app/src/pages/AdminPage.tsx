@@ -6,6 +6,7 @@ import AnnouncementsTab from '../components/admin/AnnouncementsTab';
 import HonoursTab from '../components/admin/HonoursTab';
 import MembersTab from '../components/admin/MembersTab';
 import BottomNav from '../components/ui/BottomNav';
+import CopyButton from '../components/ui/CopyButton';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
 import { createCompetition, listCompetitions, type CreateCompetitionInput } from '../services/competitionService';
@@ -27,6 +28,7 @@ export default function AdminPage() {
     registration_deadline: '', match_deadline_hours: 48, description: '',
   });
   const [msg, setMsg] = useState<string | null>(null);
+  const [lastCode, setLastCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const listQuery = useQuery({ queryKey: ['admin-competitions'], queryFn: () => listCompetitions(true), enabled: isAdmin });
@@ -55,6 +57,7 @@ export default function AdminPage() {
       };
       const c = await createCompetition(input, me!.id);
       setMsg(`Created ${c.name} — code ${c.join_code}. Share /join/${c.join_code}`);
+      setLastCode(c.join_code);
       setForm({ ...form, name: '', description: '', registration_deadline: '' });
       await listQuery.refetch();
     } catch (err) {
@@ -102,6 +105,12 @@ export default function AdminPage() {
             <label className="label">{t('admin.regDeadline')}<input required type="datetime-local" className="input" value={form.registration_deadline} onChange={(e) => setForm({ ...form, registration_deadline: e.target.value })} /></label>
             <label className="label">{t('admin.description')}<textarea className="input h-auto py-2" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             {msg && <p className="text-sm font-medium">{msg}</p>}
+            {lastCode && (
+              <div className="flex flex-wrap gap-2">
+                <CopyButton text={lastCode} label={t('common.copy')} />
+                <CopyButton text={`${window.location.origin}/join/${lastCode}`} label={t('common.inviteLink')} />
+              </div>
+            )}
             <button type="submit" disabled={busy} className="btn-primary h-12">{busy ? t('admin.creating') : t('admin.create')}</button>
           </form>
 

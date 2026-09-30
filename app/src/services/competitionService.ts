@@ -103,13 +103,13 @@ export interface ParticipantRow {
   player_id: string;
   status: string;
   joined_at: string;
-  player?: { id: string; username: string; display_name: string | null } | null;
+  player?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
 }
 
 export async function listParticipants(competitionId: string): Promise<ParticipantRow[]> {
   const { data, error } = await supabase
     .from('competition_participants')
-    .select('id,competition_id,player_id,status,joined_at,player:profiles(id,username,display_name)')
+    .select('id,competition_id,player_id,status,joined_at,player:profiles(id,username,display_name,avatar_url)')
     .eq('competition_id', competitionId)
     .order('joined_at', { ascending: true });
   if (error) throw new Error(error.message);
