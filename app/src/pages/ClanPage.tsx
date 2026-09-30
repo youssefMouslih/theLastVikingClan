@@ -65,7 +65,7 @@ export default function ClanPage() {
             {clan?.logo_url ? (
               <img src={clan.logo_url} alt={`${clan.name} logo`} className="h-12 w-12 rounded-xl object-cover" />
             ) : (
-              <div aria-hidden className="font-display flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-700 text-lg text-white">V</div>
+              <img src="/logo.png" alt="VIK Clan logo" className="h-12 w-12 rounded-xl object-cover" />
             )}
             <div className="flex-1">
               <h1 className="font-display text-lg tracking-wide">{clan?.name ?? 'VIK Clan'}</h1>

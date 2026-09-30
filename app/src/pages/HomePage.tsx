@@ -34,7 +34,7 @@ export default function HomePage() {
   return (
     <main className="page">
       <header className="flex items-center gap-3">
-        <div aria-hidden className="font-display flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-b from-brand-400 to-brand-700 text-lg text-white shadow-lg shadow-brand-500/40">V</div>
+        <img src="/logo.png" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-brand-500/40" />
         <div className="flex-1">
           <div className="font-display text-sm tracking-wide">{clan?.name ?? 'VIK Clan'} {clan?.tag ? `[${clan.tag}]` : ''}</div>
           <div className="text-xs opacity-70">{t('home.greeting', { name: me?.display_name ?? me?.username ?? 'Player' })}</div>

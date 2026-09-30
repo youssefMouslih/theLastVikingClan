@@ -68,7 +68,8 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-sm flex-col justify-center p-4">
       <div className="mb-6 text-center">
-        <div className="font-display bg-gradient-to-r from-brand-400 via-brand-500 to-accent-400 bg-clip-text text-3xl tracking-wide text-transparent">VIK CLAN</div>
+        <img src="/logo.png" alt="VIK Clan logo" className="mx-auto h-24 w-24 rounded-3xl object-cover shadow-xl shadow-brand-500/30" />
+        <div className="font-display mt-3 bg-gradient-to-r from-brand-400 via-brand-500 to-accent-400 bg-clip-text text-3xl tracking-wide text-transparent">VIK CLAN</div>
         <p className="mt-1 text-sm opacity-70">{t('auth.tagline')}</p>
         {!isSupabaseConfigured && (
           <p role="alert" className="mx-auto mt-3 max-w-xs rounded-xl border border-amber-500 p-3 text-xs">
