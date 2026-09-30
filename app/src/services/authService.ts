@@ -57,7 +57,8 @@ function mapAuthError(msg: string): string {
 
 function humanDbError(msg: string): string {
   if (msg.includes('duplicate key') && msg.includes('username')) return 'That username is already taken.';
-  if (msg.includes('duplicate key')) return 'You already have an account for this competition.';
+  if (msg.includes('duplicate key')) return 'An account with this email already exists — log in instead.';
+  if (/row-level security/i.test(msg)) return 'Signup blocked by database policy — run migration 0004_public_signup.sql in Supabase SQL editor, then try again.';
   return msg;
 }
 
