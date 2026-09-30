@@ -71,14 +71,19 @@ export async function manageMember(args: {
     .update({ role, status, updated_at: new Date().toISOString() })
     .eq('id', target.id);
   if (error) throw new Error(error.message);
-  await supabase.from('audit_logs').insert({
-    actor_id: actorId,
-    action: 'ADMIN_MANAGED_MEMBER',
-    entity_type: 'player',
-    entity_id: target.id,
-    old_data: { role: target.role, status: target.status },
-    new_data: { role, status },
-  });
+  // Best-effort audit: never block the change if the audit table/RLS is missing.
+  try {
+    await supabase.from('audit_logs').insert({
+      actor_id: actorId,
+      action: 'ADMIN_MANAGED_MEMBER',
+      entity_type: 'player',
+      entity_id: target.id,
+      old_data: { role: target.role, status: target.status },
+      new_data: { role, status },
+    });
+  } catch (e) {
+    console.warn('audit skipped:', e instanceof Error ? e.message : e);
+  }
 }
 
 export const playerService = {
