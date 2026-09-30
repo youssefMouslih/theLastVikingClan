@@ -4,11 +4,11 @@ import { Link, useParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Avatar from '../components/ui/Avatar';
 import Icon from '../components/ui/Icon';
-import { Countdown } from '../components/ui/Motion';
+import { Countdown, Lightbox } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import { supabase } from '../lib/supabase';
-import { adminSetResult, awardForfeit, confirmResult, disputeResult, getMatch, submitResult } from '../services/matchService';
+import { adminRejectResult, adminSetResult, awardForfeit, confirmResult, disputeResult, getMatch, submitResult } from '../services/matchService';
 import { getMember } from '../services/playerService';
 import { getEvidenceSignedUrl } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
@@ -33,6 +33,7 @@ export default function MatchPage() {
   const [scoreA, setScoreA] = useState('');
   const [scoreB, setScoreB] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [comment, setComment] = useState('');
   const [fairTag, setFairTag] = useState(false);
   const [fairClean, setFairClean] = useState(false);
   const REP_OPTS = ['match.repTag', 'match.repLag', 'match.repConduct'] as const;
@@ -43,25 +44,28 @@ export default function MatchPage() {
   const [disputeReason, setDisputeReason] = useState<string>(REASON_KEYS[0]);
   const [disputeText, setDisputeText] = useState('');
   const [disputing, setDisputing] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [refuseComment, setRefuseComment] = useState('');
 
   const matchQuery = useQuery({ queryKey: ['match', id], queryFn: () => getMatch(id ?? ''), enabled: !!id });
   const m = matchQuery.data;
 
   const namesQuery = useQuery({
-    queryKey: ['match-names', m?.player_a_id, m?.player_b_id],
+    queryKey: ['match-names', m?.player_a_id, m?.player_b_id, m?.submitted_by],
     enabled: !!m,
     queryFn: async () => {
-      const [a, b] = await Promise.all([getMember(m!.player_a_id), getMember(m!.player_b_id)]);
-      return {
-        names: {
-          [m!.player_a_id]: a?.display_name ?? a?.username ?? 'Player A',
-          [m!.player_b_id]: b?.display_name ?? b?.username ?? 'Player B',
-        } as Record<string, string>,
-        avatarPaths: {
-          [m!.player_a_id]: a?.avatar_url ?? null,
-          [m!.player_b_id]: b?.avatar_url ?? null,
-        } as Record<string, string | null>,
-      };
+      const ids = [...new Set([m!.player_a_id, m!.player_b_id, m!.submitted_by].filter(Boolean))] as string[];
+      const profs = await Promise.all(ids.map((pid) => getMember(pid)));
+      const names: Record<string, string> = {};
+      const avatarPaths: Record<string, string | null> = {};
+      for (const p of profs) {
+        if (!p) continue;
+        names[p.id] = p.display_name ?? p.username;
+        avatarPaths[p.id] = p.avatar_url ?? null;
+      }
+      if (!names[m!.player_a_id]) names[m!.player_a_id] = 'Player A';
+      if (!names[m!.player_b_id]) names[m!.player_b_id] = 'Player B';
+      return { names, avatarPaths };
     },
   });
   const names = namesQuery.data?.names ?? {};
@@ -125,6 +129,12 @@ export default function MatchPage() {
       </div>
 
       {msg && <p role="status" className="mt-2 text-sm font-medium">{msg}</p>}
+      {m.moderation_comment && (iAmParticipant || isAdmin) && (
+        <p role="alert" className="card mt-2 border-amber-400 text-sm">
+          <span className="font-bold">{t('match.modNote')}: </span>{m.moderation_comment}
+        </p>
+      )}
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
 
       {iAmParticipant && (m.status === 'SCHEDULED' || m.status === 'OVERDUE' || m.status === 'RESULT_SUBMITTED') && (
         <form
@@ -143,6 +153,9 @@ export default function MatchPage() {
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               {file && <span className="file-name">{file.name}</span>}
             </span>
+          </label>
+          <label className="label">{t('match.addComment')}
+            <input value={comment} onChange={(e) => setComment(e.target.value)} maxLength={200} placeholder={t('match.addCommentPh')} className="input text-sm" />
           </label>
           <div className="rounded-xl bg-white/5 p-2 text-sm">
             <label className="flex items-start gap-2 py-1">
@@ -176,7 +189,7 @@ export default function MatchPage() {
             onClick={(e) => {
               e.preventDefault();
               run(async () => {
-                await submitResult(m, me!.id, Number(scoreA), Number(scoreB), file);
+                await submitResult(m, me!.id, Number(scoreA), Number(scoreB), file, comment || null);
                 if (reports.length > 0) {
                   await disputeResult(m.id, me!.id, 'Fair play report', reports.map((r) => t(r)).join('; '));
                 }
@@ -192,6 +205,12 @@ export default function MatchPage() {
       {iAmOpponent && (
         <div className="card mt-3">
           <h2 className="font-bold">{t('match.oppSubmitted', { a: m.score_a ?? 0, b: m.score_b ?? 0 })}</h2>
+          <p className="mt-0.5 text-xs opacity-70">
+            {t('match.submittedBy', { name: m.submitted_by ? (names[m.submitted_by] ?? m.submitted_by.slice(0, 8)) : '—', date: m.submitted_at ? fmtDate(m.submitted_at) : '—' })}
+          </p>
+          {m.submission_comment && (
+            <p className="mt-1 rounded-lg bg-white/5 p-2 text-sm italic">“{m.submission_comment}”</p>
+          )}
           <div className="mt-2 flex gap-2">
             <button disabled={busy} onClick={() => run(() => confirmResult(m, me!.id), t('match.confirmed'))} className="btn-primary h-12 flex-1">{t('match.confirm')}</button>
             <button disabled={busy} onClick={() => setDisputing((d) => !d)} className="btn-danger h-12 flex-1">{t('match.wrongBtn')}</button>
@@ -214,7 +233,9 @@ export default function MatchPage() {
           <div className="mt-2 flex flex-col gap-2">
             {evidenceQuery.data.map((e) => (
               e.url ? (
-                <img key={e.id} src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+                <button key={e.id} type="button" onClick={() => setLightbox(e.url!)} className="block w-full" aria-label={t('match.viewShot')}>
+                  <img src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+                </button>
               ) : (
                 <p key={e.id} className="text-sm opacity-60">{t('match.noAccess')}</p>
               )
@@ -235,16 +256,27 @@ export default function MatchPage() {
             <div className="mt-2 flex flex-col gap-2">
               {evidenceQuery.data!.map((e) => (
                 e.url ? (
-                  <img key={e.id} src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+                  <button key={e.id} type="button" onClick={() => setLightbox(e.url!)} className="block w-full" aria-label={t('match.viewShot')}>
+                    <img src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+                  </button>
                 ) : (
                   <p key={e.id} className="text-sm opacity-60">{t('match.noAccess')}</p>
                 )
               ))}
             </div>
           )}
+          {m.submission_comment && (
+            <p className="mt-2 rounded-lg bg-white/5 p-2 text-sm italic">“{m.submission_comment}”</p>
+          )}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <input type="number" min={0} placeholder={t('match.scoreA')} aria-label={t('match.scoreA')} value={scoreA} onChange={(e) => setScoreA(e.target.value)} className="input text-center" />
             <input type="number" min={0} placeholder={t('match.scoreB')} aria-label={t('match.scoreB')} value={scoreB} onChange={(e) => setScoreB(e.target.value)} className="input text-center" />
+          </div>
+          <div className="mt-2 flex flex-col gap-2">
+            <input value={refuseComment} onChange={(e) => setRefuseComment(e.target.value)} maxLength={200} placeholder={t('match.refusePh')} aria-label={t('match.refusePh')} className="input text-sm" />
+            <div className="flex flex-wrap gap-2 text-sm">
+              <button disabled={busy || refuseComment.trim() === ''} onClick={() => run(() => adminRejectResult(m, me!.id, refuseComment), t('match.refused'))} className="btn-danger h-10 flex-1 px-3 text-xs">{t('match.sendBack')}</button>
+            </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             {m.score_a != null && (

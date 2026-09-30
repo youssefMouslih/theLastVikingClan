@@ -118,6 +118,7 @@ export async function submitResult(
   scoreA: number,
   scoreB: number,
   evidence?: File | null,
+  comment?: string | null,
 ) {
   if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
     throw new Error('Scores must be whole numbers >= 0.');
@@ -139,7 +140,7 @@ export async function submitResult(
   await uploadMatchEvidence(evidence, match.competition_id, match.id, userId);
   const { error } = await supabase
     .from('matches')
-    .update({ score_a: scoreA, score_b: scoreB, status: 'RESULT_SUBMITTED', submitted_by: userId, submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({ score_a: scoreA, score_b: scoreB, status: 'RESULT_SUBMITTED', submitted_by: userId, submitted_at: new Date().toISOString(), submission_comment: comment?.trim() || null, moderation_comment: null, updated_at: new Date().toISOString() })
     .eq('id', match.id);
   if (error) throw new Error(error.message);
   const opponent = match.player_a_id === userId ? match.player_b_id : match.player_a_id;
@@ -175,6 +176,20 @@ export async function confirmResult(match: Match, userId: string) {
       await checkStreakBadges(pid, match.competition_id);
     }
   } catch { /* XP never breaks results */ }
+}
+
+export async function adminRejectResult(match: Match, adminId: string, comment: string): Promise<void> {
+  if (!comment.trim()) throw new Error('A comment is required to send a result back.');
+  if (match.status !== 'RESULT_SUBMITTED' && match.status !== 'DISPUTED') throw new Error('Nothing to send back.');
+  const { error } = await supabase
+    .from('matches')
+    .update({ status: 'SCHEDULED', submitted_by: null, submitted_at: null, moderation_comment: comment.trim(), updated_at: new Date().toISOString() })
+    .eq('id', match.id);
+  if (error) throw new Error(error.message);
+  await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_REJECTED_RESULT', entity_type: 'match', entity_id: match.id, reason: comment.trim() });
+  for (const pid of [match.player_a_id, match.player_b_id]) {
+    await notify(pid, 'RESULT_DISPUTED', 'Result sent back', `Moderator: ${comment.trim()} — replay or resubmit.`, { type: 'match', id: match.id });
+  }
 }
 
 export async function disputeResult(matchId: string, userId: string, reason: string, description: string) {
@@ -260,6 +275,7 @@ export const matchService = {
   generateKnockoutFixtures,
   submitResult,
   confirmResult,
+  adminRejectResult,
   disputeResult,
   adminSetResult,
   awardForfeit,

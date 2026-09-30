@@ -60,6 +60,27 @@ export function EmptyState({ icon, title, hint }: { icon: ReactNode; title: stri
   );
 }
 
+// Fullscreen evidence viewer (tap photo to enlarge, tap anywhere to close).
+export function Lightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="anim-rise fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+    >
+      <img src={src} alt="Evidence enlarged" className="max-h-full max-w-full rounded-xl object-contain" />
+    </div>
+  );
+}
+
 // Skeleton rows while lists load.
 export function SkeletonList({ rows = 3 }: { rows?: number }) {
   return (

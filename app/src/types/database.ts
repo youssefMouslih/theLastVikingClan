@@ -129,6 +129,8 @@ export interface Match {
   confirmed_at: string | null;
   winner_id: string | null;
   forfeit_player_id: string | null;
+  submission_comment: string | null;
+  moderation_comment: string | null;
 }
 
 export type ChallengeType = 'HEAD' | 'FRIENDLY' | 'HONOR' | 'REMATCH' | 'WAR';

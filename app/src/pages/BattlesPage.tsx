@@ -5,6 +5,7 @@ import Avatar from '../components/ui/Avatar';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
+import { Lightbox } from '../components/ui/Motion';
 import Icon from '../components/ui/Icon';
 import { EmptyState, FadeIn } from '../components/ui/Motion';
 import SquadsTab from '../components/battle/SquadsTab';
@@ -32,8 +33,16 @@ import { useAuthStore } from '../stores/authStore';
 
 function BattleEvidence({ path }: { path: string }) {
   const query = useQuery({ queryKey: ['battle-evidence', path], queryFn: () => getBattleEvidenceUrl(path) });
+  const [zoom, setZoom] = useState(false);
   if (!query.data) return null;
-  return <img src={query.data} alt="Battle evidence" className="mt-1 max-h-64 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />;
+  return (
+    <>
+      <button type="button" onClick={() => setZoom(true)} className="block w-full" aria-label="Evidence">
+        <img src={query.data} alt="Battle evidence" className="mt-1 max-h-64 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+      </button>
+      {zoom && <Lightbox src={query.data} onClose={() => setZoom(false)} />}
+    </>
+  );
 }
 
 const TYPES: ChallengeType[] = ['HEAD', 'FRIENDLY', 'HONOR', 'REMATCH', 'WAR'];
