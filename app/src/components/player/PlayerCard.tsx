@@ -209,18 +209,19 @@ export default function PlayerCard({
                 const to = m.kind === 'match' ? `/matches/${m.id}` : '/battles';
                 const color = m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300';
                 return (
-                  <Link
+                  <div
                     key={m.id}
-                    to={to}
                     className={`flex w-[84px] shrink-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center ${
                       m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
                     }`}
                   >
-                    <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-11 w-11 text-sm" />
-                    <span className="w-full truncate text-[10px] opacity-80">{m.opponent.display_name ?? m.opponent.username}</span>
-                    <span className={`font-mono text-sm font-bold ${color}`}>{m.mine}–{m.theirs}</span>
+                    <Link to={`/players/${m.opponent.id}`} className="flex flex-col items-center gap-0.5">
+                      <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-11 w-11 text-sm" />
+                      <span className="w-full truncate text-[10px] opacity-80 underline-offset-2 hover:underline">{m.opponent.display_name ?? m.opponent.username}</span>
+                    </Link>
+                    <Link to={to} className={`font-mono text-sm font-bold ${color}`}>{m.mine}–{m.theirs}</Link>
                     <span className="text-[10px] leading-tight opacity-60">{label}</span>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
