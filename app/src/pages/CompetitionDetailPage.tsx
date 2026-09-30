@@ -10,6 +10,7 @@ import CopyButton from '../components/ui/CopyButton';
 import Icon from '../components/ui/Icon';
 import StatusBadge from '../components/ui/StatusBadge';
 import { statusLabel, useLocale } from '../i18n/LocaleContext';
+import { useOath } from '../hooks/useOath';
 import { registrationState } from '../competition/deadlineEngine';
 import {
   approveDeletion,
@@ -43,6 +44,7 @@ function toLocalInput(iso: string | null): string {
 
 export default function CompetitionDetailPage() {
   const { t, fmtDate } = useLocale();
+  const { sworn, swear } = useOath();
   const { id } = useParams();
   const nav = useNavigate();
   const me = useAuthStore((s) => s.profile);
@@ -199,7 +201,21 @@ export default function CompetitionDetailPage() {
         {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
         <div className="mt-2 flex flex-wrap gap-2">
           {!isRegistered ? (
-            isFull ? (
+            !sworn ? (
+              <div className="flex w-full flex-col gap-2 rounded-xl bg-white/5 p-3 text-sm">
+                <p className="font-bold">{t('code.oathGate')}</p>
+                <div className="flex gap-2">
+                  <Link to="/code" className="btn-ghost flex-1">{t('code.tabOath')}</Link>
+                  <button
+                    disabled={busy}
+                    onClick={async () => { await run(() => swear(), t('code.oathSworn')); }}
+                    className="btn-cta flex-1"
+                  >
+                    {t('code.oathSwear')}
+                  </button>
+                </div>
+              </div>
+            ) : isFull ? (
               <button disabled={busy} onClick={() => run(() => joinWaitlist(comp.id, me!.id), t('detail.waitlistAdded'))} className="btn-primary flex-1">
                 {t('detail.joinWaitlist', { count: parts.length, max: comp.max_players })}
               </button>

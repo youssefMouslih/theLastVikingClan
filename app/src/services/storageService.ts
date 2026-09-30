@@ -58,4 +58,25 @@ export async function getAvatarUrl(filePath: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadAvatar, getAvatarUrl, client: supabase };
+// Profile banner image. Same bucket, separate path so avatar stays intact.
+export async function uploadBanner(file: File, userId: string): Promise<string> {
+  if (!ALLOWED.includes(file.type)) throw new Error('Banner must be JPG, PNG or WEBP.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Banner must be under 5 MB.');
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'webp';
+  const path = `${userId}/banner.${ext}`;
+  const { error } = await supabase.storage.from('avatars').upload(path, file, {
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) throw new Error(`Banner upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getBannerUrl(filePath: string | null): Promise<string | null> {
+  if (!filePath) return null;
+  const { data, error } = await supabase.storage.from('avatars').createSignedUrl(filePath, 7 * 24 * 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, client: supabase };

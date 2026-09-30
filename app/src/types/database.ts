@@ -45,6 +45,9 @@ export interface Profile {
   fav_player_name: string | null;
   fav_player_rating: number | null;
   fav_player_position: string | null;
+  oath_accepted_at: string | null;
+  banner_color: string | null;
+  banner_image: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -124,8 +127,40 @@ export interface Match {
   forfeit_player_id: string | null;
 }
 
-export interface StandingRow {
-  player_id: string;
+export type ChallengeType = 'HEAD' | 'FRIENDLY' | 'HONOR' | 'REMATCH' | 'WAR';
+export type ChallengeStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'RESULT_SUBMITTED' | 'COMPLETED' | 'CANCELLED';
+
+export interface Challenge {
+  id: string;
+  challenger_id: string;
+  opponent_id: string | null;
+  opponent_label: string | null;
+  type: ChallengeType;
+  conditions: string | null;
+  stakes: string | null;
+  status: ChallengeStatus;
+  score_a: number | null;
+  score_b: number | null;
+  submitted_by: string | null;
+  for_throne: boolean;
+  forced: boolean;
+  created_at: string;
+  responded_at: string | null;
+  updated_at: string;
+}
+
+export interface ThroneReign {
+  id: string;
+  holder_id: string;
+  started_at: string;
+  ended_at: string | null;
+  defenses: number;
+  won_from: string | null;
+  competition_id: string | null;
+  holder?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
+}
+
+export interface StandingRow {  player_id: string;
   played: number;
   wins: number;
   draws: number;

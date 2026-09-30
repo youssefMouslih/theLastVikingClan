@@ -7,7 +7,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { updateOwnProfile } from '../services/playerService';
 import { getPlayerCareer } from '../services/statisticsService';
-import { uploadAvatar } from '../services/storageService';
+import { uploadAvatar, uploadBanner } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
 
 // Pro player card (eFootball style): view by default, Edit reveals the form.
@@ -24,8 +24,10 @@ export default function ProfilePage() {
     country: me?.country ?? '',
     bio: me?.bio ?? '',
     division_pvp: me?.division_pvp ?? '',
+    banner_color: me?.banner_color ?? '',
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const careerQuery = useQuery({ queryKey: ['career', me?.id], queryFn: () => getPlayerCareer(me!.id), enabled: !!me });
@@ -40,8 +42,10 @@ export default function ProfilePage() {
       country: me?.country ?? '',
       bio: me?.bio ?? '',
       division_pvp: me?.division_pvp ?? '',
+      banner_color: me?.banner_color ?? '',
     });
     setAvatarFile(null);
+    setBannerFile(null);
     setMsg(null);
     setEditing(true);
   }
@@ -52,6 +56,8 @@ export default function ProfilePage() {
     try {
       let avatar_url = me!.avatar_url;
       if (avatarFile) avatar_url = await uploadAvatar(avatarFile, me!.id);
+      let banner_image = me!.banner_image;
+      if (bannerFile) banner_image = await uploadBanner(bannerFile, me!.id);
       await updateOwnProfile(me!.id, {
         display_name: form.display_name || null,
         efootball_name: form.efootball_name || null,
@@ -63,6 +69,8 @@ export default function ProfilePage() {
         fav_player_name: null,
         fav_player_rating: null,
         fav_player_position: null,
+        banner_color: form.banner_color || null,
+        banner_image,
         avatar_url,
       });
       await init();
@@ -78,7 +86,7 @@ export default function ProfilePage() {
     <main className="page">
       <div className="mb-2 flex justify-end">
         <Link to="/settings" aria-label={t('settings.title')} className="btn-ghost h-10 w-10 !px-0">
-          <Icon name="gear" className="h-5 w-5" />
+          <Icon name="sliders" className="h-5 w-5" />
         </Link>
       </div>
       <PlayerCard
@@ -102,6 +110,26 @@ export default function ProfilePage() {
           <label className="label">{t('profile.country')}<input className="input" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} /></label>
           <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
           <label className="label">{t('profile.divisionPvp')}<input className="input" value={form.division_pvp} onChange={(e) => setForm({ ...form, division_pvp: e.target.value })} placeholder="Division 3" /></label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-sm font-semibold">{t('profile.bannerColor')}</p>
+              <div className="mt-1 flex gap-1.5">
+                {['', '#7c3aed', '#f43f5e', '#2540ff', '#d4af37', '#16a34a'].map((c) => (
+                  <button
+                    key={c || 'none'}
+                    type="button"
+                    aria-label={c || 'default'}
+                    onClick={() => setForm({ ...form, banner_color: c })}
+                    className={`h-9 w-9 rounded-lg border-2 ${form.banner_color === c ? 'border-white' : 'border-transparent'}`}
+                    style={{ background: c || 'linear-gradient(115deg,#ffe500 20%,#2540ff 60%,#0f0f23)' }}
+                  />
+                ))}
+              </div>
+            </div>
+            <label className="label">{t('profile.bannerImage')}
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} className="h-11 w-full text-xs" />
+            </label>
+          </div>
           {msg && <p className="text-sm opacity-80">{msg}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={busy} className="btn-primary h-12 flex-1">

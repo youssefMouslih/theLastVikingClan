@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import MemberRow from '../components/player/MemberRow';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
 import { getClanSettings, updateClanSettings } from '../services/clanService';
+import { listCompetitions } from '../services/competitionService';
 import { listMembers } from '../services/playerService';
 import { getClanTotals, getHallOfFame } from '../services/statisticsService';
 import { useAuthStore } from '../stores/authStore';
@@ -22,6 +24,8 @@ export default function ClanPage() {
   const membersQuery = useQuery({ queryKey: ['members'], queryFn: listMembers });
   const totalsQuery = useQuery({ queryKey: ['clan-totals'], queryFn: getClanTotals });
   const fameQuery = useQuery({ queryKey: ['hall-of-fame'], queryFn: getHallOfFame });
+  const pastQuery = useQuery({ queryKey: ['past-seasons'], queryFn: () => listCompetitions() });
+  const past = (pastQuery.data ?? []).filter((c) => c.status === 'FINISHED' || c.status === 'ARCHIVED');
 
   const clan = clanQuery.data;
   const members = membersQuery.data ?? [];
@@ -145,6 +149,20 @@ export default function ClanPage() {
           </ul>
         )}
       </section>
+      {past.length > 0 && (
+        <section aria-label={t('clan.pastSeasons')} className="card mt-3">
+          <h2 className="card-title">{t('clan.pastSeasons')}</h2>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {past.map((c) => (
+              <Link key={c.id} to={`/competitions/${c.id}`} className="flex items-center gap-2 rounded-xl bg-white/5 p-2 text-sm">
+                <Icon name="trophy" className="h-4 w-4 text-brand-400" />
+                <span className="flex-1 truncate font-semibold">{c.name}</span>
+                <span className="text-xs opacity-60">{c.type}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       <BottomNav />
     </main>
   );

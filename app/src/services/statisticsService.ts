@@ -131,4 +131,55 @@ export async function getRecentMatches(playerId: string, limit = 5): Promise<Rec
     });
 }
 
-export const statisticsService = { getPlayerCareer, getHeadToHead, getClanTotals, getHallOfFame, getRecentMatches, client: supabase };
+export const statisticsService = { getPlayerCareer, getHeadToHead, getClanTotals, getHallOfFame, getRecentMatches, getStreaks, checkStreakBadges, getHonours, client: supabase };
+
+// Win-streak tracking (season badges).
+export async function getStreaks(playerId: string): Promise<{ current: number; longest: number }> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('player_a_id,player_b_id,score_a,score_b')
+    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
+    .in('status', ['CONFIRMED', 'FORFEIT'])
+    .order('confirmed_at', { ascending: true });
+  if (error) return { current: 0, longest: 0 };
+  let cur = 0, longest = 0;
+  for (const m of (data ?? []) as { player_a_id: string; player_b_id: string; score_a: number | null; score_b: number | null }[]) {
+    if (m.score_a == null || m.score_b == null) continue;
+    const mine = m.player_a_id === playerId ? m.score_a : m.score_b;
+    const theirs = m.player_a_id === playerId ? m.score_b : m.score_a;
+    if (mine > theirs) {
+      cur++;
+      longest = Math.max(longest, cur);
+    } else {
+      cur = 0;
+    }
+  }
+  return { current: cur, longest };
+}
+
+export async function checkStreakBadges(playerId: string, competitionId: string | null): Promise<void> {
+  try {
+    const { longest } = await getStreaks(playerId);
+    const { data: has } = await supabase.from('achievements').select('type').eq('player_id', playerId);
+    const types = new Set(((has ?? []) as { type: string }[]).map((a) => a.type));
+    const awards: { type: string; name: string }[] = [];
+    if (longest >= 5 && !types.has('STREAK_5')) awards.push({ type: 'STREAK_5', name: 'War Streak x5' });
+    if (longest >= 10 && !types.has('STREAK_10')) awards.push({ type: 'STREAK_10', name: 'Unbroken x10' });
+    for (const a of awards) {
+      const { error } = await supabase.from('achievements').insert({ player_id: playerId, competition_id: competitionId, type: a.type, name: a.name, description: 'Consecutive verified wins.' });
+      if (!error) await supabase.from('notifications').insert({ user_id: playerId, type: 'COMPETITION_FINISHED', title: `Badge: ${a.name}`, message: 'A new battle honor is yours.' });
+    }
+  } catch { /* badges never break results */ }
+}
+
+export interface Honour {
+  id: string;
+  type: string;
+  name: string;
+  awarded_at: string;
+}
+
+export async function getHonours(playerId: string): Promise<Honour[]> {
+  const { data } = await supabase.from('achievements').select('id,type,name,awarded_at').eq('player_id', playerId).order('awarded_at', { ascending: false }).limit(20);
+  return (data ?? []) as Honour[];
+}

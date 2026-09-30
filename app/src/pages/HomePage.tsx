@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
+import Avatar from '../components/ui/Avatar';
 import Icon from '../components/ui/Icon';
 import InstallPrompt from '../components/ui/InstallPrompt';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -11,6 +12,7 @@ import { listCompetitions } from '../services/competitionService';
 import { listMyUpcoming, recentConfirmedResults } from '../services/matchService';
 import { listNotifications } from '../services/notificationService';
 import { listActiveMembers } from '../services/playerService';
+import { getCurrentReign, getReignHistory } from '../services/throneService';
 import { useAuthStore } from '../stores/authStore';
 
 // Home prioritizes actionable information (§16): next match, deadline,
@@ -25,6 +27,8 @@ export default function HomePage() {
   const announcementsQuery = useQuery({ queryKey: ['announcements'], queryFn: listActiveAnnouncements });
   const notifQuery = useQuery({ queryKey: ['notifications'], queryFn: () => listNotifications(me!.id, 20), enabled: !!me });
   const compsQuery = useQuery({ queryKey: ['competitions'], queryFn: () => listCompetitions() });
+  const throneQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
+  const reignsQuery = useQuery({ queryKey: ['throne-history'], queryFn: () => getReignHistory(5).catch(() => []) });
   const clan = clanQuery.data;
   const next = upcomingQuery.data?.[0];
   const unread = (notifQuery.data ?? []).filter((n) => !n.read_at).length;
@@ -73,8 +77,43 @@ export default function HomePage() {
         )}
       </section>
 
-      {(announcementsQuery.data ?? []).length > 0 && (
-        <section aria-label="Announcements" className="mt-3 flex flex-col gap-2">
+      <section aria-label={t('throne.title')} className="card mt-3">
+        <h2 className="card-title flex items-center gap-1"><Icon name="trophy" className="h-4 w-4 text-brand-400" /> {t('throne.title')}</h2>
+        {throneQuery.data?.holder ? (
+          <div className="mt-2">
+            <div className="flex items-center gap-3">
+              <Avatar path={throneQuery.data.holder.avatar_url} name={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username} className="h-12 w-12 text-lg" />
+              <div className="flex-1">
+                <p className="font-display text-lg leading-tight">{throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}</p>
+                <p className="text-xs opacity-70">
+                  {t('throne.reignSince', { date: fmtDate(throneQuery.data.started_at, false) })} • {t('throne.defenses', { n: throneQuery.data.defenses })}
+                </p>
+              </div>
+            </div>
+            {throneQuery.data.holder_id !== me?.id && (
+              <Link to={`/battles?opponent=${throneQuery.data.holder_id}`} className="btn-cta mt-2 w-full text-sm">
+                {t('throne.challenge')}
+              </Link>
+            )}
+            {(reignsQuery.data ?? []).length > 1 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs underline">{t('throne.history')}</summary>
+                <ul className="mt-1 flex flex-col gap-1 text-xs opacity-80">
+                  {(reignsQuery.data ?? []).slice(1).map((r) => (
+                    <li key={r.id}>
+                      {(r.holder?.display_name ?? r.holder?.username ?? '?')} • {t('throne.defenses', { n: r.defenses })}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        ) : (
+          <p className="mt-1 text-sm opacity-70">{t('throne.vacant')}</p>
+        )}
+      </section>
+
+      {(announcementsQuery.data ?? []).length > 0 && (        <section aria-label="Announcements" className="mt-3 flex flex-col gap-2">
           {(announcementsQuery.data ?? []).slice(0, 3).map((a) => (
             <article key={a.id} className="card p-3 text-sm">
               <p className="flex items-center gap-1.5 font-bold"><Icon name="mega" className="h-4 w-4 text-accent-400" /> {a.title}</p>
@@ -96,6 +135,15 @@ export default function HomePage() {
           <Link to="/competitions" className="text-sm font-semibold text-brand-400">{t('home.openCompetitions')}</Link>
         </section>
       </div>
+
+      <Link to="/saga" className="card mt-3 flex items-center gap-3 p-3">
+        <Icon name="medal" className="h-7 w-7 text-brand-400" />
+        <span className="flex-1">
+          <span className="font-display block text-sm tracking-wide">{t('saga.title')}</span>
+          <span className="text-xs opacity-70">{t('saga.teaser')}</span>
+        </span>
+        <Icon name="back" className="h-5 w-5 rotate-180 opacity-50" />
+      </Link>
 
       <section aria-label={t('home.recentResults')} className="card mt-3">
         <h2 className="card-title">{t('home.recentResults')}</h2>

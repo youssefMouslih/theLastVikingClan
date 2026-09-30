@@ -12,12 +12,15 @@ import { getMember } from '../services/playerService';
 import { getEvidenceSignedUrl } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
 
-const REASON_KEYS = ['reason.incorrect', 'reason.noMatch', 'reason.wrongOpp', 'reason.badShot', 'reason.other'] as const;
+const REASON_KEYS = ['reason.incorrect', 'reason.noMatch', 'reason.wrongOpp', 'reason.badShot', 'reason.tag', 'reason.misconduct', 'reason.cheat', 'reason.other'] as const;
 const REASON_EN: Record<string, string> = {
   'reason.incorrect': 'Incorrect score',
   'reason.noMatch': 'Match did not happen',
   'reason.wrongOpp': 'Wrong opponent',
   'reason.badShot': 'Invalid screenshot',
+  'reason.tag': 'No clan tag',
+  'reason.misconduct': 'Misconduct',
+  'reason.cheat': 'Suspected cheating',
   'reason.other': 'Other',
 };
 

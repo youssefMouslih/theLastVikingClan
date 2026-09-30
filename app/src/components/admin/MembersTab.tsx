@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
 import { listMembers, manageMember } from '../../services/playerService';
+import { crownHolder, getCurrentReign, vacateThrone } from '../../services/throneService';
 import type { MemberStatus, Profile, Role } from '../../types/database';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -18,6 +19,21 @@ export default function MembersTab() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const query = useQuery({ queryKey: ['members'], queryFn: listMembers });
+  const throneQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
+
+  async function crown(m: Profile) {
+    if (!confirm(t('throne.crownConfirm', { name: m.display_name ?? m.username }))) return;
+    setBusyId(m.id); setMsg(null);
+    try {
+      await crownHolder(m.id, me!.id);
+      setMsg(t('throne.crowned'));
+      await Promise.all([query.refetch(), throneQuery.refetch()]);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : 'Failed.');
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function save(m: Profile) {
     const d = drafts[m.id] ?? { role: m.role, status: m.status };
@@ -38,6 +54,20 @@ export default function MembersTab() {
 
   return (
     <div className="mt-3 flex flex-col gap-2">
+      <div className="card flex items-center gap-2 p-3 text-sm">
+        <span className="flex-1">
+          <b>{t('throne.title')}:</b> {throneQuery.data?.holder ? (throneQuery.data.holder.display_name ?? throneQuery.data.holder.username) : t('throne.vacant')}
+        </span>
+        {throneQuery.data?.holder && (
+          <button
+            disabled={busyId === 'vacate'}
+            onClick={async () => { if (!confirm(t('throne.vacate') + '?')) return; setBusyId('vacate'); try { await vacateThrone(me!.id); setMsg(t('throne.vacated')); throneQuery.refetch(); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setBusyId(null); } }}
+            className="btn-ghost h-9 px-3 text-xs"
+          >
+            {t('throne.vacate')}
+          </button>
+        )}
+      </div>
       <p className="card p-3 text-xs opacity-80">{t('members.hint')}</p>
       {msg && <p className="text-sm font-medium">{msg}</p>}
       {rows.map((m) => {
@@ -64,6 +94,9 @@ export default function MembersTab() {
                 {busyId === m.id ? t('common.saving') : t('members.save')}
               </button>
             )}
+            <button disabled={busyId === m.id} onClick={() => crown(m)} className="btn-ghost mt-1 h-9 text-xs">
+              {t('throne.crown')}
+            </button>
           </div>
         );
       })}

@@ -94,6 +94,14 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8" />
     </>
   ),
+  sliders: (
+    <>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+      <circle cx="15" cy="7" r="2" fill="var(--surface)" />
+      <circle cx="9" cy="12" r="2" fill="var(--surface)" />
+      <circle cx="16" cy="17" r="2" fill="var(--surface)" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

@@ -2,7 +2,10 @@ import { createBrowserRouter, Navigate } from 'react-router';
 
 // URL structure (§124). Pages are stubs in Phase 0; implemented in later phases.
 import AdminPage from '../pages/AdminPage';
+import BattlesPage from '../pages/BattlesPage';
+import SagaPage from '../pages/SagaPage';
 import ClanPage from '../pages/ClanPage';
+import CodePage from '../pages/CodePage';
 import CompetitionDetailPage from '../pages/CompetitionDetailPage';
 import CompetitionsPage from '../pages/CompetitionsPage';
 import HomePage from '../pages/HomePage';
@@ -33,10 +36,13 @@ export const router = createBrowserRouter([
   { path: '/matches/:id', element: guard(<MatchPage />) },
   { path: '/players/:id', element: guard(<PlayerPage />) },
   { path: '/clan', element: guard(<ClanPage />) },
+  { path: '/code', element: guard(<CodePage />) },
   { path: '/notifications', element: guard(<NotificationsPage />) },
   { path: '/profile', element: guard(<ProfilePage />) },
   { path: '/settings', element: guard(<SettingsPage />) },
   { path: '/admin', element: guard(<AdminPage />) },
+  { path: '/battles', element: guard(<BattlesPage />) },
+  { path: '/saga', element: guard(<SagaPage />) },
   { path: '/admin/disputes', element: guard(<AdminPage />) },
   { path: '/admin/competitions', element: guard(<AdminPage />) },
   { path: '/join/:code', element: guard(<JoinPage />) },

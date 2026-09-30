@@ -3,6 +3,8 @@ import { generateKnockout } from '../competition/knockoutEngine';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../types/database';
 import { notify } from './notificationService';
+import { awardXP } from './sagaService';
+import { checkStreakBadges, getPlayerCareer } from './statisticsService';
 import { uploadMatchEvidence } from './storageService';
 
 export async function listCompetitionMatches(competitionId: string): Promise<Match[]> {
@@ -125,9 +127,8 @@ export async function submitResult(
     throw new Error('Deadline passed. Contact an admin.');
   }
   if (match.status === 'CONFIRMED') throw new Error('Players cannot modify confirmed results (Rule 8).');
-  if (evidence) {
-    await uploadMatchEvidence(evidence, match.competition_id, match.id, userId);
-  }
+  if (!evidence) throw new Error('Screenshot evidence is required — no photo, no result.');
+  await uploadMatchEvidence(evidence, match.competition_id, match.id, userId);
   const { error } = await supabase
     .from('matches')
     .update({ score_a: scoreA, score_b: scoreB, status: 'RESULT_SUBMITTED', submitted_by: userId, submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -151,6 +152,21 @@ export async function confirmResult(match: Match, userId: string) {
   if (match.submitted_by && match.submitted_by !== userId) {
     await notify(match.submitted_by, 'RESULT_CONFIRMED', 'Result confirmed', `Your ${match.score_a}–${match.score_b} result was confirmed. Standings updated.`, { type: 'match', id: match.id });
   }
+  // Saga: Glory for verified battles (winner 30 / draw 15 / loser 10).
+  try {
+    const aWon = match.score_a! > match.score_b!;
+    const draw = match.score_a === match.score_b;
+    await awardXP(match.player_a_id, aWon ? 30 : draw ? 15 : 10, aWon ? 'match-win' : draw ? 'match-draw' : 'match-played', 'match', match.id);
+    await awardXP(match.player_b_id, !aWon ? 30 : draw ? 15 : 10, !aWon ? 'match-win' : draw ? 'match-draw' : 'match-played', 'match', match.id);
+    for (const pid of [match.player_a_id, match.player_b_id]) {
+      const career = await getPlayerCareer(pid).catch(() => null);
+      if (career && career.played === 1) {
+        const { error } = await supabase.from('achievements').insert({ player_id: pid, competition_id: match.competition_id, type: 'FIRST_BLOOD', name: 'First Blood', description: 'Completed first verified clan match.' });
+        if (!error) await notify(pid, 'COMPETITION_FINISHED', 'Achievement: First Blood', 'You completed your first verified clan match.');
+      }
+      await checkStreakBadges(pid, match.competition_id);
+    }
+  } catch { /* XP never breaks results */ }
 }
 
 export async function disputeResult(matchId: string, userId: string, reason: string, description: string) {

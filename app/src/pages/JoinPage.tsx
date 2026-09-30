@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useLocale } from '../i18n/LocaleContext';
+import { useOath } from '../hooks/useOath';
 import Avatar from '../components/ui/Avatar';
 import { getCompetitionByCode, joinCompetition, joinWaitlist, listParticipants } from '../services/competitionService';
 import { useAuthStore } from '../stores/authStore';
@@ -9,11 +10,13 @@ import { useAuthStore } from '../stores/authStore';
 // Join through link (§23): /join/VIK7X92
 export default function JoinPage() {
   const { t, fmtDate } = useLocale();
+  const { sworn, swear } = useOath();
   const { code } = useParams();
   const me = useAuthStore((s) => s.profile);
   const nav = useNavigate();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [swearing, setSwearing] = useState(false);
 
   const query = useQuery({ queryKey: ['join', code], queryFn: () => getCompetitionByCode(code ?? ''), enabled: !!code });
   const partsQuery = useQuery({
@@ -58,7 +61,21 @@ export default function JoinPage() {
         </div>
       )}
       {msg && <p role="alert" className="mt-2 text-sm font-medium">{msg}</p>}
-      {isFull ? (
+      {!sworn ? (
+        <div className="card mt-4 text-sm">
+          <p className="font-bold">{t('code.oathGate')}</p>
+          <div className="mt-2 flex gap-2">
+            <Link to="/code" className="btn-ghost flex-1">{t('code.tabOath')}</Link>
+            <button
+              disabled={swearing}
+              onClick={async () => { setSwearing(true); try { await swear(); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setSwearing(false); } }}
+              className="btn-cta flex-1"
+            >
+              {t('code.oathSwear')}
+            </button>
+          </div>
+        </div>
+      ) : isFull ? (
         <button onClick={async () => { setBusy(true); try { await joinWaitlist(comp.id, me!.id); setMsg(t('detail.waitlistAdded')); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setBusy(false); } }} disabled={busy} className="btn-primary mt-4 w-full">
           {busy ? t('join.joining') : t('join.waitlist')}
         </button>
