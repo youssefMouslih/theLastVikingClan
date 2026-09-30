@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { notify } from './notificationService';
 
 // Saga progression: Glory XP, Norse levels, quests, seasonal leaderboard.
 // NOTE: awards run client-side best-effort (tables missing → skipped).
@@ -192,5 +193,83 @@ export async function claimQuest(userId: string, quest: QuestDef): Promise<void>
 
 export const sagaService = {
   LEVELS, levelFor, currentSeason, awardXP, getTotalXP, getSeasonBoard,
-  QUESTS, periodFor, questProgress, claimQuest, client: supabase,
+  QUESTS, periodFor, questProgress, claimQuest,
+  askGift, listIncomingGifts, listOutgoingGifts, answerGift,
+  client: supabase,
 };
+
+// ---- GP gifts: ask a member for Glory as a favor ----
+
+export interface GiftRequest {
+  id: string;
+  requester_id: string;
+  giver_id: string;
+  amount: number;
+  message: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  created_at: string;
+  requester?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
+  giver?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
+}
+
+const GIFT_WITH = '*,requester:profiles!gp_requests_requester_id_fkey(id,username,display_name,avatar_url),giver:profiles!gp_requests_giver_id_fkey(id,username,display_name,avatar_url)';
+
+export async function askGift(giverId: string, requesterId: string, amount: number, message?: string | null): Promise<void> {
+  if (giverId === requesterId) throw new Error('You cannot ask yourself.');
+  if (!Number.isInteger(amount) || amount < 5 || amount > 500) throw new Error('Ask between 5 and 500 GP.');
+  const { error } = await supabase.from('gp_requests').insert({
+    requester_id: requesterId,
+    giver_id: giverId,
+    amount,
+    message: message?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  await notify(giverId, 'COMPETITION_INVITATION', 'Glory requested', `A brother asks you for ${amount} GP as a favor.`);
+}
+
+export async function listIncomingGifts(giverId: string): Promise<GiftRequest[]> {
+  const { data, error } = await supabase
+    .from('gp_requests')
+    .select(GIFT_WITH)
+    .eq('giver_id', giverId)
+    .eq('status', 'PENDING')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as GiftRequest[];
+}
+
+export async function listOutgoingGifts(requesterId: string): Promise<GiftRequest[]> {
+  const { data, error } = await supabase
+    .from('gp_requests')
+    .select(GIFT_WITH)
+    .eq('requester_id', requesterId)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as GiftRequest[];
+}
+
+export async function answerGift(req: GiftRequest, accept: boolean): Promise<void> {
+  if (req.status !== 'PENDING') throw new Error('Already answered.');
+  if (!accept) {
+    const { error } = await supabase.from('gp_requests').update({ status: 'DECLINED', responded_at: new Date().toISOString() }).eq('id', req.id);
+    if (error) throw new Error(error.message);
+    await notify(req.requester_id, 'COMPETITION_FINISHED', 'Favor declined', 'They refused the Glory request.');
+    return;
+  }
+  const balance = await getTotalXP(req.giver_id).catch(() => 0);
+  if (balance < req.amount) throw new Error(`Not enough Glory (holds ${balance} GP).`);
+  const now = new Date().toISOString();
+  const season = currentSeason();
+  const { error: outErr } = await supabase.from('xp_ledger').insert({
+    player_id: req.giver_id, amount: -req.amount, reason: 'gift-sent', ref_type: 'gift', ref_id: req.id, season,
+  });
+  if (outErr) throw new Error(outErr.message);
+  const { error: inErr } = await supabase.from('xp_ledger').insert({
+    player_id: req.requester_id, amount: req.amount, reason: 'gift-received', ref_type: 'gift', ref_id: req.id, season,
+  });
+  if (inErr) throw new Error(inErr.message);
+  const { error } = await supabase.from('gp_requests').update({ status: 'ACCEPTED', responded_at: now }).eq('id', req.id);
+  if (error) throw new Error(error.message);
+  await notify(req.requester_id, 'COMPETITION_FINISHED', `+${req.amount} Glory received`, 'Your brother answered your call.');
+}

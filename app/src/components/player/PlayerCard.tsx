@@ -78,7 +78,7 @@ export default function PlayerCard({
         className={`relative h-24 ${!bannerImg && !member.banner_color ? 'efoot-banner' : ''}`}
         style={bannerImg ? { backgroundImage: `url(${bannerImg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : member.banner_color ? { background: member.banner_color } : undefined}
       >
-        <img src={clanQuery.data?.logo_url ?? '/logo.png'} alt="" aria-hidden className="absolute end-3 top-3 h-9 w-9 rounded-lg object-cover shadow" />
+        <img src={clanQuery.data?.logo_url ?? '/logo.png'} alt="" aria-hidden className="absolute left-1/2 top-2 h-11 w-11 -translate-x-1/2 rounded-full border-2 border-brand-500/60 object-cover shadow-lg shadow-black/60" />
         <div className="absolute -bottom-7 start-4">
           {onAvatarClick ? (
             <button type="button" onClick={onAvatarClick} aria-label={t('profile.avatar')} className="group relative block rounded-full">

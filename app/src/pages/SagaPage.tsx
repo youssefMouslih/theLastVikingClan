@@ -3,21 +3,25 @@ import { useState } from 'react';
 import BottomNav from '../components/ui/BottomNav';
 import Avatar from '../components/ui/Avatar';
 import CoinImg from '../components/ui/CoinImg';
+import StatusBadge from '../components/ui/StatusBadge';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
-import { claimQuest, getSeasonBoard, getTotalXP, levelFor, QUESTS, questProgress, type QuestDef } from '../services/sagaService';
+import { claimQuest, getSeasonBoard, getTotalXP, levelFor, QUESTS, questProgress, answerGift, listIncomingGifts, listOutgoingGifts, type QuestDef } from '../services/sagaService';
 import { useAuthStore } from '../stores/authStore';
 
 // Saga: Glory levels, quest board, seasonal leaderboard.
 export default function SagaPage() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
-  const [tab, setTab] = useState<'quests' | 'ranks'>('quests');
+  const [tab, setTab] = useState<'quests' | 'ranks' | 'gifts'>('quests');
   const [msg, setMsg] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [giftBusy, setGiftBusy] = useState<string | null>(null);
 
   const xpQuery = useQuery({ queryKey: ['xp', me?.id], queryFn: () => getTotalXP(me!.id), enabled: !!me });
   const boardQuery = useQuery({ queryKey: ['season-board'], queryFn: () => getSeasonBoard() });
+  const giftsInQuery = useQuery({ queryKey: ['gifts-in', me?.id], queryFn: () => listIncomingGifts(me!.id), enabled: !!me });
+  const giftsOutQuery = useQuery({ queryKey: ['gifts-out', me?.id], queryFn: () => listOutgoingGifts(me!.id), enabled: !!me });
   const xp = xpQuery.data ?? 0;
   const { level, next, progress } = levelFor(xp);
 
@@ -40,9 +44,9 @@ export default function SagaPage() {
       </section>
 
       <nav aria-label="Saga" className="mt-3 flex gap-1 border-b border-[var(--border)]">
-        {(['quests', 'ranks'] as const).map((tb) => (
+        {(['quests', 'ranks', 'gifts'] as const).map((tb) => (
           <button key={tb} onClick={() => setTab(tb)} className={`h-11 flex-1 px-3 text-sm font-semibold ${tab === tb ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}>
-            {tb === 'quests' ? t('saga.quests') : t('saga.ranks')}
+            {tb === 'quests' ? t('saga.quests') : tb === 'ranks' ? t('saga.ranks') : `${t('gift.title')}${(giftsInQuery.data ?? []).length ? ` (${giftsInQuery.data!.length})` : ''}`}
           </button>
         ))}
       </nav>
@@ -52,6 +56,68 @@ export default function SagaPage() {
         <div className="mt-3 flex flex-col gap-2">
           {QUESTS.map((q) => (
             <QuestRow key={q.key} quest={q} userId={me!.id} busyKey={busyKey} setBusyKey={setBusyKey} setMsg={setMsg} />
+          ))}
+        </div>
+      )}
+
+      {tab === 'gifts' && (
+        <div className="mt-3 flex flex-col gap-2">
+          <h2 className="card-title">{t('gift.incoming')}</h2>
+          {(giftsInQuery.data ?? []).length === 0 && <p className="card text-sm opacity-70">{t('gift.emptyIn')}</p>}
+          {(giftsInQuery.data ?? []).map((g) => (
+            <div key={g.id} className="card flex items-center gap-2 p-3 text-sm">
+              <Avatar path={g.requester?.avatar_url} name={g.requester?.display_name ?? g.requester?.username ?? '?'} className="h-9 w-9 text-sm" />
+              <div className="flex-1">
+                <p className="font-bold">{g.requester?.display_name ?? g.requester?.username}</p>
+                <p className="text-xs opacity-70">{t('gift.balance', { n: g.amount })}{g.message ? ` — “${g.message}”` : ''}</p>
+              </div>
+              <button
+                disabled={giftBusy === g.id}
+                onClick={async () => {
+                  setGiftBusy(g.id); setMsg(null);
+                  try {
+                    await answerGift(g, true);
+                    setMsg(t('gift.accepted'));
+                    await Promise.all([giftsInQuery.refetch(), xpQuery.refetch(), boardQuery.refetch()]);
+                  } catch (err) {
+                    setMsg(err instanceof Error ? err.message : 'Failed.');
+                  } finally {
+                    setGiftBusy(null);
+                  }
+                }}
+                className="btn-primary h-10 px-3 text-xs"
+              >
+                {t('gift.accept')}
+              </button>
+              <button
+                disabled={giftBusy === g.id}
+                onClick={async () => {
+                  setGiftBusy(g.id); setMsg(null);
+                  try {
+                    await answerGift(g, false);
+                    setMsg(t('gift.declined'));
+                    await giftsInQuery.refetch();
+                  } catch (err) {
+                    setMsg(err instanceof Error ? err.message : 'Failed.');
+                  } finally {
+                    setGiftBusy(null);
+                  }
+                }}
+                className="btn-ghost h-10 px-3 text-xs"
+              >
+                {t('gift.decline')}
+              </button>
+            </div>
+          ))}
+          <h2 className="card-title mt-1">{t('gift.outgoing')}</h2>
+          {(giftsOutQuery.data ?? []).length === 0 && <p className="card text-sm opacity-70">{t('gift.emptyOut')}</p>}
+          {(giftsOutQuery.data ?? []).map((g) => (
+            <div key={g.id} className="card flex items-center gap-2 p-3 text-sm opacity-80">
+              <Avatar path={g.giver?.avatar_url} name={g.giver?.display_name ?? g.giver?.username ?? '?'} className="h-9 w-9 text-sm" />
+              <span className="flex-1">{g.giver?.display_name ?? g.giver?.username}</span>
+              <span className="font-display text-brand-300">+{g.amount}</span>
+              <StatusBadge value={g.status} />
+            </div>
           ))}
         </div>
       )}

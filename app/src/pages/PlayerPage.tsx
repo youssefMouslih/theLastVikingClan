@@ -7,6 +7,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { getMember } from '../services/playerService';
 import { getRatingSummary, ratePlayer, TITLE_TAGS } from '../services/ratingService';
+import { askGift } from '../services/sagaService';
 import { getPlayerCareer } from '../services/statisticsService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -22,6 +23,9 @@ export default function PlayerPage() {
   const ratingQuery = useQuery({ queryKey: ['rating', id], queryFn: () => getRatingSummary(id ?? '', me?.id), enabled: !!id });
   const isSelf = me?.id === id;
   const [dims, setDims] = useState({ tactical: 4, fairplay: 5, connection: 4, title_tag: '' });
+  const [asking, setAsking] = useState(false);
+  const [giftAmount, setGiftAmount] = useState(25);
+  const [giftMsg, setGiftMsg] = useState('');
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     const mine = ratingQuery.data?.mine;
@@ -98,6 +102,52 @@ export default function PlayerPage() {
         <Link to={`/battles?opponent=${m.id}`} className="btn-cta mt-3 flex w-full items-center justify-center gap-2">
           <Icon name="swords" className="h-5 w-5" /> {t('battle.issue')}
         </Link>
+      )}
+      {!isSelf && me && (
+        <section className="card mt-3" aria-label={t('gift.title')}>
+          {!asking ? (
+            <button onClick={() => setAsking(true)} className="btn-ghost flex w-full items-center justify-center gap-2 text-sm">
+              <Icon name="medal" className="h-5 w-5 text-brand-400" /> {t('gift.ask')}
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <h2 className="font-bold">{t('gift.ask')}</h2>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="label">{t('gift.amount')}
+                  <select value={giftAmount} onChange={(e) => setGiftAmount(Number(e.target.value))} className="input text-sm">
+                    {[10, 25, 50, 100, 200].map((n) => <option key={n} value={n}>{n} GP</option>)}
+                  </select>
+                </label>
+                <label className="label">{t('gift.message')}
+                  <input value={giftMsg} onChange={(e) => setGiftMsg(e.target.value)} className="input text-sm" maxLength={120} />
+                </label>
+              </div>
+              {msg && <p className="text-xs">{msg}</p>}
+              <div className="flex gap-2">
+                <button
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true); setMsg(null);
+                    try {
+                      await askGift(m.id, me.id, giftAmount, giftMsg || null);
+                      setMsg(t('gift.sent'));
+                      setAsking(false);
+                      setGiftMsg('');
+                    } catch (err) {
+                      setMsg(err instanceof Error ? err.message : 'Failed.');
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                  className="btn-primary h-11 flex-1 text-sm"
+                >
+                  {t('gift.send')}
+                </button>
+                <button onClick={() => setAsking(false)} className="btn-ghost h-11 px-4 text-sm">{t('common.cancel')}</button>
+              </div>
+            </div>
+          )}
+        </section>
       )}
       <BottomNav />
     </main>
