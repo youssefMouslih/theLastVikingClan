@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import type { Challenge, ChallengeType } from '../types/database';
 import { notify } from './notificationService';
 import { awardXP, getTotalXP } from './sagaService';
+import { uploadBattleEvidence } from './storageService';
 import { settleThroneBattle } from './throneService';
 
 export interface IssueChallengeInput {
@@ -135,12 +136,14 @@ export async function respondChallenge(ch: ChallengeRow, userId: string, accept:
   await notify(ch.challenger_id, accept ? 'COMPETITION_STARTED' : 'COMPETITION_FINISHED', accept ? 'Challenge accepted' : 'Challenge declined', accept ? 'To battle.' : 'They refused the call.');
 }
 
-export async function submitBattleResult(ch: ChallengeRow, userId: string, scoreA: number, scoreB: number): Promise<void> {
+export async function submitBattleResult(ch: ChallengeRow, userId: string, scoreA: number, scoreB: number, evidence?: File | null) {
   if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) throw new Error('Scores must be whole numbers >= 0.');
   if (ch.status !== 'ACCEPTED') throw new Error('Challenge is not active.');
+  if (!evidence) throw new Error('Screenshot evidence is required — no photo, no result.');
+  const path = await uploadBattleEvidence(evidence, ch.id, userId);
   const { error } = await supabase
     .from('challenges')
-    .update({ score_a: scoreA, score_b: scoreB, status: 'RESULT_SUBMITTED', submitted_by: userId, updated_at: new Date().toISOString() })
+    .update({ score_a: scoreA, score_b: scoreB, status: 'RESULT_SUBMITTED', submitted_by: userId, evidence_path: path, updated_at: new Date().toISOString() })
     .eq('id', ch.id);
   if (error) throw new Error(error.message);
   const other = ch.challenger_id === userId ? ch.opponent_id : ch.challenger_id;

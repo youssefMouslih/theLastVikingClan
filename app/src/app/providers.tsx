@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { RouterProvider } from 'react-router';
 import { useRealtime } from '../hooks/useRealtime';
@@ -11,7 +11,21 @@ const queryClient = new QueryClient({
 
 function LiveBinder() {
   const userId = useAuthStore((s) => s.profile?.id);
+  const qc = useQueryClient();
   useRealtime(userId);
+  // Realtime can drop (sleeping phones, flaky networks): refetch
+  // everything whenever the app regains focus. Cheap, bulletproof.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void qc.invalidateQueries();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [qc]);
   return null;
 }
 

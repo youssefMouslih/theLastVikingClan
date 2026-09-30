@@ -25,7 +25,19 @@ import { getCurrentReign } from '../services/throneService';
 import { listActiveMembers } from '../services/playerService';
 import type { ChallengeType } from '../types/database';
 import { battlePoster, shareFile } from '../utils/shareBattle';
+import { getBattleEvidenceUrl } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
+
+function BattleEvidence({ path }: { path: string }) {
+  const { t } = useLocale();
+  const query = useQuery({ queryKey: ['battle-evidence', path], queryFn: () => getBattleEvidenceUrl(path) });
+  if (!query.data) return null;
+  return (
+    <a href={query.data} target="_blank" rel="noreferrer" className="text-xs font-semibold text-brand-400 underline">
+      {t('match.viewShot')}
+    </a>
+  );
+}
 
 const TYPES: ChallengeType[] = ['HEAD', 'FRIENDLY', 'HONOR', 'REMATCH', 'WAR'];
 const CONDS = ['battle.cSTD', 'battle.cCUSTOM', 'battle.cTOUR'] as const;
@@ -49,6 +61,7 @@ export default function BattlesPage() {
   const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
   const [rivalName, setRivalName] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});
+  const [shots, setShots] = useState<Record<string, File | null>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -148,6 +161,9 @@ export default function BattlesPage() {
         {ch.score_a != null && (
           <p className="font-display mt-1 text-center text-xl">{ch.score_a}–{ch.score_b}</p>
         )}
+        {ch.status === 'RESULT_SUBMITTED' && ch.evidence_path && (
+          <p className="mt-1 text-center"><BattleEvidence path={ch.evidence_path} /></p>
+        )}
         {msg && null}
         <div className="mt-2 flex flex-wrap gap-2">
           {isIn && ch.status === 'PENDING' && (
@@ -159,10 +175,13 @@ export default function BattlesPage() {
             </>
           )}
           {ch.status === 'ACCEPTED' && !iSubmit && ch.submitted_by == null && (
-            <div className="flex w-full gap-2">
-              <input type="number" min={0} placeholder={chalName} aria-label={chalName} value={s.a} onChange={(e) => set({ a: e.target.value })} className="input h-10 text-center" />
-              <input type="number" min={0} placeholder={oppName} aria-label={oppName} value={s.b} onChange={(e) => set({ b: e.target.value })} className="input h-10 text-center" />
-              <button disabled={busy} onClick={() => run(() => submitBattleResult(ch, me!.id, Number(s.a), Number(s.b)), t('battle.submitted'))} className="btn-primary h-10 flex-1 text-xs">{t('battle.submitScore')}</button>
+            <div className="flex w-full flex-col gap-2">
+              <div className="flex gap-2">
+                <input type="number" min={0} placeholder={chalName} aria-label={chalName} value={s.a} onChange={(e) => set({ a: e.target.value })} className="input h-10 text-center" />
+                <input type="number" min={0} placeholder={oppName} aria-label={oppName} value={s.b} onChange={(e) => set({ b: e.target.value })} className="input h-10 text-center" />
+              </div>
+              <input type="file" accept="image/jpeg,image/png,image/webp" aria-label={t('match.evidence')} onChange={(e) => setShots({ ...shots, [ch.id]: e.target.files?.[0] ?? null })} className="w-full text-xs" />
+              <button disabled={busy || !shots[ch.id]} onClick={() => run(() => submitBattleResult(ch, me!.id, Number(s.a), Number(s.b), shots[ch.id]), t('battle.submitted'))} className="btn-primary h-10 flex-1 text-xs">{t('battle.submitScore')}</button>
             </div>
           )}
           {needsMyConfirm && (

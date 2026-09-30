@@ -69,6 +69,9 @@ const en = {
   'home.recentResults': 'Recent results',
   'home.noResults': 'No confirmed results yet.',
   'home.deadline': 'Deadline',
+  'home.actionNeeded': 'Needs your answer',
+  'home.answerBattles': 'Answer {n} battle calls',
+  'home.answerGifts': 'Answer {n} Glory requests',
 
   'comps.title': 'Competitions',
   'comps.new': '+ New',
@@ -354,6 +357,10 @@ const en = {
   'admin.description': 'Description',
   'admin.creating': 'Creating…',
   'admin.manage': 'Manage',
+  'admin.typeLeague': 'League: everyone plays everyone, points table decides.',
+  'admin.typeCup': 'Cup: knockout bracket, lose once and you are out.',
+  'admin.typeTournament': 'Tournament: bracket event, semifinals and final.',
+  'admin.typeSpecial': 'Special event: custom rules, anything goes.',
 
   'disputes.loading': 'Loading disputes…',
   'disputes.empty': 'No open disputes.',
@@ -402,6 +409,8 @@ const en = {
   'notif.empty': 'You’re all caught up.',
   'notif.viewMatch': 'View match',
   'notif.viewComp': 'View competition',
+  'notif.viewBattle': 'View battle',
+  'notif.viewHome': 'Open Home',
   'notif.markRead': 'Mark read',
 
   'install.title': 'Install VIK Clan',
@@ -713,6 +722,9 @@ const fr: Dict = {
   'home.recentResults': 'Résultats récents',
   'home.noResults': 'Aucun résultat confirmé pour l’instant.',
   'home.deadline': 'Échéance',
+  'home.actionNeeded': 'Attend ta réponse',
+  'home.answerBattles': 'Répondre à {n} défis',
+  'home.answerGifts': 'Répondre à {n} demandes',
 
   'comps.title': 'Compétitions',
   'comps.new': '+ Nouveau',
@@ -998,6 +1010,10 @@ const fr: Dict = {
   'admin.description': 'Description',
   'admin.creating': 'Création…',
   'admin.manage': 'Gérer',
+  'admin.typeLeague': 'Ligue : chacun affronte chacun, classement aux points.',
+  'admin.typeCup': 'Coupe : tableau à élimination, une défaite et c’est fini.',
+  'admin.typeTournament': 'Tournoi : tableau avec demies et finale.',
+  'admin.typeSpecial': 'Événement spécial : règles libres.',
 
   'disputes.loading': 'Chargement des litiges…',
   'disputes.empty': 'Aucun litige ouvert.',
@@ -1046,6 +1062,8 @@ const fr: Dict = {
   'notif.empty': 'Vous êtes à jour.',
   'notif.viewMatch': 'Voir le match',
   'notif.viewComp': 'Voir la compétition',
+  'notif.viewBattle': 'Voir le combat',
+  'notif.viewHome': 'Accueil',
   'notif.markRead': 'Marquer lu',
 
   'install.title': 'Installer VIK Clan',
@@ -1355,6 +1373,9 @@ const ar: Dict = {
   'home.recentResults': 'النتائج الأخيرة',
   'home.noResults': 'لا نتائج مؤكدة بعد.',
   'home.deadline': 'الموعد النهائي',
+  'home.actionNeeded': 'بانتظار ردك',
+  'home.answerBattles': 'رد على {n} تحديات',
+  'home.answerGifts': 'رد على {n} طلبات',
 
   'comps.title': 'البطولات',
   'comps.new': '+ جديد',
@@ -1640,6 +1661,10 @@ const ar: Dict = {
   'admin.description': 'الوصف',
   'admin.creating': 'جارٍ الإنشاء…',
   'admin.manage': 'إدارة',
+  'admin.typeLeague': 'دوري: الكل ضد الكل، والنقاط تحسم.',
+  'admin.typeCup': 'كأس: خروج المغلوب، خسارة واحدة وتودّع.',
+  'admin.typeTournament': 'بطولة: جدول بنصف نهائي ونهائي.',
+  'admin.typeSpecial': 'حدث خاص: قوانين حرة.',
 
   'disputes.loading': 'جارٍ تحميل الاعتراضات…',
   'disputes.empty': 'لا اعتراضات مفتوحة.',
@@ -1688,6 +1713,8 @@ const ar: Dict = {
   'notif.empty': 'كل شيء محدّث.',
   'notif.viewMatch': 'عرض المباراة',
   'notif.viewComp': 'عرض البطولة',
+  'notif.viewBattle': 'عرض المعركة',
+  'notif.viewHome': 'الرئيسية',
   'notif.markRead': 'تعليم كمقروء',
 
   'install.title': 'ثبّت VIK Clan',

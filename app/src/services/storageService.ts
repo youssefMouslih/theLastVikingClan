@@ -37,7 +37,27 @@ export async function getEvidenceSignedUrl(filePath: string): Promise<string | n
   return data.signedUrl;
 }
 
-// Avatar upload. Bucket: avatars (private per 0002). Path: avatars/{userId}/avatar.ext
+// Battle evidence screenshot. Bucket: match-evidence (private).
+// Path: battles/{battle_id}/{timestamp}_{userId}.ext
+export async function uploadBattleEvidence(file: File, battleId: string, userId: string): Promise<string> {
+  if (!ALLOWED.includes(file.type)) throw new Error('Screenshot must be JPG, PNG or WEBP.');
+  if (file.size > MAX_BYTES) throw new Error('Screenshot must be under 10 MB.');
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'webp';
+  const path = `battles/${battleId}/${Date.now()}_${userId}.${ext}`;
+  const { error } = await supabase.storage.from('match-evidence').upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) throw new Error(`Upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getBattleEvidenceUrl(filePath: string | null): Promise<string | null> {
+  if (!filePath) return null;
+  const { data, error } = await supabase.storage.from('match-evidence').createSignedUrl(filePath, 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
 export async function uploadAvatar(file: File, userId: string): Promise<string> {
   if (!ALLOWED.includes(file.type)) throw new Error('Avatar must be JPG, PNG or WEBP.');
   if (file.size > 5 * 1024 * 1024) throw new Error('Avatar must be under 5 MB.');
@@ -79,4 +99,4 @@ export async function getBannerUrl(filePath: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, client: supabase };
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, client: supabase };

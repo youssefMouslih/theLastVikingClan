@@ -10,6 +10,8 @@ import { listActiveAnnouncements } from '../services/announcementService';
 import { getClanSettings } from '../services/clanService';
 import { listCompetitions } from '../services/competitionService';
 import { listMyUpcoming, recentConfirmedResults } from '../services/matchService';
+import { listIncoming } from '../services/challengeService';
+import { listIncomingGifts } from '../services/sagaService';
 import { listNotifications } from '../services/notificationService';
 import { listActiveMembers } from '../services/playerService';
 import { getCurrentReign, getReignHistory } from '../services/throneService';
@@ -23,6 +25,8 @@ export default function HomePage() {
   const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
   const membersQuery = useQuery({ queryKey: ['active-members'], queryFn: listActiveMembers });
   const upcomingQuery = useQuery({ queryKey: ['my-upcoming', me?.id], queryFn: () => listMyUpcoming(me!.id), enabled: !!me });
+  const pendingBattles = useQuery({ queryKey: ['battles-in', me?.id], queryFn: () => listIncoming(me!.id), enabled: !!me });
+  const pendingGifts = useQuery({ queryKey: ['gifts-in', me?.id], queryFn: () => listIncomingGifts(me!.id), enabled: !!me });
   const activityQuery = useQuery({ queryKey: ['activity'], queryFn: () => recentConfirmedResults(5) });
   const announcementsQuery = useQuery({ queryKey: ['announcements'], queryFn: listActiveAnnouncements });
   const notifQuery = useQuery({ queryKey: ['notifications'], queryFn: () => listNotifications(me!.id, 20), enabled: !!me });
@@ -34,6 +38,8 @@ export default function HomePage() {
   const unread = (notifQuery.data ?? []).filter((n) => !n.read_at).length;
   const compNames = Object.fromEntries((compsQuery.data ?? []).map((c) => [c.id, c.name]));
   const memberNames = Object.fromEntries((membersQuery.data ?? []).map((m) => [m.id, m.display_name ?? m.username]));
+  const actionBattles = (pendingBattles.data ?? []).filter((b) => b.status === 'PENDING' || b.status === 'RESULT_SUBMITTED').length;
+  const actionGifts = (pendingGifts.data ?? []).length;
 
   return (
     <main className="page">
@@ -50,6 +56,24 @@ export default function HomePage() {
       </header>
 
       <InstallPrompt />
+
+      {(actionBattles > 0 || actionGifts > 0) && (
+        <section aria-label={t('home.actionNeeded')} className="card mt-3 border-accent-500/50">
+          <h2 className="card-title flex items-center gap-1"><Icon name="alert" className="h-4 w-4 text-accent-400" /> {t('home.actionNeeded')}</h2>
+          <div className="mt-2 flex flex-col gap-2">
+            {actionBattles > 0 && (
+              <Link to="/battles" className="btn-cta h-11 w-full text-sm">
+                {t('home.answerBattles', { n: actionBattles })}
+              </Link>
+            )}
+            {actionGifts > 0 && (
+              <Link to="/saga" className="btn-ghost h-11 w-full text-sm">
+                {t('home.answerGifts', { n: actionGifts })}
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
       <section aria-label={t('home.nextMatch')} className="hero mt-4">
         <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider opacity-70"><Icon name="swords" className="h-4 w-4" /> {t('home.nextMatch')}</h2>

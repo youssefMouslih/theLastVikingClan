@@ -98,6 +98,9 @@ export default function AdminPage() {
             <label className="label">{t('admin.name')}<input required className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('admin.namePlaceholder')} /></label>
             <div className="grid grid-cols-2 gap-2">
               <label className="label">{t('admin.type')}<select className="input px-2" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as CompetitionType })}><option>LEAGUE</option><option>CUP</option><option>TOURNAMENT</option><option>SPECIAL_EVENT</option></select></label>
+              <p className="col-span-2 -mt-1 text-xs opacity-70">
+                {form.type === 'LEAGUE' ? t('admin.typeLeague') : form.type === 'CUP' ? t('admin.typeCup') : form.type === 'TOURNAMENT' ? t('admin.typeTournament') : t('admin.typeSpecial')}
+              </p>
               <label className="label">{t('admin.matchHours')}<input type="number" min={1} max={336} className="input" value={form.match_deadline_hours} onChange={(e) => setForm({ ...form, match_deadline_hours: Number(e.target.value) })} /></label>
               <label className="label">{t('admin.min')}<input type="number" min={2} max={32} className="input" value={form.min_players} onChange={(e) => setForm({ ...form, min_players: Number(e.target.value) })} /></label>
               <label className="label">{t('admin.max')}<input type="number" min={2} max={32} className="input" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: Number(e.target.value) })} /></label>

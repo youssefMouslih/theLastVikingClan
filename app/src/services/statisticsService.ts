@@ -16,26 +16,39 @@ export interface CareerStats {
 
 type CMatch = Pick<Match, 'player_a_id' | 'player_b_id' | 'score_a' | 'score_b' | 'status' | 'competition_id' | 'confirmed_at'>;
 
-// Career stats (§59): all CONFIRMED/FORFEIT matches across competitions.
+// Career stats (§59): all CONFIRMED/FORFEIT matches across competitions,
+// PLUS completed clan battles (score_a = challenger goals).
 export async function getPlayerCareer(playerId: string): Promise<CareerStats> {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('player_a_id,player_b_id,score_a,score_b,status,competition_id,confirmed_at')
-    .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
-    .in('status', ['CONFIRMED', 'FORFEIT'])
-    .order('confirmed_at', { ascending: false });
+  const [{ data, error }, { data: battles }] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('player_a_id,player_b_id,score_a,score_b,status,competition_id,confirmed_at')
+      .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
+      .in('status', ['CONFIRMED', 'FORFEIT'])
+      .order('confirmed_at', { ascending: false }),
+    supabase
+      .from('challenges')
+      .select('challenger_id,opponent_id,score_a,score_b,updated_at')
+      .or(`challenger_id.eq.${playerId},opponent_id.eq.${playerId}`)
+      .eq('status', 'COMPLETED'),
+  ]);
   if (error) throw new Error(error.message);
   const ms = (data ?? []) as CMatch[];
   let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
   const form: ('W' | 'D' | 'L')[] = [];
-  for (const m of ms) {
-    if (m.score_a == null || m.score_b == null) continue;
-    const mine = m.player_a_id === playerId ? m.score_a : m.score_b;
-    const theirs = m.player_a_id === playerId ? m.score_b : m.score_a;
+  const tally = (mine: number, theirs: number) => {
     gf += mine; ga += theirs;
     const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'D';
     if (form.length < 5) form.unshift(r);
     if (r === 'W') wins++; else if (r === 'L') losses++; else draws++;
+  };
+  for (const m of ms) {
+    if (m.score_a == null || m.score_b == null) continue;
+    tally(m.player_a_id === playerId ? m.score_a : m.score_b, m.player_a_id === playerId ? m.score_b : m.score_a);
+  }
+  for (const b of ((battles ?? []) as { challenger_id: string; opponent_id: string | null; score_a: number | null; score_b: number | null }[])) {
+    if (b.score_a == null || b.score_b == null || !b.opponent_id) continue;
+    tally(b.challenger_id === playerId ? b.score_a : b.score_b, b.challenger_id === playerId ? b.score_b : b.score_a);
   }
   const { count } = await supabase.from('achievements').select('id', { count: 'exact', head: true }).eq('player_id', playerId).ilike('type', '%CHAMPION%');
   const played = wins + draws + losses;

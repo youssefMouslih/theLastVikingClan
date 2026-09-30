@@ -21,6 +21,14 @@ export default function NotificationsPage() {
         <h1 className="font-display flex flex-1 items-center gap-2 text-xl tracking-wide">
           <Icon name="bell" className="h-6 w-6" /> {t('notif.title')} {unread.length > 0 && <span className="rounded-full bg-accent-500 px-2 py-0.5 text-xs text-white">{unread.length}</span>}
         </h1>
+        <button
+          type="button"
+          aria-label={t('common.refresh')}
+          onClick={() => query.refetch()}
+          className="btn-ghost h-10 w-10 !px-0 text-xs"
+        >
+          ⟳
+        </button>
         {unread.length > 0 && (
           <button
             onClick={async () => { await markAllRead(me!.id); query.refetch(); }}
@@ -47,6 +55,10 @@ export default function NotificationsPage() {
             <div className="mt-1 flex gap-3 text-xs">
               {n.entity_type === 'match' && n.entity_id && <Link to={`/matches/${n.entity_id}`} className="font-semibold text-brand-400">{t('notif.viewMatch')}</Link>}
               {n.entity_type === 'competition' && n.entity_id && <Link to={`/competitions/${n.entity_id}`} className="font-semibold text-brand-400">{t('notif.viewComp')}</Link>}
+              {n.entity_type === 'battle' && <Link to="/battles" className="font-semibold text-brand-400">{t('notif.viewBattle')}</Link>}
+              {!n.entity_id && n.entity_type !== 'battle' && <Link to="/home" className="font-semibold text-brand-400">{t('notif.viewHome')}</Link>}
+              {n.entity_type === 'battle' && <Link to="/battles" className="font-semibold text-brand-400">{t('notif.viewBattle')}</Link>}
+              {!n.entity_id && <Link to="/home" className="font-semibold text-brand-400">{t('notif.viewHome')}</Link>}
               {!n.read_at && (
                 <button onClick={async () => { await markRead(n.id); query.refetch(); }} className="underline">{t('notif.markRead')}</button>
               )}

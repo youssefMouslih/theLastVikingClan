@@ -149,6 +149,7 @@ export interface Challenge {
   for_throne: boolean;
   forced: boolean;
   is_open: boolean;
+  evidence_path: string | null;
   created_at: string;
   responded_at: string | null;
   updated_at: string;

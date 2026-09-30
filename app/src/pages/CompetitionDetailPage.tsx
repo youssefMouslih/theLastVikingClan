@@ -155,7 +155,18 @@ export default function CompetitionDetailPage() {
 
   return (
     <main className="page">
-      <Link to="/competitions" className="text-sm font-medium text-brand-400">{t('detail.back')}</Link>
+      <div className="flex items-center gap-2">
+        <Link to="/competitions" className="flex-1 text-sm font-medium text-brand-400">{t('detail.back')}</Link>
+        <button
+          type="button"
+          aria-label={t('common.refresh')}
+          onClick={() => run(async () => {}, '')}
+          disabled={busy}
+          className="btn-ghost h-9 w-9 !px-0 text-xs"
+        >
+          ⟳
+        </button>
+      </div>
       <div className="hero mt-2">
         <div className="flex items-center gap-2">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
@@ -318,6 +329,7 @@ export default function CompetitionDetailPage() {
           <div className="flex flex-col gap-2">
             <div className="card text-sm">
               <p>{t('detail.format')} {comp.format ?? '—'}</p>
+              <p className="opacity-70">{comp.type === 'LEAGUE' ? t('admin.typeLeague') : comp.type === 'CUP' ? t('admin.typeCup') : comp.type === 'TOURNAMENT' ? t('admin.typeTournament') : t('admin.typeSpecial')}</p>
               <p>{t('detail.matchDeadline', { h: comp.match_deadline_hours })}</p>
               <p>{t('detail.points', { w: comp.points_win, d: comp.points_draw, l: comp.points_loss })}</p>
               {comp.start_date && <p>{t('detail.starts', { date: fmtDate(comp.start_date) })}</p>}
