@@ -209,6 +209,27 @@ button, a, [role="button"] {
   .font-display {
     font-family: var(--font-display);
   }
+  /* eFootball-style banner: diagonal Konami stripes */
+  .efoot-banner {
+    background:
+      repeating-linear-gradient(
+        115deg,
+        transparent 0 26px,
+        rgba(255, 229, 0, 0.85) 26px 44px,
+        transparent 44px 72px,
+        rgba(37, 64, 255, 0.9) 72px 120px,
+        transparent 120px 150px
+      ),
+      linear-gradient(160deg, #1b1440 0%, #0f0f23 70%);
+  }
+  /* Favourite player mini-card */
+  .fav-card {
+    background:
+      radial-gradient(6rem 4rem at 80% 0%, rgba(244, 63, 94, 0.5), transparent 70%),
+      linear-gradient(170deg, #3a2b00 0%, #17162a 60%, #0f0f23 100%);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

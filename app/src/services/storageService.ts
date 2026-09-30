@@ -37,4 +37,25 @@ export async function getEvidenceSignedUrl(filePath: string): Promise<string | n
   return data.signedUrl;
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, client: supabase };
+// Avatar upload. Bucket: avatars (private per 0002). Path: avatars/{userId}/avatar.ext
+export async function uploadAvatar(file: File, userId: string): Promise<string> {
+  if (!ALLOWED.includes(file.type)) throw new Error('Avatar must be JPG, PNG or WEBP.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Avatar must be under 5 MB.');
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'webp';
+  const path = `${userId}/avatar.${ext}`;
+  const { error } = await supabase.storage.from('avatars').upload(path, file, {
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) throw new Error(`Avatar upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getAvatarUrl(filePath: string | null): Promise<string | null> {
+  if (!filePath) return null;
+  const { data, error } = await supabase.storage.from('avatars').createSignedUrl(filePath, 7 * 24 * 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadAvatar, getAvatarUrl, client: supabase };

@@ -39,6 +39,12 @@ export interface Profile {
   bio: string | null;
   role: Role;
   status: MemberStatus;
+  // eFootball identity (§migration 0005)
+  division_pvp: string | null;
+  division_ai: string | null;
+  fav_player_name: string | null;
+  fav_player_rating: number | null;
+  fav_player_position: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
