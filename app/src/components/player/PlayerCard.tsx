@@ -210,9 +210,15 @@ export default function PlayerCard({
                     <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-8 w-8 text-xs" />
                     <span className="truncate font-semibold underline-offset-2 hover:underline">{m.opponent.display_name ?? m.opponent.username}</span>
                   </Link>
-                  <Link to={`/matches/${m.id}`} className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
-                    {m.mine}–{m.theirs}
-                  </Link>
+                  {m.kind === 'match' ? (
+                    <Link to={`/matches/${m.id}`} className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
+                      {m.mine}–{m.theirs}
+                    </Link>
+                  ) : (
+                    <Link to="/battles" className={`font-mono font-bold ${m.result === 'W' ? 'text-green-400' : m.result === 'L' ? 'text-red-400' : 'text-zinc-300'}`}>
+                      {m.mine}–{m.theirs}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
