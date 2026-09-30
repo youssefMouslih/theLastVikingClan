@@ -32,6 +32,11 @@ export default function MatchPage() {
   const [scoreA, setScoreA] = useState('');
   const [scoreB, setScoreB] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [fairTag, setFairTag] = useState(false);
+  const [fairClean, setFairClean] = useState(false);
+  const REP_OPTS = ['match.repTag', 'match.repLag', 'match.repConduct'] as const;
+  type RepKey = (typeof REP_OPTS)[number];
+  const [reports, setReports] = useState<RepKey[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [disputeReason, setDisputeReason] = useState<string>(REASON_KEYS[0]);
@@ -116,7 +121,7 @@ export default function MatchPage() {
 
       {iAmParticipant && (m.status === 'SCHEDULED' || m.status === 'OVERDUE' || m.status === 'RESULT_SUBMITTED') && (
         <form
-          onSubmit={(e) => { e.preventDefault(); run(() => submitResult(m, me!.id, Number(scoreA), Number(scoreB), file), t('match.submitted')); }}
+          onSubmit={(e) => e.preventDefault()}
           className="card mt-3 flex flex-col gap-2"
         >
           <h2 className="font-display text-sm tracking-wide">{t('match.submit')}</h2>
@@ -127,7 +132,46 @@ export default function MatchPage() {
           <label className="label">{t('match.evidence')}
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="h-11 w-full text-sm" />
           </label>
-          <button disabled={busy} className="btn-cta h-12">
+          <div className="rounded-xl bg-white/5 p-2 text-sm">
+            <label className="flex items-start gap-2 py-1">
+              <input type="checkbox" checked={fairTag} onChange={(e) => setFairTag(e.target.checked)} className="mt-1 h-5 w-5 accent-[#eab308]" />
+              {t('match.fairTag')}
+            </label>
+            <label className="flex items-start gap-2 py-1">
+              <input type="checkbox" checked={fairClean} onChange={(e) => setFairClean(e.target.checked)} className="mt-1 h-5 w-5 accent-[#eab308]" />
+              {t('match.fairClean')}
+            </label>
+          </div>
+          <details>
+            <summary className="cursor-pointer text-sm underline">{t('match.repTitle')}</summary>
+            <div className="mt-1 flex flex-col gap-1 text-sm">
+              {REP_OPTS.map((rk) => (
+                <label key={rk} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={reports.includes(rk)}
+                    onChange={(e) => setReports(e.target.checked ? [...reports, rk] : reports.filter((r) => r !== rk))}
+                    className="h-5 w-5 accent-[#ef4444]"
+                  />
+                  {t(rk)}
+                </label>
+              ))}
+            </div>
+          </details>
+          <button
+            type="button"
+            disabled={busy || !fairTag || !fairClean || !file}
+            onClick={(e) => {
+              e.preventDefault();
+              run(async () => {
+                await submitResult(m, me!.id, Number(scoreA), Number(scoreB), file);
+                if (reports.length > 0) {
+                  await disputeResult(m.id, me!.id, 'Fair play report', reports.map((r) => t(r)).join('; '));
+                }
+              }, reports.length > 0 ? t('match.reportFiled') : t('match.submitted'));
+            }}
+            className="btn-cta h-12"
+          >
             {busy ? t('match.submitting') : t('match.submit')}
           </button>
         </form>

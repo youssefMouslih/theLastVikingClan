@@ -2,13 +2,13 @@ import { NavLink } from 'react-router';
 import Icon, { type IconName } from './Icon';
 import { useLocale } from '../../i18n/LocaleContext';
 
-// Mobile bottom nav (§15): 4 tabs. Alerts live in the app-bar bell (Home).
-const tabs: { to: string; labelKey: 'nav.home' | 'nav.cups' | 'nav.code' | 'nav.clan' | 'nav.you'; icon: IconName }[] = [
-  { to: '/home', labelKey: 'nav.home', icon: 'home' },
-  { to: '/competitions', labelKey: 'nav.cups', icon: 'trophy' },
-  { to: '/code', labelKey: 'nav.code', icon: 'shield' },
-  { to: '/clan', labelKey: 'nav.clan', icon: 'users' },
-  { to: '/profile', labelKey: 'nav.you', icon: 'user' },
+// Hall | Arena | League | Code | Profile
+const tabs: { to: string; labelKey: 'nav.hall' | 'nav.arena' | 'nav.league' | 'nav.code' | 'nav.profile'; icon: IconName }[] = [
+  { to: '/home', labelKey: 'nav.hall', icon: 'shield' },
+  { to: '/battles', labelKey: 'nav.arena', icon: 'swords' },
+  { to: '/competitions', labelKey: 'nav.league', icon: 'trophy' },
+  { to: '/code', labelKey: 'nav.code', icon: 'scroll' },
+  { to: '/profile', labelKey: 'nav.profile', icon: 'user' },
 ];
 
 export default function BottomNav() {

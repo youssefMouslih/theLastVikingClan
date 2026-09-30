@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import CompetitionCard from '../components/competition/CompetitionCard';
+import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import { useLocale } from '../i18n/LocaleContext';
 import { getCompetitionByCode, listCompetitions, listParticipants } from '../services/competitionService';
@@ -44,10 +45,12 @@ export default function CompetitionsPage() {
 
   return (
     <main className="page">
-      <div className="flex items-center gap-2">
-        <h1 className="font-display flex-1 text-xl tracking-wide">{t('comps.title')}</h1>
-        {canCreate && <Link to="/admin" className="btn-primary h-10 px-4 text-sm">{t('comps.new')}</Link>}
-      </div>
+      <AppBar title={t('comps.title')} />
+      {canCreate && (
+        <div className="mt-2 flex justify-end">
+          <Link to="/admin" className="btn-primary h-10 px-4 text-sm">{t('comps.new')}</Link>
+        </div>
+      )}
 
       <form onSubmit={handleJoinCode} className="card mt-3 flex gap-2">
         <input

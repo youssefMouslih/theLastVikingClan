@@ -40,7 +40,7 @@ export default function LoginPage() {
       const data = await signUpWithInvite(email.trim(), password, clean);
       if (data.session) {
         await useAuthStore.getState().init();
-        nav('/home', { replace: true });
+        nav('/code?tab=oath', { replace: true });
       } else {
         setInfo(t('auth.confirmEmail'));
         setMode('login');

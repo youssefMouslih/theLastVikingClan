@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { getMember } from '../services/playerService';
-import { getRatingSummary, ratePlayer } from '../services/ratingService';
+import { getRatingSummary, ratePlayer, TITLE_TAGS } from '../services/ratingService';
 import { getPlayerCareer } from '../services/statisticsService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -21,16 +21,25 @@ export default function PlayerPage() {
   const careerQuery = useQuery({ queryKey: ['career', id], queryFn: () => getPlayerCareer(id ?? ''), enabled: !!id });
   const ratingQuery = useQuery({ queryKey: ['rating', id], queryFn: () => getRatingSummary(id ?? '', me?.id), enabled: !!id });
   const isSelf = me?.id === id;
+  const [dims, setDims] = useState({ tactical: 4, fairplay: 5, connection: 4, title_tag: '' });
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    const mine = ratingQuery.data?.mine;
+    if (mine && !prefilled) {
+      setDims({ tactical: mine.tactical, fairplay: mine.fairplay, connection: mine.connection, title_tag: mine.title_tag ?? '' });
+      setPrefilled(true);
+    }
+  }, [ratingQuery.data, prefilled]);
 
   if (query.isLoading) return <main className="page text-sm">{t('player.loading')}</main>;
   const m = query.data;
   if (!m) return <main className="page text-sm">{t('player.notFound')}</main>;
   const r = ratingQuery.data;
 
-  async function rate(score: number) {
+  async function submitRating() {
     setBusy(true); setMsg(null);
     try {
-      await ratePlayer(m!.id, me!.id, score);
+      await ratePlayer(m!.id, me!.id, { tactical: dims.tactical, fairplay: dims.fairplay, connection: dims.connection, title_tag: dims.title_tag || null });
       setMsg(t('profile.rateThanks'));
       await ratingQuery.refetch();
     } catch (err) {
@@ -40,26 +49,46 @@ export default function PlayerPage() {
     }
   }
 
+  function Stars({ value, onPick, label }: { value: number; onPick: (n: number) => void; label: string }) {
+    return (
+      <div className="flex items-center gap-1">
+        <span className="w-24 text-xs opacity-70">{label}</span>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <button key={s} disabled={busy} onClick={() => onPick(s)} aria-label={`${label} ${s}/5`} className={`font-display text-xl ${value >= s ? 'text-accent-400' : 'opacity-30'}`}>
+            ★
+          </button>
+        ))}
+        <span className="font-display text-sm">{value}.0</span>
+      </div>
+    );
+  }
+
   return (
     <main className="page">
       <PlayerCard member={m} career={careerQuery.data ?? null} />
       {!isSelf && me && (
         <section className="card mt-3" aria-label={t('profile.rateTitle')}>
-          <h2 className="card-title">{t('profile.rateTitle')}</h2>
-          <div className="mt-2 flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <button
-                key={s}
-                disabled={busy}
-                onClick={() => rate(s)}
-                aria-label={`${s}/5`}
-                className={`font-display text-2xl ${(r?.mine ?? 0) >= s ? 'text-accent-400' : 'opacity-30'}`}
-              >
-                ★
-              </button>
-            ))}
-            <span className="ms-2 text-xs opacity-70">
-              {r && r.count > 0 ? t('profile.rateAvg', { n: r.avg ?? 0, c: r.count }) : t('profile.rateNone')}
+          <h2 className="card-title">{t('profile.rateTitle', { name: m.display_name ?? m.username })}</h2>
+          {(r?.topTitles ?? []).length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {(r?.topTitles ?? []).map((tt) => (
+                <span key={tt.tag} className="rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">{tt.tag} ×{tt.count}</span>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 flex flex-col gap-1.5">
+            <Stars value={dims.tactical} onPick={(n) => setDims({ ...dims, tactical: n })} label={t('profile.dimTactical')} />
+            <Stars value={dims.fairplay} onPick={(n) => setDims({ ...dims, fairplay: n })} label={t('profile.dimFair')} />
+            <Stars value={dims.connection} onPick={(n) => setDims({ ...dims, connection: n })} label={t('profile.dimConn')} />
+          </div>
+          <select value={dims.title_tag} onChange={(e) => setDims({ ...dims, title_tag: e.target.value })} className="input mt-2 text-sm">
+            <option value="">{t('profile.titleNone')}</option>
+            {TITLE_TAGS.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+          </select>
+          <div className="mt-2 flex items-center gap-2">
+            <button disabled={busy} onClick={submitRating} className="btn-primary h-10 flex-1 text-xs">{t('profile.rateSubmit')}</button>
+            <span className="text-xs opacity-70">
+              {r && r.count > 0 ? t('profile.rateAvg3', { a: r.tactical ?? 0, b: r.fairplay ?? 0, c: r.connection ?? 0, n: r.count }) : t('profile.rateNone')}
             </span>
           </div>
           {msg && <p className="mt-1 text-xs">{msg}</p>}

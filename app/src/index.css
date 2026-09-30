@@ -3,32 +3,33 @@
 /* Dark variant follows the Settings theme (data-theme), not just the OS. */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* VIK Clan design system — generated via ui-ux-pro-max (gaming/esports).
-   Style: immersive depth | Colors: neon violet + rose on deep navy
-   Type: Russo One (display) / Chakra Petch (body) */
+/* THE LAST VIKING design system: Dark Silver, Runic Steel, Valhalla Gold.
+   Display: Cinzel (Norse serif) / Body: Chakra Petch. */
 
 @theme {
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand-500: #7c3aed;
-  --color-brand-600: #6d28d9;
-  --color-brand-700: #5b21b6;
-  --color-accent-400: #fb7185;
-  --color-accent-500: #f43f5e;
-  --color-accent-600: #e11d48;
-  --color-abyss-800: #1e1c35;
-  --color-abyss-850: #17162a;
-  --color-abyss-900: #0f0f23;
-  --color-abyss-950: #0a0a18;
-  --font-display: "Russo One", system-ui, sans-serif;
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-brand-500: #eab308;
+  --color-brand-600: #ca8a04;
+  --color-brand-700: #a16207;
+  --color-accent-400: #f87171;
+  --color-accent-500: #ef4444;
+  --color-accent-600: #dc2626;
+  --color-abyss-800: #1e232e;
+  --color-abyss-850: #12151b;
+  --color-abyss-900: #08090a;
+  --color-abyss-950: #050607;
+  --color-rune-400: #22d3ee;
+  --color-rune-500: #06b6d4;
+  --font-display: "Cinzel", Georgia, serif;
   --font-sans: "Chakra Petch", system-ui, sans-serif;
 }
 
 :root {
-  --bg: #0f0f23;
-  --surface: #1e1c35;
-  --surface-2: #27273b;
-  --border: #4c1d95;
+  --bg: #08090a;
+  --surface: #12151b;
+  --surface-2: #1e232e;
+  --border: #2e3646;
   --text: #e2e8f0;
   --muted: #94a3b8;
   color-scheme: dark;
@@ -36,12 +37,12 @@
 
 /* Explicit light theme (Settings → Theme). System follows OS via data-theme. */
 :root[data-theme='light'] {
-  --bg: #f1eefb;
+  --bg: #eef0f4;
   --surface: #ffffff;
-  --surface-2: #ede9fe;
-  --border: #d8ccfa;
-  --text: #1a1033;
-  --muted: #5b5675;
+  --surface-2: #e6e9f0;
+  --border: #c9cfdb;
+  --text: #141a26;
+  --muted: #5b6478;
   color-scheme: light;
 }
 
@@ -52,8 +53,8 @@ html, body, #root {
 body {
   margin: 0;
   background:
-    radial-gradient(60rem 30rem at 80% -10%, rgba(124, 58, 237, 0.22), transparent 60%),
-    radial-gradient(50rem 26rem at 10% 0%, rgba(244, 63, 94, 0.12), transparent 60%),
+    radial-gradient(60rem 30rem at 80% -10%, rgba(234, 179, 8, 0.12), transparent 60%),
+    radial-gradient(50rem 26rem at 10% 0%, rgba(6, 182, 212, 0.08), transparent 60%),
     var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
@@ -104,11 +105,7 @@ button, a, [role="button"] {
   padding-right: 1rem;
   font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  transition: transform 150ms ease, box-shadow 200ms ease, background-color 200ms ease;
-}
-
-@utility btn-active {
+  letter-spacing: 0.04em;
   transition: transform 150ms ease, box-shadow 200ms ease, background-color 200ms ease;
 }
 
@@ -117,34 +114,34 @@ button, a, [role="button"] {
     @apply mx-auto w-full max-w-2xl p-4 pb-24;
   }
   .card {
-    background: var(--surface);
-    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, #ffffff 4%), var(--surface));
+    border: 1px solid var(--border);
     border-radius: 1rem;
     padding: 1rem;
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 12px 32px -16px rgba(0, 0, 0, 0.55),
-      0 0 0 1px rgba(0, 0, 0, 0.15);
+      0 1px 0 rgba(255, 255, 255, 0.07) inset,
+      0 14px 34px -18px rgba(0, 0, 0, 0.7);
   }
   .card-title {
     @apply text-xs font-bold uppercase tracking-wider;
     color: var(--muted);
   }
   .btn-primary {
-    @apply btn text-white;
-    background: linear-gradient(180deg, #8b5cf6, #7c3aed 60%, #6d28d9);
-    box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+    @apply btn;
+    color: #08090a;
+    background: linear-gradient(180deg, #fde047, #eab308 55%, #ca8a04);
+    box-shadow: 0 8px 24px -8px rgba(234, 179, 8, 0.55), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
   }
   .btn-primary:hover {
-    box-shadow: 0 10px 28px -8px rgba(124, 58, 237, 0.85), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+    box-shadow: 0 10px 28px -8px rgba(234, 179, 8, 0.7), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
   }
   .btn-primary:active {
     transform: translateY(1px) scale(0.99);
   }
   .btn-cta {
     @apply btn text-white;
-    background: linear-gradient(180deg, #fb7185, #f43f5e 60%, #e11d48);
-    box-shadow: 0 8px 24px -8px rgba(244, 63, 94, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+    background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626);
+    box-shadow: 0 8px 24px -8px rgba(239, 68, 68, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
   }
   .btn-cta:active {
     transform: translateY(1px) scale(0.99);
@@ -162,7 +159,7 @@ button, a, [role="button"] {
     border: 1px solid var(--border);
   }
   .btn-ghost:hover {
-    background: color-mix(in srgb, var(--brand-500, #7c3aed) 12%, transparent);
+    background: color-mix(in srgb, #eab308 12%, transparent);
   }
   .btn-danger {
     @apply btn;
@@ -187,12 +184,12 @@ button, a, [role="button"] {
   }
   .input:focus {
     border-color: var(--color-brand-400);
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.25);
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.25);
   }
   .label {
     @apply flex flex-col gap-1 text-sm font-semibold;
   }
-  /* Immersive hero: layered depth + neon glow */
+  /* Immersive hero: forged steel + Valhalla Gold glow */
   .hero {
     position: relative;
     overflow: hidden;
@@ -200,13 +197,13 @@ button, a, [role="button"] {
     padding: 1.25rem;
     color: #fff;
     background:
-      radial-gradient(24rem 12rem at 85% -30%, rgba(244, 63, 94, 0.35), transparent 65%),
-      radial-gradient(30rem 16rem at 15% -40%, rgba(124, 58, 237, 0.55), transparent 65%),
-      linear-gradient(160deg, #241b4d 0%, #17162a 55%, #0f0f23 100%);
-    border: 1px solid rgba(167, 139, 250, 0.35);
+      radial-gradient(24rem 12rem at 85% -30%, rgba(234, 179, 8, 0.28), transparent 65%),
+      radial-gradient(30rem 16rem at 15% -40%, rgba(6, 182, 212, 0.18), transparent 65%),
+      linear-gradient(160deg, #232a3a 0%, #12151b 55%, #08090a 100%);
+    border: 1px solid #2e3646;
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.12) inset,
-      0 20px 48px -20px rgba(124, 58, 237, 0.55);
+      0 1px 0 rgba(255, 255, 255, 0.1) inset,
+      0 20px 48px -20px rgba(0, 0, 0, 0.8);
   }
   .font-display {
     font-family: var(--font-display);

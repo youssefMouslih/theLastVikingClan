@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import Avatar from '../components/ui/Avatar';
+import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
-import Icon from '../components/ui/Icon';
+import SquadsTab from '../components/battle/SquadsTab';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import {
@@ -42,7 +43,7 @@ export default function BattlesPage() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [params] = useSearchParams();
-  const [tab, setTab] = useState<'issue' | 'incoming' | 'history' | 'commands'>('issue');
+  const [tab, setTab] = useState<'issue' | 'incoming' | 'history' | 'commands' | 'squads'>('issue');
   const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false });
   const [rivalName, setRivalName] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});
@@ -208,19 +209,17 @@ export default function BattlesPage() {
 
   return (
     <main className="page">
-      <h1 className="font-display flex items-center gap-2 text-xl tracking-wide">
-        <Icon name="swords" className="h-6 w-6 text-brand-400" /> {t('battle.title')}
-      </h1>
+      <AppBar title={t('battle.title')} />
       {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
 
       <nav aria-label="Battles" className="mt-2 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
-        {(['issue', 'incoming', 'history', 'commands'] as const).map((tb) => (
+        {(['issue', 'incoming', 'squads', 'history', 'commands'] as const).map((tb) => (
           <button
             key={tb}
             onClick={() => setTab(tb)}
             className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === tb ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}
           >
-            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'history' ? t('battle.history') : t('battle.commands')}
+            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'squads' ? t('squad.title') : tb === 'history' ? t('battle.history') : t('battle.commands')}
           </button>
         ))}
       </nav>
@@ -277,6 +276,8 @@ export default function BattlesPage() {
           {incoming.map((ch) => <BattleCard key={ch.id} ch={ch} incoming />)}
         </div>
       )}
+
+      {tab === 'squads' && <SquadsTab />}
 
       {tab === 'history' && (
         <div className="mt-3 flex flex-col gap-2">

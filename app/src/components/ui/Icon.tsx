@@ -88,6 +88,13 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   pencil: <path d="m14.5 5.5 4 4L8 20l-5 1 1-5Z" />,
+  scroll: (
+    <>
+      <path d="M8 4h9a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H8" />
+      <path d="M8 4a3 3 0 0 0-3 3v10a3 3 0 0 1 3 3" />
+      <path d="M11 10h5M11 14h5" />
+    </>
+  ),
   gear: (
     <>
       <circle cx="12" cy="12" r="3.2" />

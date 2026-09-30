@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
+import AppBar from '../components/ui/AppBar';
 import CopyButton from '../components/ui/CopyButton';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
@@ -13,7 +14,9 @@ const OATH_KEYS = ['code.o1', 'code.o2', 'code.o3', 'code.o4', 'code.o5', 'code.
 export default function CodePage() {
   const { t } = useLocale();
   const { sworn, swear } = useOath();
-  const [tab, setTab] = useState<'code' | 'oath' | 'legacy'>('code');
+  const [params] = useSearchParams();
+  const initialTab = params.get('tab') === 'oath' || params.get('tab') === 'legacy' ? params.get('tab') as 'oath' | 'legacy' : 'code';
+  const [tab, setTab] = useState<'code' | 'oath' | 'legacy'>(initialTab);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -33,7 +36,8 @@ export default function CodePage() {
 
   return (
     <main className="page">
-      <div className="hero">
+      <AppBar />
+      <div className="hero mt-2">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-300">{t('code.kicker')}</p>
         <h1 className="font-display mt-1 text-2xl tracking-wide">THE LAST VIKING</h1>
         <Link to="/battles" className="btn-cta mt-3 w-full">{t('battle.title')}</Link>
