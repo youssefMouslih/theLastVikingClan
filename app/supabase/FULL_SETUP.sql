@@ -371,6 +371,7 @@ alter table public.competitions
 
 -- Players must not see soft-deleted competitions (admins still can).
 drop policy if exists "authenticated read competitions" on public.competitions;
+drop policy if exists "members read live competitions" on public.competitions;
 create policy "members read live competitions" on public.competitions
   for select to authenticated
   using (is_deleted = false or public.is_clan_role(array['OWNER','ADMIN']));
