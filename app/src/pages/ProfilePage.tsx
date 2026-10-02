@@ -157,6 +157,16 @@ export default function ProfilePage() {
 
       {msg && !editing && <p role="status" className="mt-2 text-sm">{msg}</p>}
 
+      {!me.known_name && !editing && (
+        <button
+          type="button"
+          onClick={startEdit}
+          className="card mt-3 flex w-full items-center justify-center gap-2 border-brand-500/50 p-3 text-sm font-bold text-brand-300"
+        >
+          {t('profile.setKnownCta')}
+        </button>
+      )}
+
       {editing && (
         <form onSubmit={save} className="card mt-3 flex flex-col gap-2">
           <label className="label">{t('profile.avatar')}
