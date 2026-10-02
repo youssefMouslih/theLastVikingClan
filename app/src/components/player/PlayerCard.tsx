@@ -162,10 +162,10 @@ export default function PlayerCard({
 
         {/* Honors */}
         {honours.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5" aria-label={t('profile.badges')}>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={t('profile.badges')}>
             {honours.map((h) => (
-              <span key={h.id} className="flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] font-semibold text-brand-300">
-                <Icon name="medal" className="h-3.5 w-3.5" /> {h.name}
+              <span key={h.id} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-500/50 bg-brand-500/15 px-2.5 py-1 text-xs font-bold text-brand-300">
+                <Icon name="trophy" className="h-4 w-4 shrink-0" /> {h.name}
               </span>
             ))}
           </div>
