@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
-import StatusBadge from '../ui/StatusBadge';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
@@ -133,8 +132,6 @@ export default function PlayerCard({
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
           <span>@{member.username}</span>
-          <StatusBadge value={member.role} />
-          <StatusBadge value={member.status} />
           {member.country && <span>• {member.country}</span>}
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
@@ -174,12 +171,12 @@ export default function PlayerCard({
           <div className="flex items-center gap-2">
             <span className="font-display flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 text-base">★</span>
             <div className="flex-1">
-              <p className="text-xs opacity-60">{t('profile.highestPvp')}</p>
-              <p className="font-display text-lg leading-tight">{member.division_pvp ?? t('profile.divisionNA')}</p>
+              <p className="text-xs opacity-60">{t('player.winRate')}</p>
+              <p className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</p>
             </div>
             <div className="text-right text-xs opacity-70">
-              <div className="font-display text-lg text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
-              <div>{t('player.winRate')}</div>
+              <div className="font-display text-lg">{career?.played ?? '—'}</div>
+              <div>{t('player.matches')}</div>
             </div>
           </div>
           <div className="mt-2 flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
