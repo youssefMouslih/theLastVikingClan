@@ -282,6 +282,33 @@ input, textarea, select {
     border: 1px solid rgba(255, 255, 255, 0.25);
     color: #fff;
   }
+  /* Rune-forged frame: metallic gradient border + dark rim */
+  .rune-frame {
+    border: 2px solid transparent;
+    border-radius: 1.25rem;
+    background:
+      linear-gradient(#12121f, #12121f) padding-box,
+      linear-gradient(165deg, #9aa1b2 0%, #3a3f4d 25%, #d7dce6 50%, #3a3f4d 75%, #9aa1b2 100%) border-box;
+    box-shadow:
+      0 0 0 1px #050607,
+      0 18px 50px -18px rgba(0, 0, 0, 0.85);
+  }
+  .rune-strip {
+    font-family: Georgia, serif;
+    letter-spacing: 0.35em;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    color: rgba(226, 232, 240, 0.35);
+    user-select: none;
+  }
+  .btn-steel {
+    @apply btn;
+    color: #e2e8f0;
+    background: linear-gradient(180deg, #4b5263, #2e3646 60%, #1e232e);
+    border: 1px solid #4b5263;
+    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.15) inset;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

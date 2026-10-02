@@ -90,7 +90,8 @@ export default function PlayerCard({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#12121f] text-[#e2e8f0] shadow-xl">
+    <section className="rune-frame overflow-hidden text-[#e2e8f0] shadow-xl">
+      <p aria-hidden className="rune-strip px-4 pb-1 pt-2 text-center">ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟᚠᚢᚦᚨᚱᚲᚷᚹ</p>
       {/* Custom banner: uploaded image, chosen color, or Konami stripes */}
       <div
         className={`relative h-24 ${!bannerImg && !member.banner_color ? 'efoot-banner' : ''}`}
@@ -168,22 +169,20 @@ export default function PlayerCard({
           </div>
         )}
 
-        {/* Highest PvP division */}
-        <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/5 p-3">
-          <span className="font-display flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 text-base">★</span>
-          <div className="flex-1">
-            <p className="text-xs opacity-60">{t('profile.highestPvp')}</p>
-            <p className="font-display text-lg leading-tight">{member.division_pvp ?? t('profile.divisionNA')}</p>
+        {/* Stats summary panel */}
+        <div className="mt-3 rounded-xl bg-white/5 p-3">
+          <div className="flex items-center gap-2">
+            <span className="font-display flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 text-base">★</span>
+            <div className="flex-1">
+              <p className="text-xs opacity-60">{t('profile.highestPvp')}</p>
+              <p className="font-display text-lg leading-tight">{member.division_pvp ?? t('profile.divisionNA')}</p>
+            </div>
+            <div className="text-right text-xs opacity-70">
+              <div className="font-display text-lg text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
+              <div>{t('player.winRate')}</div>
+            </div>
           </div>
-          <div className="text-right text-xs opacity-70">
-            <div className="font-display text-lg text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
-            <div>{t('player.winRate')}</div>
-          </div>
-        </div>
-
-        {/* Wins / Draws / Losses record bar */}
-        <div className="mt-3">
-          <div className="flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
+          <div className="mt-2 flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
             <div className="min-w-[64px] bg-green-500 text-zinc-950" style={{ width: `${total ? ((career?.wins ?? 0) / total) * 100 : 0}%` }}>{t('player.wins')}</div>
             <div className="min-w-[64px] bg-zinc-500 text-white" style={{ width: `${total ? ((career?.draws ?? 0) / total) * 100 : 0}%` }}>{t('player.draws')}</div>
             <div className="min-w-[64px] flex-1 bg-red-500 text-white">{t('player.losses')}</div>
@@ -211,7 +210,7 @@ export default function PlayerCard({
                 return (
                   <div
                     key={m.id}
-                    className={`flex w-[84px] shrink-0 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-center ${
+                    className={`flex w-[92px] shrink-0 flex-col items-center gap-0.5 rounded-xl border border-white/20 px-1 py-2 text-center ${
                       m.result === 'W' ? 'bg-green-500/10' : m.result === 'L' ? 'bg-red-500/10' : 'bg-zinc-500/10'
                     }`}
                   >
@@ -228,6 +227,7 @@ export default function PlayerCard({
           )}
         </div>
       </div>
+      <p aria-hidden className="rune-strip px-4 pb-2 pt-3 text-center">ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟᚠᚢᚦᚨᚱᚲᚷᚹ</p>
     </section>
   );
 }

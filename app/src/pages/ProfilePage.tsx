@@ -216,7 +216,7 @@ export default function ProfilePage() {
           <Icon name="shield" className="h-5 w-5" /> {t('admin.title')}
         </Link>
       )}
-      <button onClick={logout} className="btn-ghost mt-3 w-full">{t('profile.logout')}</button>
+      <button onClick={logout} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
       <BottomNav />
     </main>
   );
