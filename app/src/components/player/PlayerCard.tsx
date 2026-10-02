@@ -174,15 +174,15 @@ export default function PlayerCard({
             <div className="grid flex-1 grid-cols-3 gap-1 text-center">
               <div>
                 <div className="font-display text-lg leading-tight">{career?.clean_sheets ?? '—'}</div>
-                <div className="text-[11px] opacity-60">{t('player.cleanSheets')}</div>
+                <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="shield" className="h-3.5 w-3.5" />{t('player.cleanSheets')}</div>
               </div>
               <div>
                 <div className="font-display text-lg leading-tight">{career?.goals_for ?? '—'}</div>
-                <div className="text-[11px] opacity-60">{t('player.goals')}</div>
+                <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="swords" className="h-3.5 w-3.5" />{t('player.goals')}</div>
               </div>
               <div>
                 <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
-                <div className="text-[11px] opacity-60">{t('player.winRate')}</div>
+                <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="chart" className="h-3.5 w-3.5" />{t('player.winRate')}</div>
               </div>
             </div>
           </div>
