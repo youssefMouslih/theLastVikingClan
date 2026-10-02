@@ -6,7 +6,7 @@ import Icon from '../ui/Icon';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
-import { getHonours, getRecentMatches, type CareerStats } from '../../services/statisticsService';
+import { getRecentMatches, type CareerStats } from '../../services/statisticsService';
 import { profilePoster, shareFile } from '../../utils/shareBattle';
 import type { Profile } from '../../types/database';
 
@@ -42,16 +42,10 @@ export default function PlayerCard({
     queryFn: () => getRecentMatches(member.id, 5),
     staleTime: 30_000,
   });
-  const honoursQuery = useQuery({
-    queryKey: ['honours', member.id],
-    queryFn: () => getHonours(member.id),
-    staleTime: 60_000,
-  });
   const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
   const avatar = avatarQuery.data ?? null;
   const bannerImg = bannerQuery.data ?? null;
   const recent = recentQuery.data ?? [];
-  const honours = honoursQuery.data ?? [];
   const total = (career?.wins ?? 0) + (career?.draws ?? 0) + (career?.losses ?? 0);
   const ig = socialLink('instagram', member.instagram);
   const tk = socialLink('tiktok', member.tiktok);
@@ -157,17 +151,6 @@ export default function PlayerCard({
                 <Icon name="kick" className="h-5 w-5" />
               </a>
             )}
-          </div>
-        )}
-
-        {/* Honors */}
-        {honours.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={t('profile.badges')}>
-            {honours.map((h) => (
-              <span key={h.id} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-brand-500/50 bg-brand-500/15 px-2.5 py-1 text-xs font-bold text-brand-300">
-                <Icon name="trophy" className="h-4 w-4 shrink-0" /> {h.name}
-              </span>
-            ))}
           </div>
         )}
 
