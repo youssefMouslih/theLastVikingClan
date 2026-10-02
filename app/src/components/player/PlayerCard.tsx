@@ -135,6 +135,11 @@ export default function PlayerCard({
           {member.country && <span>• {member.country}</span>}
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
+        <div className="mt-2 flex justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 shadow-lg shadow-brand-500/40">
+            <Icon name="trophy" className="h-6 w-6 text-white" />
+          </span>
+        </div>
         {(ig || tk || kk) && (
           <div className="mt-2 flex gap-2">
             {ig && (
@@ -169,9 +174,6 @@ export default function PlayerCard({
         {/* Stats summary panel */}
         <div className="mt-3 rounded-xl bg-white/5 p-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700">
-              <Icon name="trophy" className="h-5 w-5 text-white" />
-            </span>
             <div className="flex-1">
               <p className="text-xs opacity-60">{t('player.winRate')}</p>
               <p className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</p>
