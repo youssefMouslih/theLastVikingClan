@@ -7,7 +7,8 @@ import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
-import { getRecentMatches, type CareerStats } from '../../services/statisticsService';
+import { getHonours, getRecentMatches, type CareerStats } from '../../services/statisticsService';
+import { getTotalXP, levelFor } from '../../services/sagaService';
 import { profilePoster, shareFile } from '../../utils/shareBattle';
 import type { Profile } from '../../types/database';
 
@@ -43,6 +44,12 @@ export default function PlayerCard({
     queryFn: () => getRecentMatches(member.id, 5),
     staleTime: 30_000,
   });
+  const xpQuery = useQuery({
+    queryKey: ['xp', member.id],
+    queryFn: () => getTotalXP(member.id),
+    staleTime: 60_000,
+  });
+  const levelName = t(levelFor(xpQuery.data ?? 0).level.nameKey);
   const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
   const avatar = avatarQuery.data ?? null;
   const bannerImg = bannerQuery.data ?? null;
@@ -154,10 +161,11 @@ export default function PlayerCard({
         )}
 
         {/* Badge showcase */}
-        <div className="mt-3 flex justify-center">
+        <div className="mt-3 flex flex-col items-center gap-1">
           <span className="flex h-14 w-14 items-center justify-center rounded-full border border-brand-500/50 bg-gradient-to-b from-brand-400 to-brand-700 shadow-lg shadow-brand-500/40">
             <Icon name="trophy" className="h-7 w-7 text-white" />
           </span>
+          <span className="font-display text-xs uppercase tracking-[0.2em] text-brand-300">{levelName}</span>
         </div>
 
         {/* Stats summary panel */}
@@ -165,16 +173,16 @@ export default function PlayerCard({
           <div className="flex items-center gap-2">
             <div className="grid flex-1 grid-cols-3 gap-1 text-center">
               <div>
-                <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
-                <div className="text-[11px] opacity-60">{t('player.winRate')}</div>
+                <div className="font-display text-lg leading-tight">{career?.clean_sheets ?? '—'}</div>
+                <div className="text-[11px] opacity-60">{t('player.cleanSheets')}</div>
               </div>
               <div>
                 <div className="font-display text-lg leading-tight">{career?.goals_for ?? '—'}</div>
                 <div className="text-[11px] opacity-60">{t('player.goals')}</div>
               </div>
               <div>
-                <div className="font-display text-lg leading-tight">{career?.clean_sheets ?? '—'}</div>
-                <div className="text-[11px] opacity-60">{t('player.cleanSheets')}</div>
+                <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
+                <div className="text-[11px] opacity-60">{t('player.winRate')}</div>
               </div>
             </div>
           </div>
