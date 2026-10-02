@@ -5,20 +5,21 @@ One clan, one living Norse kingdom: leagues, cups, battles, throne, saga progres
 
 Live loop: **next match → deadline → play → submit + screenshot → opponent confirms → standings update.**
 
-> Local-only workflow: changes are committed locally and pushed to GitHub/Netlify **only on your word** (Netlify builds cost free-tier credits).
+> Push to GitHub/Netlify only on your word (Netlify builds cost free-tier credits).
 
 ## The clan
 
-- **Identity:** Norse-inspired competitive brotherhood — honor, loyalty, discipline, legacy. Emblem in `app/public/logo.png` (also favicon, PWA + iOS icons, headers, share posters).
+- **Identity:** Norse-inspired competitive brotherhood — honor, loyalty, discipline, legacy. Emblem in `app/public/logo.png` (favicon, PWA/iOS icons, headers, share posters).
 - **Clan Code** (`/code`): 9 Laws (Honor → Legacy), the Viking's Oath (sworn once, timestamped, **required before joining**), the Legacy (Hall of Fame), war-words commands with copy buttons.
-- **Battles** (`/battles`, nav: Arena): Calls for a Head — **regular** (refusable) or **unrefusable 100 GP must-answer** (needs 100 GP balance, winner takes +100 bounty); Friendly Duels incl. **open mat** (clan-wide alert, first to accept plays, callers see their own call); Honor Duels incl. **throne challenges**; Blood-Debt rematches; result needs **mandatory screenshot** (shown inline, tap to enlarge); War Council **3v3/4v4 squads** (leader invites + member requests, both sides accept); shareable 1080px battle posters (WhatsApp-ready).
+- **Battles** (`/battles`, nav: Arena): Calls for a Head — **regular** (refusable) or **unrefusable 100 GP must-answer** (needs 100 GP balance, winner takes +100 bounty); Friendly Duels incl. **open mat** (clan-wide alert, 24h expiry with renew/cancel, first to accept plays, callers see their own calls); Honor Duels incl. **throne challenges**; Blood-Debt rematches; result needs **mandatory screenshot** (inline, tap to enlarge) + optional note; War Council **3v3/4v4 squads** (leader invites + member requests, both sides accept); fair-play reports (no tag, misconduct, cheating); shareable 1080px battle posters + WhatsApp handshake button on accepted fights.
 - **King's Throne**: champion card on Home (reign, defenses, history), challenge-for-throne pledge, auto-transfer on lost title battle (+1 defense on hold), admin crowning/vacating, full reign log.
-- **Saga progression** (`/saga`): Glory XP (verified matches, quests, bounties, gifts), 8 Norse levels (Outsider→Legend), daily/weekly quest board with **period-locked claims** (no double-pay), seasonal leaderboard, win-streak badges (x5/x10), First Blood, peer ratings (tactical/fair-play/connection + title tags), GP gift favors (ask/accept, real ledger transfers).
-- **Competitions**: leagues (round-robin, everyone-plays-everyone), cups (knockout, lose once), tournaments (bracket event), special events (custom rules) — each explained in-app at creation and on Overview. Join codes/links with one-tap copy, capacity + deadlines enforced, waitlist only when FULL, auto open→close→finish lifecycle with manual override + reopen, standings from CONFIRMED only, player replacement (future fixtures only, history kept). Fixture rows carry a **message-opponent button** (WhatsApp direct when they shared a number, prefilled challenge text otherwise).
-- **Matches**: submit score + **mandatory screenshot** + fair-play checklist + optional note and issue reports (auto-file disputes) → opponent sees **Confirm + Wrong?** side by side with submitter name and zoomable proof → moderator **review card** (score, proof, who/when, confirm-set/forfeit/**send-back with comment**) → standings recompute from CONFIRMED only → Glory + streak badges auto-awarded. Evidence of fully-decided rounds is purged (Free storage button + auto on Finish); replaced avatars/banners/evidence files are deleted, never orphaned.
-- **Trust & safety**: dispute reports (score, no-show, wrong opponent, screenshot, no clan tag, misconduct, cheating) → admin queue with audit log; RLS on every table; soft-delete with **two-person rule** for started competitions (requester can never self-approve; restorable, never hard-deleted).
-- **Profiles**: eFootball card (tap photo to change it, custom banner color/image, socials IG/TikTok/Kick, WhatsApp chat button, PvP division, W/D/L bar, last-5 as horizontal cards with opponent/score/type, honors, streaks, ratings), share-as-image posters, member management (roles/status, owner-only guards).
-- **Community**: announcements (publish → all members notified), notification center with deep links (match/competition/battle/home), realtime + focus-refetch + manual refresh, Home action center for pending answers, PWA install guide (native prompt / iOS Share steps), push subscriptions ready (sender = Edge Function, VAPID keys issued).
+- **Saga progression** (`/saga`): Glory XP (verified matches, quests, bounties, gifts), 8 Norse levels (Outsider→Legend, shown named on the profile trophy badge), daily/weekly quest board with **period-locked claims**, seasonal leaderboard, win-streak badges (x5/x10), First Blood, 3-dimension peer ratings (tactical/fair-play/connection + title tags), GP gift favors (ask/accept, real ledger transfers).
+- **Competitions**: leagues (round-robin), cups (knockout), tournaments (bracket), special events — each explained in-app. Join codes/links with one-tap copy, capacity + deadlines enforced, waitlist only when FULL, auto open→close→finish lifecycle with manual override + reopen, standings from CONFIRMED only, player replacement (future fixtures only, history kept). Fixture rows carry tab counts, live countdowns, avatars, and a **message-opponent button** (WhatsApp direct with prefilled text, share-sheet fallback).
+- **Matches**: submit score + **mandatory screenshot** (styled upload, button explains itself) + fair-play checklist (tag worn, clean play) + optional note + issue reports (auto-file disputes) → opponent sees **Confirm + Wrong?** with submitter name, note and zoomable proof → moderator **review card** (score, proof, who/when, confirm-set/forfeit/**send-back with comment**) → standings recompute from CONFIRMED only → Glory + streak badges auto-awarded. Evidence kept **24h after final**, then purged (Free storage button + auto on Finish); replaced avatars/banners/evidence deleted, never orphaned.
+- **Trust & safety**: dispute queue with audit log; RLS on every table; soft-delete with **two-person rule** for started competitions (requester can never self-approve; restorable, never hard-deleted).
+- **Profiles**: rune-forged eFootball card (tap photo to change it, custom banner color/image, IG/TikTok/Kick links, WhatsApp number + chat button, real / warrior-tagged / in-game names with hints, flag + country picker from full list, labeled About area), stats panel (win rate · goals · clean sheets + W/D/L bar), horizontal last-5 (avatar → name → type → score, matches + battles merged), share-as-image posters, member management (roles/status, owner-only guards).
+- **Community**: announcements (publish → all notified), notification center with deep links (match/competition/battle/home, one link each), realtime + focus-refetch + manual refresh + Home action center, PWA install guide (native prompt / iOS Share steps), update prompt with 24h dismiss memory.
+- **Push (Raven Messages)**: custom service worker (precache + offline navigation fallback + push display + tap-to-open), `send-push` Edge Function (JWT-verified, owner-only delivery, dead-subscription pruning), Settings subscribe toggle with iPhone install-first guidance. Needs: VAPID keys + `supabase functions deploy send-push`.
 
 ## Roles & permissions
 
@@ -31,10 +32,10 @@ Live loop: **next match → deadline → play → submit + screenshot → oppone
 
 ## Tech
 
-- **App** (`app/`): React 19 + TypeScript + Vite, Tailwind v4, React Router, TanStack Query, Zustand, Supabase JS, vite-plugin-pwa (injectManifest custom SW with push display + tap-to-open), Vitest (23 tests).
-- **Backend**: Supabase Postgres + Auth + Storage + Realtime + Edge Function `send-push` (Web Push via VAPID; notify() fans out best-effort). No custom server otherwise.
-- **Design**: Valhalla Gold + Runic Steel, dark-first with light/dark/system setting; Cinzel display + Chakra Petch body; SVG icon set; safe-area + standalone PWA; motion system (entrances, live countdowns, count-ups, skeletons); reduced-motion respected.
-- **i18n**: `src/i18n/dictionaries.ts` (en/fr/ar, identical key sets enforced by `Dict = typeof en`), RTL via `document.dir`, locale dates.
+- **App** (`app/`): React 19 + TypeScript + Vite, Tailwind v4, React Router, TanStack Query (keep-previous-data), Zustand, Supabase JS, vite-plugin-pwa (injectManifest custom SW), Vitest (23 tests).
+- **Backend**: Supabase Postgres + Auth + Storage + Realtime + Edge Function `send-push`. No custom server otherwise.
+- **Design**: Valhalla Gold + Runic Steel, dark-first with light/dark/system setting; Cinzel display + Chakra Petch body; SVG icon set; safe-area + standalone PWA; motion system (entrances, live countdowns, count-ups, skeletons, nav glow); sticky action bars; reduced-motion respected.
+- **i18n**: `src/i18n/dictionaries.ts` (en/fr/ar, identical key sets enforced by `Dict = typeof en`), RTL via `document.dir`, locale dates. Bottom nav: Hall · Arena · League · Code · Profile. Top bar: emblem, live GP + coin, raven bell.
 
 ## Setup
 
@@ -47,7 +48,7 @@ npm test       # vitest run (23)
 npm run build  # tsc + vite + PWA precache
 ```
 
-Database: run **`app/supabase/FULL_SETUP.sql` once** in SQL editor (all tables/policies/buckets/realtime, idempotent), then any newer `00NN_*.sql` files not yet covered (check dates). Then: first user via Auth (auto-confirm) + `profiles` row `OWNER`/`ACTIVE`; **Confirm sign up** email OFF while testing.
+Database: run **`app/supabase/FULL_SETUP.sql` once** in SQL editor (base bundle, idempotent), then any newer `00NN_*.sql` files (currently through `0022`). Then: private buckets `avatars`, `clan-assets`, `match-evidence`; first user via Auth (auto-confirm) + `profiles` row `OWNER`/`ACTIVE`; **Confirm sign up** email OFF while testing.
 
 VAPID (push): public key → `VITE_VAPID_PUBLIC_KEY` (local .env + Netlify env); private key stays secret for the Edge Function (`supabase secrets set …; supabase functions deploy send-push`).
 
@@ -55,26 +56,26 @@ VAPID (push): public key → `VITE_VAPID_PUBLIC_KEY` (local .env + Netlify env);
 
 - Base `app`, build `npm run build`, publish `dist`; env `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (+ VAPID public).
 - `netlify.toml` omits those public keys from secrets scanning (anon key is public by design; RLS protects data).
-- SPA fallback via `app/public/_redirects`; icons from `scripts/gen-icons.mjs` + `public/logo.png`.
+- SPA fallback via `app/public/_redirects`; icons from `scripts/gen-icons.mjs` + `public/logo.png` (+ `coin.png` for Glory).
 - Push only on command. To save credits: Site configuration → Build & deploy → pause auto-publishing.
 
 ## Repo layout
 
 ```
 app/
-  public/          logo.png, coin.png (add yours), PWA icons, _redirects
+  public/          logo.png, coin.png, PWA icons, splash screens, _redirects
   scripts/         gen-icons.mjs
   src/
     app/           router, providers (Query + auth init + realtime binder + focus refetch)
     competition/   pure engines + tests (league/knockout/standings/deadline/replacement/joinCode)
-    components/    ui (Icon/Avatar/AppBar/BottomNav/StatusBadge/CopyButton/CoinImg/InstallPrompt/Motion), battle, competition, match, player, clan, admin
+    components/    ui (Icon/Avatar/AppBar/BottomNav/StatusBadge/CopyButton/CoinImg/InstallPrompt/Motion/UpdateBanner/OfflineBanner), battle, competition, match, player, clan, admin
     pages/         Home, Login, Competitions, CompetitionDetail, Match, Join, Clan, Player, Profile, Settings, Code, Battles, Saga, Admin, Notifications
     services/      auth/player/clan/competition/match/standings/dispute/replacement/statistics/rating/announcement/notification/honour/throne/challenge/squad/saga/storage/push
-    stores/        authStore (zustand)   hooks/ useOath, useRealtime
+    stores/        authStore (zustand)   hooks/ useOath, useRealtime, usePersistentTab
     i18n/          dictionaries + LocaleContext (t(), fmtDate(), statusLabel())
-    sw.ts          custom service worker (precache + push + tap-to-open)
-    utils/         shareBattle (canvas posters), theme.tsx (dark/light/system)
-  supabase/migrations/  0001–0020 (+ FULL_SETUP.sql bundle)
+    sw.ts          custom service worker (precache + offline nav + push + tap-to-open)
+    utils/         shareBattle (canvas posters), theme.tsx, countries.ts
+  supabase/migrations/  0001–0022 (+ FULL_SETUP.sql bundle)
   supabase/functions/send-push/  Web Push sender
 ```
 
