@@ -9,6 +9,7 @@ export interface CareerStats {
   losses: number;
   goals_for: number;
   goals_against: number;
+  clean_sheets: number;
   winRate: number;
   form: ('W' | 'D' | 'L')[];
   titles: number;
@@ -34,10 +35,11 @@ export async function getPlayerCareer(playerId: string): Promise<CareerStats> {
   ]);
   if (error) throw new Error(error.message);
   const ms = (data ?? []) as CMatch[];
-  let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
+  let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0, clean = 0;
   const form: ('W' | 'D' | 'L')[] = [];
   const tally = (mine: number, theirs: number) => {
     gf += mine; ga += theirs;
+    if (theirs === 0) clean++;
     const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'D';
     if (form.length < 5) form.unshift(r);
     if (r === 'W') wins++; else if (r === 'L') losses++; else draws++;
@@ -52,7 +54,7 @@ export async function getPlayerCareer(playerId: string): Promise<CareerStats> {
   }
   const { count } = await supabase.from('achievements').select('id', { count: 'exact', head: true }).eq('player_id', playerId).ilike('type', '%CHAMPION%');
   const played = wins + draws + losses;
-  return { played, wins, draws, losses, goals_for: gf, goals_against: ga, winRate: played ? Math.round((wins / played) * 100) : 0, form, titles: count ?? 0 };
+  return { played, wins, draws, losses, goals_for: gf, goals_against: ga, clean_sheets: clean, winRate: played ? Math.round((wins / played) * 100) : 0, form, titles: count ?? 0 };
 }
 
 export async function getHeadToHead(a: string, b: string) {
