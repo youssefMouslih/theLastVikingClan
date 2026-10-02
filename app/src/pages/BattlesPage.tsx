@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import Avatar from '../components/ui/Avatar';
 import AppBar from '../components/ui/AppBar';
@@ -16,11 +16,13 @@ import {
   acceptOpenBattle,
   cancelChallenge,
   confirmBattleResult,
+  expireStaleOpenCalls,
   issueChallenge,
   listBattleHistory,
   listIncoming,
   listOpenBattles,
   listOutgoing,
+  renewCall,
   respondChallenge,
   submitBattleResult,
   type ChallengeRow,
@@ -82,6 +84,17 @@ export default function BattlesPage() {
   const outgoing = outgoingQuery.data ?? [];
   const openQuery = useQuery({ queryKey: ['battles-open'], queryFn: () => listOpenBattles(me!.id), enabled: !!me });
   const openBattles = openQuery.data ?? [];
+
+  // Ghost sweep: expired open calls vanish on view.
+  const swept = useRef(false);
+  useEffect(() => {
+    if (!me || swept.current) return;
+    swept.current = true;
+    expireStaleOpenCalls().then((n) => {
+      if (n > 0) openQuery.refetch();
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
   const reignQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
   const holderId = reignQuery.data?.holder_id ?? null;
   const candidates = (membersQuery.data ?? []).filter((m) => m.id !== me?.id);
@@ -141,8 +154,33 @@ export default function BattlesPage() {
     setTab('issue');
   }
 
-  function BattleCard({ ch, incoming: isIn }: { ch: ChallengeRow; incoming: boolean }) {
-    const [sharing, setSharing] = useState(false);
+  function OwnCallControls({ ch }: { ch: ChallengeRow }) {
+    const left = ch.expires_at ? Math.max(0, Math.floor((new Date(ch.expires_at).getTime() - Date.now()) / 3600000)) : null;
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-300">{t('battle.yours')}</span>
+        {left != null && <span className="text-[11px] opacity-60">{t('battle.expiresIn', { n: left })}</span>}
+        <span className="flex gap-1">
+          <button
+            disabled={busy}
+            onClick={() => run(() => renewCall(ch.id), t('battle.renewed'))}
+            className="btn-ghost h-8 px-2 text-[11px]"
+          >
+            {t('battle.renew')}
+          </button>
+          <button
+            disabled={busy}
+            onClick={() => { if (confirm(t('battle.cancel') + '?')) run(() => cancelChallenge(ch, me!.id), t('battle.cancelled')); }}
+            className="btn-ghost h-8 px-2 text-[11px]"
+          >
+            {t('battle.cancel')}
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  function BattleCard({ ch, incoming: isIn }: { ch: ChallengeRow; incoming: boolean }) {    const [sharing, setSharing] = useState(false);
     const other = ch.challenger_id === me?.id ? ch.opponent : ch.challenger;
     const otherName = ch.opponent_label ?? nameOf(other, '?');
     const chalName = nameOf(ch.challenger, '?');
@@ -343,7 +381,7 @@ export default function BattlesPage() {
                   <p className="text-xs opacity-70">{t('battle.tFRIENDLY')} • {ch.stakes}</p>
                 </div>
                 {ch.challenger_id === me?.id ? (
-                  <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-300">{t('battle.yours')}</span>
+                  <OwnCallControls ch={ch} />
                 ) : (
                   <button
                     disabled={busy}
@@ -373,7 +411,7 @@ export default function BattlesPage() {
                       <p className="text-xs opacity-70">{t('battle.tFRIENDLY')} • {ch.stakes}</p>
                     </div>
                     {ch.challenger_id === me?.id ? (
-                      <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-300">{t('battle.yours')}</span>
+                      <OwnCallControls ch={ch} />
                     ) : (
                       <button
                         disabled={busy}

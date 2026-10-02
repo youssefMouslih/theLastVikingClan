@@ -48,6 +48,7 @@ export async function issueChallenge(input: IssueChallengeInput, challengerId: s
       for_throne: input.for_throne ?? false,
       forced: input.forced ?? false,
       is_open: input.openCall ?? false,
+      expires_at: input.openCall ? new Date(Date.now() + 24 * 3600 * 1000).toISOString() : null,
     })
     .select('*')
     .single();
@@ -79,8 +80,31 @@ export async function listOpenBattles(myId: string): Promise<ChallengeRow[]> {
   return (data ?? []) as unknown as ChallengeRow[];
 }
 
-export async function acceptOpenBattle(ch: ChallengeRow, userId: string): Promise<void> {
-  if (!ch.is_open || ch.status !== 'PENDING') throw new Error('Already taken.');
+// Ghost sweep: open calls past expiry auto-cancel on view.
+export async function expireStaleOpenCalls(): Promise<number> {
+  const { data, error } = await supabase
+    .from('challenges')
+    .select('id')
+    .eq('is_open', true)
+    .eq('status', 'PENDING')
+    .lt('expires_at', new Date().toISOString());
+  if (error) return 0;
+  const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
+  if (ids.length === 0) return 0;
+  await supabase.from('challenges').update({ status: 'CANCELLED', updated_at: new Date().toISOString() }).in('id', ids);
+  return ids.length;
+}
+
+export async function renewCall(challengeId: string): Promise<void> {
+  const { error } = await supabase
+    .from('challenges')
+    .update({ expires_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', challengeId)
+    .eq('status', 'PENDING');
+  if (error) throw new Error(error.message);
+}
+
+export async function acceptOpenBattle(ch: ChallengeRow, userId: string): Promise<void> {  if (!ch.is_open || ch.status !== 'PENDING') throw new Error('Already taken.');
   if (ch.challenger_id === userId) throw new Error('That is your own call.');
   const { error } = await supabase
     .from('challenges')
@@ -209,6 +233,8 @@ export const challengeService = {
   listBattleHistory,
   listOpenBattles,
   acceptOpenBattle,
+  expireStaleOpenCalls,
+  renewCall,
   respondChallenge,
   submitBattleResult,
   confirmBattleResult,
