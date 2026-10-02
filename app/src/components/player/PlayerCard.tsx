@@ -173,16 +173,16 @@ export default function PlayerCard({
           <div className="flex items-center gap-2">
             <div className="grid flex-1 grid-cols-3 gap-1 text-center">
               <div>
-                <div className="font-display text-lg leading-tight">{career?.clean_sheets ?? '—'}</div>
                 <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="shield" className="h-3.5 w-3.5" />{t('player.cleanSheets')}</div>
+                <div className="font-display text-lg leading-tight">{career?.clean_sheets ?? '—'}</div>
               </div>
               <div>
-                <div className="font-display text-lg leading-tight">{career?.goals_for ?? '—'}</div>
                 <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="swords" className="h-3.5 w-3.5" />{t('player.goals')}</div>
+                <div className="font-display text-lg leading-tight">{career?.goals_for ?? '—'}</div>
               </div>
               <div>
-                <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
                 <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="chart" className="h-3.5 w-3.5" />{t('player.winRate')}</div>
+                <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
               </div>
             </div>
           </div>
@@ -222,8 +222,8 @@ export default function PlayerCard({
                       <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-11 w-11 text-sm" />
                       <span className="w-full truncate text-[10px] opacity-80 underline-offset-2 hover:underline">{m.opponent.display_name ?? m.opponent.username}</span>
                     </Link>
-                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">{label}</span>
                     <Link to={to} className={`font-mono text-sm font-bold ${color}`}>{m.mine}–{m.theirs}</Link>
+                    <span className="text-[10px] leading-tight opacity-60">{label}</span>
                   </div>
                 );
               })}
