@@ -169,7 +169,9 @@ export default function PlayerCard({
         {/* Stats summary panel */}
         <div className="mt-3 rounded-xl bg-white/5 p-3">
           <div className="flex items-center gap-2">
-            <span className="font-display flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 text-base">★</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700">
+              <Icon name="trophy" className="h-5 w-5 text-white" />
+            </span>
             <div className="flex-1">
               <p className="text-xs opacity-60">{t('player.winRate')}</p>
               <p className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</p>
