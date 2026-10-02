@@ -133,9 +133,8 @@ export default function PlayerCard({
           </button>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
-          <span>@{member.username}</span>
           {member.display_name && member.display_name !== (member.known_name ?? member.efootball_name) && (
-            <span>• {member.display_name}</span>
+            <span>{member.display_name}</span>
           )}
           {member.efootball_name && member.efootball_name !== member.known_name && (
             <span>• ⚽ {member.efootball_name}</span>
