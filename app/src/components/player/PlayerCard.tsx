@@ -153,12 +153,16 @@ export default function PlayerCard({
           </div>
         )}
 
+        {/* Badge showcase */}
+        <div className="mt-3 flex justify-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-brand-500/50 bg-gradient-to-b from-brand-400 to-brand-700 shadow-lg shadow-brand-500/40">
+            <Icon name="trophy" className="h-7 w-7 text-white" />
+          </span>
+        </div>
+
         {/* Stats summary panel */}
-        <div className="mt-3 rounded-xl bg-white/5 p-3">
+        <div className="mt-2 rounded-xl bg-white/5 p-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700">
-              <Icon name="trophy" className="h-5 w-5 text-white" />
-            </span>
             <div className="grid flex-1 grid-cols-3 gap-1 text-center">
               <div>
                 <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
