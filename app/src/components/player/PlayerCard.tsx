@@ -135,7 +135,7 @@ export default function PlayerCard({
           {member.country && <span>• {member.country}</span>}
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
-        <div className="mt-2 flex justify-center">
+        <div className="mt-2 flex justify-start">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b from-brand-400 to-brand-700 shadow-lg shadow-brand-500/40">
             <Icon name="trophy" className="h-6 w-6 text-white" />
           </span>
