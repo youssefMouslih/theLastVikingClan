@@ -7,7 +7,7 @@ import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
-import { getHonours, getRecentMatches, type CareerStats } from '../../services/statisticsService';
+import { getRecentMatches, type CareerStats } from '../../services/statisticsService';
 import { getTotalXP, levelFor } from '../../services/sagaService';
 import { profilePoster, shareFile } from '../../utils/shareBattle';
 import type { Profile } from '../../types/database';
