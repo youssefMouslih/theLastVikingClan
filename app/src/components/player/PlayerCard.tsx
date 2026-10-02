@@ -222,8 +222,8 @@ export default function PlayerCard({
                       <Avatar path={m.opponent.avatar_url} name={m.opponent.display_name ?? m.opponent.username} className="h-11 w-11 text-sm" />
                       <span className="w-full truncate text-[10px] opacity-80 underline-offset-2 hover:underline">{m.opponent.display_name ?? m.opponent.username}</span>
                     </Link>
+                    <span className="text-[10px] font-bold uppercase tracking-wide opacity-60">{label}</span>
                     <Link to={to} className={`font-mono text-sm font-bold ${color}`}>{m.mine}–{m.theirs}</Link>
-                    <span className="text-[10px] leading-tight opacity-60">{label}</span>
                   </div>
                 );
               })}
