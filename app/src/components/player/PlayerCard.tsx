@@ -125,21 +125,32 @@ export default function PlayerCard({
       </div>
 
       <div className="p-4 pt-9">
-        {/* Game-name bar */}
+        {/* Game-name bar: warrior name, game name, real name */}
         <div className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-2.5">
-          <span className="font-display truncate text-lg tracking-wide">{member.efootball_name ?? member.display_name ?? member.username}</span>
+          <span className="font-display truncate text-lg tracking-wide">{member.known_name ?? member.efootball_name ?? member.display_name ?? member.username}</span>
           <button type="button" onClick={share} className="flex items-center gap-1 text-xs opacity-70 underline">
             {shared ? t('common.copied') : t('profile.share')}
           </button>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
           <span>@{member.username}</span>
+          {member.display_name && member.display_name !== (member.known_name ?? member.efootball_name) && (
+            <span>• {member.display_name}</span>
+          )}
+          {member.efootball_name && member.efootball_name !== member.known_name && (
+            <span>• ⚽ {member.efootball_name}</span>
+          )}
           {(() => {
             const c = parseCountry(member.country);
-            return c && c.flag ? <span>{c.flag} {c.name}</span> : member.country ? <span>• {member.country}</span> : null;
+            return c && c.flag ? <span>• {c.flag} {c.name}</span> : member.country ? <span>• {member.country}</span> : null;
           })()}
         </div>
-        {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
+        {member.bio && (
+          <section aria-label={t('profile.about')} className="mt-2 rounded-xl bg-white/5 p-3">
+            <h3 className="card-title">{t('profile.about')}</h3>
+            <p className="mt-1 whitespace-pre-line text-sm">{member.bio}</p>
+          </section>
+        )}
         {(ig || tk || kk) && (
           <div className="mt-2 flex gap-2">
             {ig && (

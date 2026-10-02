@@ -26,6 +26,7 @@ export default function ProfilePage() {
     bio: me?.bio ?? '',
     division_pvp: me?.division_pvp ?? '',
     banner_color: me?.banner_color ?? '',
+    known_name: me?.known_name ?? '',
     instagram: me?.instagram ?? '',
     tiktok: me?.tiktok ?? '',
     kick: me?.kick ?? '',
@@ -64,6 +65,7 @@ export default function ProfilePage() {
       bio: me?.bio ?? '',
       division_pvp: me?.division_pvp ?? '',
       banner_color: me?.banner_color ?? '',
+      known_name: me?.known_name ?? '',
       instagram: me?.instagram ?? '',
       tiktok: me?.tiktok ?? '',
       kick: me?.kick ?? '',
@@ -102,6 +104,7 @@ export default function ProfilePage() {
         fav_player_position: null,
         banner_color: form.banner_color || null,
         banner_image,
+        known_name: form.known_name || null,
         instagram: form.instagram || null,
         tiktok: form.tiktok || null,
         kick: form.kick || null,
@@ -158,13 +161,23 @@ export default function ProfilePage() {
         <form onSubmit={save} className="card mt-3 flex flex-col gap-2">
           <label className="label">{t('profile.avatar')}
             <span className="file-upload text-xs">
-              <span>{t('match.uploadCta')}</span>
+              <span>{t('profile.uploadImage')}</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
               {avatarFile && <span className="file-name">{avatarFile.name}</span>}
             </span>
           </label>
-          <label className="label">{t('profile.displayName')}<input className="input" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></label>
-          <label className="label">{t('profile.efootballName')}<input className="input" value={form.efootball_name} onChange={(e) => setForm({ ...form, efootball_name: e.target.value })} /></label>
+          <label className="label">{t('profile.realName')}
+            <input className="input" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder={t('profile.realNameHint')} />
+            <span className="text-xs font-normal opacity-60">{t('profile.realNameHint')}</span>
+          </label>
+          <label className="label">{t('profile.knownName')}
+            <input className="input" value={form.known_name} onChange={(e) => setForm({ ...form, known_name: e.target.value })} placeholder='VIK Pride' dir="ltr" />
+            <span className="text-xs font-normal opacity-60">{t('profile.knownNameHint')}</span>
+          </label>
+          <label className="label">{t('profile.efootballName')}
+            <input className="input" value={form.efootball_name} onChange={(e) => setForm({ ...form, efootball_name: e.target.value })} />
+            <span className="text-xs font-normal opacity-60">{t('profile.efootballNameHint')}</span>
+          </label>
           <label className="label">{t('profile.efootballId')}<input className="input" value={form.efootball_id} onChange={(e) => setForm({ ...form, efootball_id: e.target.value })} /></label>
           <label className="label">{t('profile.country')}
             <select value={parseCountry(form.country)?.code ?? ''} onChange={(e) => setForm({ ...form, country: e.target.value })} className="input">
@@ -173,7 +186,6 @@ export default function ProfilePage() {
             </select>
           </label>
           <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
-          <label className="label">{t('profile.divisionPvp')}<input className="input" value={form.division_pvp} onChange={(e) => setForm({ ...form, division_pvp: e.target.value })} placeholder="Division 3" /></label>
           <div>
             <p className="text-sm font-semibold">{t('profile.social')}</p>
             <div className="mt-1 grid grid-cols-1 gap-2">
@@ -201,7 +213,7 @@ export default function ProfilePage() {
             </div>
             <label className="label">{t('profile.bannerImage')}
               <span className="file-upload text-xs">
-                <span>{t('match.uploadCta')}</span>
+                <span>{t('profile.uploadImage')}</span>
                 <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} />
                 {bannerFile && <span className="file-name">{bannerFile.name}</span>}
               </span>
