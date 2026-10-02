@@ -7,6 +7,7 @@ import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { updateOwnProfile } from '../services/playerService';
 import { getPlayerCareer } from '../services/statisticsService';
+import { COUNTRIES, parseCountry } from '../utils/countries';
 import { deleteStoredFile, uploadAvatar, uploadBanner } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -165,7 +166,12 @@ export default function ProfilePage() {
           <label className="label">{t('profile.displayName')}<input className="input" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></label>
           <label className="label">{t('profile.efootballName')}<input className="input" value={form.efootball_name} onChange={(e) => setForm({ ...form, efootball_name: e.target.value })} /></label>
           <label className="label">{t('profile.efootballId')}<input className="input" value={form.efootball_id} onChange={(e) => setForm({ ...form, efootball_id: e.target.value })} /></label>
-          <label className="label">{t('profile.country')}<input className="input" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} /></label>
+          <label className="label">{t('profile.country')}
+            <select value={parseCountry(form.country)?.code ?? ''} onChange={(e) => setForm({ ...form, country: e.target.value })} className="input">
+              <option value="">—</option>
+              {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+            </select>
+          </label>
           <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
           <label className="label">{t('profile.divisionPvp')}<input className="input" value={form.division_pvp} onChange={(e) => setForm({ ...form, division_pvp: e.target.value })} placeholder="Division 3" /></label>
           <div>

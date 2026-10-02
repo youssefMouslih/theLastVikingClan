@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
+import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
@@ -126,7 +127,10 @@ export default function PlayerCard({
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
           <span>@{member.username}</span>
-          {member.country && <span>• {member.country}</span>}
+          {(() => {
+            const c = parseCountry(member.country);
+            return c && c.flag ? <span>{c.flag} {c.name}</span> : member.country ? <span>• {member.country}</span> : null;
+          })()}
         </div>
         {member.bio && <p className="mt-2 text-sm opacity-85">{member.bio}</p>}
         <div className="mt-2 flex justify-start">
