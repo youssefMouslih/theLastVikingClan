@@ -8,7 +8,7 @@ import Icon from '../components/ui/Icon';
 import { LoadingRegion } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
 import { listActiveMembers } from '../services/playerService';
-import { getTotalXP, levelFor } from '../services/sagaService';
+import { getTotalXP } from '../services/sagaService';
 import { getAvatarUrl } from '../services/storageService';
 import type { Profile } from '../types/database';
 
@@ -72,13 +72,6 @@ export default function GalleryPage() {
   const [turn, setTurn] = useState<Turn | null>(null);
   const [indexOpen, setIndexOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [soundOn, setSoundOn] = useState(() => {
-    try {
-      return localStorage.getItem('vik-sound') !== '0';
-    } catch {
-      return true;
-    }
-  });
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem('vik-bookmarks') ?? '[]');
@@ -143,7 +136,6 @@ export default function GalleryPage() {
     phys.current.angle = 0;
     drag.current = null;
     if (committed) {
-      playPageTurn();
       setSpread(Math.max(0, Math.min(maxSpread, to)));
     }
     setTurn(null);
@@ -320,8 +312,6 @@ export default function GalleryPage() {
     });
   }
 
-  const isMarked = (id: string) => bookmarks.includes(id);
-
   function jumpToMember(id: string) {
     const gi = groups.findIndex((g) => g.some((m) => m.id === id));
     if (gi < 0) return;
@@ -342,19 +332,6 @@ export default function GalleryPage() {
       <div className="mb-2 flex items-center gap-2">
         <Link to="/clan" aria-label={t('nav.clan')} className="btn-ghost h-10 w-10 !px-0">‹</Link>
         <h1 className="font-display flex-1 text-xl tracking-wide">{t('gallery.title')}</h1>
-        <button
-          type="button"
-          onClick={() => {
-            const next = !soundOn;
-            setSoundOn(next);
-            toggleSoundSetting(next);
-          }}
-          aria-label={soundOn ? t('gallery.soundOn') : t('gallery.soundOff')}
-          aria-pressed={soundOn}
-          className="btn-ghost h-10 w-10 !px-0"
-        >
-          <Icon name={soundOn ? 'volume' : 'volumeX'} className="h-5 w-5" />
-        </button>
         {members.length > 0 && (
           <span className="font-mono text-xs tabular-nums opacity-60" aria-live="polite">
             {t('gallery.pageOf', { n: face + 1, total: maxSpread + 1 })}
@@ -379,12 +356,12 @@ export default function GalleryPage() {
               onPointerCancel={() => { drag.current = null; if (turn) finalize(false, shown); }}
             >
               <div className="book-spread">
-                <div className="book-half cell-a"><PageView sheet={leftSheet} marked={isMarked} onToggle={toggleBookmark} /></div>
+                <div className="book-half cell-a"><PageView sheet={leftSheet} /></div>
                 <div className="book-spine" aria-hidden />
-                <div className="book-half cell-b"><PageView sheet={wide ? rightSheet : undefined} marked={isMarked} onToggle={toggleBookmark} /></div>
+                <div className="book-half cell-b"><PageView sheet={wide ? rightSheet : undefined} /></div>
                 {turn && (
                   <Leaf dir={turn.dir} full={!wide} leafRef={leafRef} segRef={segRef} shadeRef={shadeRef} creaseRef={creaseRef}>
-                    <PageView sheet={leafSheet} marked={isMarked} onToggle={toggleBookmark} />
+                    <PageView sheet={leafSheet} />
                   </Leaf>
                 )}
               </div>
@@ -466,36 +443,6 @@ export default function GalleryPage() {
   );
 }
 
-// Page-turn whisper: tiny synthesized paper flick (WebAudio, no assets).
-function playPageTurn() {
-  try {
-    if (localStorage.getItem('vik-sound') === '0') return;
-    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(140, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.06, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.13);
-    osc.onended = () => void ctx.close().catch(() => {});
-  } catch {
-    /* silent */
-  }
-}
-
-function toggleSoundSetting(next: boolean) {
-  try {
-    localStorage.setItem('vik-sound', next ? '1' : '0');
-  } catch { /* ignore */ }
-}
-
 function writeBookmarks(ids: string[]) {
   try {
     localStorage.setItem('vik-bookmarks', JSON.stringify(ids));
@@ -531,65 +478,37 @@ function Leaf({ dir, full, leafRef, segRef, shadeRef, creaseRef, children }: {
   );
 }
 
-function PageView({ sheet, marked, onToggle }: {
+function PageView({ sheet }: {
   sheet: Sheet | undefined;
-  marked: (id: string) => boolean;
-  onToggle: (id: string) => void;
 }) {
   if (!sheet) return <div className="book-page parchment book-blank" aria-hidden />;
   if (sheet.kind === 'cover') return <CoverPage />;
   if (sheet.kind === 'back') return <BackPage />;
-  return <GridCards members={sheet.members} marked={marked} onToggle={onToggle} />;
+  return <GridCards members={sheet.members} />;
 }
 
-function GridCards({ members, marked, onToggle }: {
+function GridCards({ members }: {
   members: Profile[];
-  marked: (id: string) => boolean;
-  onToggle: (id: string) => void;
 }) {
   const { t } = useLocale();
   if (members.length === 0) return <div className="book-page parchment book-blank" aria-hidden />;
   return (
     <section className="book-page parchment" aria-label={t('gallery.title')}>
-      <div className="grid grid-cols-3 gap-2" role="list">
+      <div className="grid flex-1 grid-cols-3 content-start gap-2.5" role="list">
         {members.map((m) => {
           const name = m.known_name ?? m.display_name ?? m.username;
-          const isMarked = marked(m.id);
           return (
-            <div key={m.id} role="listitem" className="war-card group relative rounded-xl border border-[#6b5320]/50 bg-[#14100b]/90 p-2 text-center">
+            <div key={m.id} role="listitem" className="war-card group relative rounded-xl border border-[#6b5320]/50 bg-[#14100b]/90 p-3 text-center">
               <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-brand-500/60 transition group-hover:text-brand-400">ᚱᚢᚾ</span>
-              <button
-                type="button"
-                onClick={() => onToggle(m.id)}
-                aria-label={isMarked ? t('gallery.bookmarkRemove') : t('gallery.bookmarkAdd')}
-                aria-pressed={isMarked}
-                className="absolute end-1 top-1 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/40"
-              >
-                <Icon name="bookmark" className={`h-4 w-4 ${isMarked ? 'fill-brand-400 text-brand-400' : 'opacity-70'}`} />
-              </button>
-              <Link to={`/players/${m.id}`} className="flex flex-col items-center gap-1.5" aria-label={name}>
-                <span className="relative">
-                  <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
-                  <MemberLevelBadge memberId={m.id} />
-                </span>
-                <span className="font-display w-full truncate text-xs tracking-wide text-[#f3e6c2]">{name}</span>
+              <Link to={`/players/${m.id}`} className="flex h-full flex-col items-center gap-2" aria-label={name}>
+                <Avatar path={m.avatar_url} name={name} className="h-20 w-20 text-2xl" />
+                <span className="font-display w-full truncate text-sm tracking-wide text-[#f3e6c2]">{name}</span>
               </Link>
             </div>
           );
         })}
       </div>
     </section>
-  );
-}
-
-function MemberLevelBadge({ memberId }: { memberId: string }) {
-  const { data } = useQuery({ queryKey: ['xp', memberId], queryFn: () => getTotalXP(memberId), staleTime: 300_000 });
-  if (data == null) return null;
-  const { level } = levelFor(data);
-  return (
-    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-brand-500/60 bg-[#12121f] px-1.5 py-px font-mono text-[10px] font-bold text-brand-300">
-      Lvl {level.rank}
-    </span>
   );
 }
 
