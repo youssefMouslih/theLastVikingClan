@@ -7,7 +7,6 @@ import Emblem, { CLAN_EMBLEM } from '../components/emblem/Emblem';
 import Icon from '../components/ui/Icon';
 import { FadeIn, LoadingRegion } from '../components/ui/Motion';
 import PresenceDot, { presenceFor } from '../components/ui/PresenceDot';
-import ScrambleName from '../components/ui/ScrambleName';
 import { socialLink } from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { parseCountry } from '../utils/countries';
@@ -454,6 +453,7 @@ function MemberPhotoPage({ member }: { member: Profile }) {
     queryFn: () => getAvatarUrl(member.avatar_url),
     enabled: !!member.avatar_url,
     staleTime: 1000 * 60 * 60,
+    placeholderData: undefined, // never show the previous member's photo mid-turn
   });
   const avatar = avatarQuery.data ?? null;
   const name = member.known_name ?? member.display_name ?? member.username;
@@ -475,23 +475,19 @@ function MemberPhotoPage({ member }: { member: Profile }) {
           <span className="absolute bottom-3 end-3"><PresenceDot status={presence} /></span>
         </div>
       </div>
-      <div className="photo-caption">
-        {/vik/i.test(name) ? (
-          <ScrambleName text={name} className="font-display block truncate text-2xl tracking-wide" />
-        ) : (
+        <div className="photo-caption">
           <span className="font-display block truncate text-2xl tracking-wide">{name}</span>
-        )}
-        <span className="mt-0.5 block truncate text-sm opacity-70">{sub}</span>
-      </div>
+          <span className="mt-0.5 block truncate text-sm opacity-70">{sub}</span>
+        </div>
     </section>
   );
 }
 
 function MemberInfoPage({ member }: { member: Profile }) {
   const { t, fmtDate } = useLocale();
-  const ratingQuery = useQuery({ queryKey: ['rating-book', member.id], queryFn: () => getRatingSummary(member.id), staleTime: 60_000 });
-  const xpQuery = useQuery({ queryKey: ['xp', member.id], queryFn: () => getTotalXP(member.id), staleTime: 60_000 });
-  const honoursQuery = useQuery({ queryKey: ['honours-for', member.id], queryFn: () => listHonoursFor(member.id) });
+  const ratingQuery = useQuery({ queryKey: ['rating-book', member.id], queryFn: () => getRatingSummary(member.id), staleTime: 60_000, placeholderData: undefined });
+  const xpQuery = useQuery({ queryKey: ['xp', member.id], queryFn: () => getTotalXP(member.id), staleTime: 60_000, placeholderData: undefined });
+  const honoursQuery = useQuery({ queryKey: ['honours-for', member.id], queryFn: () => listHonoursFor(member.id), placeholderData: undefined });
   const reignsQuery = useQuery({ queryKey: ['reigns'], queryFn: () => getReignHistory(50), staleTime: 60_000 });
   const name = member.known_name ?? member.display_name ?? member.username;
   const levelName = t(levelFor(xpQuery.data ?? 0).level.nameKey);

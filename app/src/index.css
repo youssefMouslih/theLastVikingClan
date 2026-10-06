@@ -556,8 +556,8 @@ input, textarea, select {
 .photo-page { display: flex; flex-direction: column; }
 .photo-hero {
   position: relative;
-  flex: 1;
-  min-height: 20rem;
+  aspect-ratio: 4 / 5;
+  flex: none;
   overflow: hidden;
   border-radius: 0.9rem;
   border: 1px solid rgba(31, 43, 37, 0.3);
