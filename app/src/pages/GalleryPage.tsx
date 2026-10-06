@@ -7,6 +7,8 @@ import Icon from '../components/ui/Icon';
 import { SkeletonList } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
 import { listActiveMembers } from '../services/playerService';
+import { getTotalXP, levelFor } from '../services/sagaService';
+import { playPageTurn, playRuneClick } from '../utils/sfx';
 
 const PAGE_SIZE = 9;
 
@@ -98,7 +100,8 @@ export default function GalleryPage() {
               const name = m.known_name ?? m.display_name ?? m.username;
               const marked = bookmarks.includes(m.id);
               return (
-                <div key={m.id} role="listitem" className="card relative p-2 text-center">
+                <div key={m.id} role="listitem" className="war-card card group relative p-2 text-center">
+                  <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-brand-500/50 transition group-hover:text-brand-400">ᚱᚢᚾ</span>
                   <button
                     type="button"
                     onClick={() => toggleBookmark(m.id)}
@@ -108,8 +111,11 @@ export default function GalleryPage() {
                   >
                     <Icon name="bookmark" className={`h-4 w-4 ${marked ? 'fill-brand-400 text-brand-400' : 'opacity-70'}`} />
                   </button>
-                  <Link to={`/players/${m.id}`} className="flex flex-col items-center gap-1.5" aria-label={name}>
-                    <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
+                  <Link to={`/players/${m.id}`} onClick={playRuneClick} className="flex flex-col items-center gap-1.5" aria-label={name}>
+                    <span className="relative">
+                      <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
+                      <MemberLevelBadge memberId={m.id} />
+                    </span>
                     <span className="font-display w-full truncate text-xs tracking-wide">{name}</span>
                   </Link>
                 </div>
@@ -120,7 +126,7 @@ export default function GalleryPage() {
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => { playPageTurn(); setPage((p) => Math.max(0, p - 1)); }}
               disabled={safePage === 0}
               className="btn-ghost h-11 flex-1 text-sm"
             >
@@ -128,7 +134,7 @@ export default function GalleryPage() {
             </button>
             <button
               type="button"
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              onClick={() => { playPageTurn(); setPage((p) => Math.min(pageCount - 1, p + 1)); }}
               disabled={safePage >= pageCount - 1}
               className="btn-ghost h-11 flex-1 text-sm"
             >
@@ -139,5 +145,16 @@ export default function GalleryPage() {
       )}
       <BottomNav />
     </main>
+  );
+}
+
+function MemberLevelBadge({ memberId }: { memberId: string }) {
+  const { data } = useQuery({ queryKey: ['xp', memberId], queryFn: () => getTotalXP(memberId), staleTime: 300_000 });
+  if (data == null) return null;
+  const { level } = levelFor(data);
+  return (
+    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-brand-500/60 bg-[#12121f] px-1.5 py-px font-mono text-[10px] font-bold text-brand-300">
+      Lvl {level.rank}
+    </span>
   );
 }

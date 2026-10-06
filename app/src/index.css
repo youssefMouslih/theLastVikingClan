@@ -758,7 +758,21 @@ input, textarea, select {
 }
 .info-scroll { max-height: 36rem; overflow-y: auto; scrollbar-width: thin; }
 
-/* Bottom nav active indicator (works off aria-current, no JS needed) */
+/* Warrior wall cards: lift + gold glow on hover (transform/opacity only) */
+.war-card {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.war-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(234, 179, 8, 0.55);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 14px 30px -14px rgba(0, 0, 0, 0.7),
+    0 0 18px -4px rgba(234, 179, 8, 0.45);
+}
+.war-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
 nav[aria-label="Primary"] a {
   position: relative;
   transition: color 200ms ease;
