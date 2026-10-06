@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
+import { LoadingRegion } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
+import { syncAppBadge } from '../services/appBadge';
 import { listNotifications, markAllRead, markRead } from '../services/notificationService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -14,6 +17,10 @@ export default function NotificationsPage() {
 
   const items = query.data ?? [];
   const unread = items.filter((n) => !n.read_at);
+
+  useEffect(() => {
+    if (me && !query.isLoading) void syncAppBadge(me.id);
+  }, [me, query.isLoading, unread.length]);
 
   return (
     <main className="page">
@@ -38,11 +45,14 @@ export default function NotificationsPage() {
           </button>
         )}
       </div>
-      {query.isLoading && <p className="mt-2 text-sm">{t('notif.loading')}</p>}
-      {query.isError && <p className="mt-2 text-sm text-red-500">{t('notif.error')}</p>}
-      {!query.isLoading && items.length === 0 && (
-        <p className="card mt-3 text-sm opacity-70">{t('notif.empty')}</p>
-      )}
+      <LoadingRegion loading={query.isLoading} label={t('notif.loading')} skeleton="list">
+        <>
+          {query.isError && <p className="mt-2 text-sm text-red-500">{t('notif.error')}</p>}
+          {items.length === 0 && !query.isError && (
+            <p className="card mt-3 text-sm opacity-70">{t('notif.empty')}</p>
+          )}
+        </>
+      </LoadingRegion>
       <div className="mt-3 flex flex-col gap-2">
         {items.map((n) => (
           <article key={n.id} className={`card p-3 text-sm ${n.read_at ? 'opacity-70' : ''}`}>

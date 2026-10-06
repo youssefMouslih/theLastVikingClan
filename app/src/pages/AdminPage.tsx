@@ -12,6 +12,7 @@ import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
 import { createCompetition, listCompetitions, type CreateCompetitionInput } from '../services/competitionService';
 import { listDisputes } from '../services/disputeService';
+import { checkSetup, type SetupCheckResult } from '../services/setupCheck';
 import type { CompetitionType } from '../types/database';
 import { useAuthStore } from '../stores/authStore';
 
@@ -31,6 +32,8 @@ export default function AdminPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [lastCode, setLastCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [setup, setSetup] = useState<SetupCheckResult[] | null>(null);
+  const [setupBusy, setSetupBusy] = useState(false);
 
   const listQuery = useQuery({ queryKey: ['admin-competitions'], queryFn: () => listCompetitions(true), enabled: isAdmin });
   const disputesQuery = useQuery({ queryKey: ['disputes-count'], queryFn: () => listDisputes(true), enabled: isAdmin });
@@ -68,9 +71,38 @@ export default function AdminPage() {
     }
   }
 
+  async function runSetupCheck() {
+    setSetupBusy(true);
+    try {
+      setSetup(await checkSetup());
+    } finally {
+      setSetupBusy(false);
+    }
+  }
+
   return (
     <main className="page">
       <h1 className="font-display text-xl tracking-wide">{t('admin.title')}</h1>
+      <section className="card mt-3 p-3 text-sm" aria-label="Setup health">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-bold">Setup health</h2>
+          <button type="button" onClick={runSetupCheck} disabled={setupBusy} className="btn-ghost h-9 px-3 text-xs">
+            {setupBusy ? 'Checking…' : setup ? 'Re-check' : 'Run check'}
+          </button>
+        </div>
+        {!setup ? (
+          <p className="mt-1 text-xs opacity-70">Verifies .env, private buckets, OWNER bootstrap, VAPID key.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1">
+            {setup.map((s) => (
+              <li key={s.key} className="flex items-start gap-2 text-xs">
+                <span aria-hidden>{s.ok ? '✅' : '❌'}</span>
+                <span><strong>{s.label}:</strong> {s.hint}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
       <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
         <Link to="/competitions" className="card flex items-center gap-2 p-3 font-semibold"><Icon name="trophy" className="h-5 w-5 text-brand-400" /> {t('admin.tabCompetitions')}</Link>
         <Link to="/clan" className="card flex items-center gap-2 p-3 font-semibold"><Icon name="users" className="h-5 w-5 text-brand-400" /> {t('nav.clan')}</Link>

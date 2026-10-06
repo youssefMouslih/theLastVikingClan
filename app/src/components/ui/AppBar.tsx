@@ -1,17 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Link } from 'react-router';
 import Icon from './Icon';
 import { listNotifications } from '../../services/notificationService';
 import { getTotalXP } from '../../services/sagaService';
+import { syncAppBadge } from '../../services/appBadge';
 import { useAuthStore } from '../../stores/authStore';
 import CoinImg from './CoinImg';
 
 // Clan top bar: shield logo | Glory + coin | raven bell.
+// Also mirrors the unread count to the installed PWA icon badge.
 export default function AppBar({ title }: { title?: string }) {
   const me = useAuthStore((s) => s.profile);
   const xpQuery = useQuery({ queryKey: ['xp', me?.id], queryFn: () => getTotalXP(me!.id), enabled: !!me });
   const notifQuery = useQuery({ queryKey: ['notifications'], queryFn: () => listNotifications(me!.id, 20), enabled: !!me });
   const unread = (notifQuery.data ?? []).filter((n) => !n.read_at).length;
+
+  useEffect(() => {
+    if (me) void syncAppBadge(me.id);
+  }, [me, unread]);
 
   return (
     <header className="flex items-center gap-2">

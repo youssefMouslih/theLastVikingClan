@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 
-// URL structure (§124). Pages are stubs in Phase 0; implemented in later phases.
+// App URL structure: all pages implemented; every route except /login requires auth.
 import AdminPage from '../pages/AdminPage';
 import BattlesPage from '../pages/BattlesPage';
 import SagaPage from '../pages/SagaPage';
@@ -8,6 +8,7 @@ import ClanPage from '../pages/ClanPage';
 import CodePage from '../pages/CodePage';
 import CompetitionDetailPage from '../pages/CompetitionDetailPage';
 import CompetitionsPage from '../pages/CompetitionsPage';
+import GalleryPage from '../pages/GalleryPage';
 import HomePage from '../pages/HomePage';
 import JoinPage from '../pages/JoinPage';
 import LoginPage from '../pages/LoginPage';
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
   { path: '/matches/:id', element: guard(<MatchPage />) },
   { path: '/players/:id', element: guard(<PlayerPage />) },
   { path: '/clan', element: guard(<ClanPage />) },
+  { path: '/gallery', element: guard(<GalleryPage />) },
   { path: '/code', element: guard(<CodePage />) },
   { path: '/notifications', element: guard(<NotificationsPage />) },
   { path: '/profile', element: guard(<ProfilePage />) },
@@ -46,4 +48,6 @@ export const router = createBrowserRouter([
   { path: '/admin/disputes', element: guard(<AdminPage />) },
   { path: '/admin/competitions', element: guard(<AdminPage />) },
   { path: '/join/:code', element: guard(<JoinPage />) },
+  // Unknown URLs fall back to Home (auth guard redirects to /login when signed out).
+  { path: '*', element: guard(<HomePage />) },
 ]);

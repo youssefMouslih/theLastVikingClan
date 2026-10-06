@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
+import PresenceDot, { presenceFor } from '../ui/PresenceDot';
+import ScrambleName from '../ui/ScrambleName';
 import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
@@ -25,8 +27,11 @@ export default function PlayerCard({
   action?: React.ReactNode;
   onAvatarClick?: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, fmtDate } = useLocale();
   const [shared, setShared] = useState(false);
+  const mainName = member.known_name ?? member.efootball_name ?? member.display_name ?? member.username;
+  const hasVikTag = /vik/i.test(mainName);
+  const presence = presenceFor(member.last_login_at);
   const avatarQuery = useQuery({
     queryKey: ['avatar', member.id, member.avatar_url],
     queryFn: () => getAvatarUrl(member.avatar_url),
@@ -109,28 +114,42 @@ export default function PlayerCard({
                   {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
                 </div>
               )}
+              <span className="absolute bottom-0 end-0"><PresenceDot status={presence} /></span>
               <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition group-hover:opacity-100">
                 <Icon name="camera" className="h-6 w-6 text-white" />
               </span>
             </button>
-          ) : avatar ? (
-            <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
           ) : (
-            <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
-              {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
-            </div>
+            <span className="relative block rounded-full">
+              {avatar ? (
+                <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
+              ) : (
+                <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
+                  {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <span className="absolute bottom-0 end-0"><PresenceDot status={presence} /></span>
+            </span>
           )}
         </div>
         {action && <div className="absolute bottom-2 end-3">{action}</div>}
       </div>
 
       <div className="p-4 pt-9">
-        {/* Game-name bar: warrior name, game name, real name */}
+        {/* Game-name bar: warrior name (scramble decode when VIK-tagged), game name, real name */}
         <div className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-2.5">
-          <span className="font-display truncate text-lg tracking-wide">{member.known_name ?? member.efootball_name ?? member.display_name ?? member.username}</span>
+          {hasVikTag ? (
+            <ScrambleName text={mainName} className="font-display truncate text-lg tracking-wide" />
+          ) : (
+            <span className="font-display truncate text-lg tracking-wide">{mainName}</span>
+          )}
           <button type="button" onClick={share} className="flex items-center gap-1 text-xs opacity-70 underline">
             {shared ? t('common.copied') : t('profile.share')}
           </button>
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs opacity-80">
+          <PresenceDot status={presence} showLabel />
+          <span>• {t('profile.lastSeen', { when: member.last_login_at ? fmtDate(member.last_login_at) : t('profile.neverSeen') })}</span>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
           {member.display_name && member.display_name !== (member.known_name ?? member.efootball_name) && (

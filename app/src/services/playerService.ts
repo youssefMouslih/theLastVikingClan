@@ -32,7 +32,27 @@ export type OwnProfilePatch = Partial<Pick<Profile,
 
 export async function updateOwnProfile(userId: string, patch: OwnProfilePatch) {
   const { error } = await supabase.from('profiles').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', userId);
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(humanTagError(error.message));
+}
+
+// Warrior tags are unique (migration 0023, case-insensitive). Check before
+// save so the user gets a friendly message instead of a DB error.
+export async function isKnownNameTaken(tag: string, excludeId?: string): Promise<boolean> {
+  const clean = tag.trim().toLowerCase();
+  if (!clean) return false;
+  const escaped = tag.trim().replace(/[%_\\]/g, (c) => `\\${c}`);
+  const { data, error } = await supabase.from('profiles').select('id,known_name').ilike('known_name', escaped);
+  if (error) return false; // fail open: DB constraint is the final guard
+  return ((data ?? []) as { id: string; known_name: string | null }[]).some(
+    (r) => r.known_name?.trim().toLowerCase() === clean && r.id !== excludeId,
+  );
+}
+
+function humanTagError(msg: string): string {
+  if (/profiles_known_name_unique/i.test(msg) || (/duplicate key/i.test(msg) && /known_name/i.test(msg))) {
+    return 'That warrior tag is already taken — choose another.';
+  }
+  return msg;
 }
 
 // Admin-only (RLS enforces OWNER/ADMIN). Audit log written by caller.
@@ -94,6 +114,7 @@ export const playerService = {
   listActiveMembers,
   getMember,
   updateOwnProfile,
+  isKnownNameTaken,
   adminSetRole,
   adminSetStatus,
   manageMember,

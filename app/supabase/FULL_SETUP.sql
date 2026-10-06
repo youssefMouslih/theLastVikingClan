@@ -1,6 +1,8 @@
--- VIK Clan FULL database setup: entire schema in ONE run.
+-- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0024).
 -- Paste the whole file into Supabase SQL editor and Run.
 -- Safe to re-run: every statement is IF NOT EXISTS / DROP IF EXISTS / OR REPLACE.
+-- If you already ran an older FULL_SETUP.sql, just run the newer 00NN_*.sql
+-- migration files you are missing (in numeric order) instead of this file.
 
 -- ========== 0001 base schema (idempotent) ==========
 -- VIK Clan initial schema (§74-87). Single-clan, UTC timestamps.
@@ -187,6 +189,7 @@ create table if not exists public.achievements (
   type text not null,
   name text not null,
   description text,
+  image_url text,
   awarded_at timestamptz not null default now()
 );
 
@@ -747,3 +750,59 @@ alter table public.challenges
 
 alter table public.profiles
   add column if not exists whatsapp text;
+
+
+-- ========== 0019_battle_evidence.sql ==========
+-- VIK Clan migration 0019: battle evidence screenshots.
+-- Run AFTER 0018. Battle results require photo proof like matches.
+-- Files live in the private match-evidence bucket under battles/.
+
+alter table public.challenges
+  add column if not exists evidence_path text;
+
+
+-- ========== 0020_match_notes.sql ==========
+-- VIK Clan migration 0020: notes on match results.
+-- Run AFTER 0019. Player comment travels with the submission;
+-- moderator comment travels with a send-back. Covered by existing
+-- match UPDATE policies (participants own / staff all).
+
+alter table public.matches
+  add column if not exists submission_comment text,
+  add column if not exists moderation_comment text;
+
+
+-- ========== 0021_call_expiry.sql ==========
+-- VIK Clan migration 0021: open-call expiry.
+-- Run AFTER 0020. Open calls live 24h, then auto-cancel so the mat
+-- never fills with ghosts. Callers can renew (+24h) or cancel anytime.
+
+alter table public.challenges
+  add column if not exists expires_at timestamptz;
+
+
+-- ========== 0022_known_name.sql ==========
+-- VIK Clan migration 0022: warrior known name (e.g. "VIK Pride").
+-- Run AFTER 0021. Real name = display_name (relabeled in UI).
+-- eFootball name stays the exact in-game name.
+
+alter table public.profiles
+  add column if not exists known_name text;
+
+
+-- ========== 0023_known_name_unique.sql ==========
+-- VIK Clan migration 0023: warrior tag uniqueness.
+-- Run AFTER 0022. Warrior tags must be unique case-insensitively so
+-- mentions, challenges and the gallery never collide.
+
+create unique index if not exists profiles_known_name_unique
+  on public.profiles (lower(known_name))
+  where known_name is not null and known_name <> '';
+
+
+-- ========== 0024_achievement_images.sql ==========
+-- VIK Clan migration 0024: forged badge images on achievements.
+-- Run AFTER 0023. The badge forge stores the clan-assets storage path here.
+
+alter table public.achievements
+  add column if not exists image_url text;

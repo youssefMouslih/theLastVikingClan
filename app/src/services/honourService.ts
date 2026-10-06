@@ -11,6 +11,7 @@ export interface Honour {
   type: string;
   name: string;
   description: string | null;
+  image_url: string | null; // badge forge PNG path in clan-assets (migration 0024)
   awarded_at: string;
 }
 
@@ -18,6 +19,17 @@ export async function listRecentHonours(limit = 30): Promise<Honour[]> {
   const { data, error } = await supabase.from('achievements').select('*').order('awarded_at', { ascending: false }).limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []) as Honour[];
+}
+
+export async function listHonoursFor(playerId: string, limit = 20): Promise<Honour[]> {
+  const { data, error } = await supabase.from('achievements').select('*').eq('player_id', playerId).order('awarded_at', { ascending: false }).limit(limit);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Honour[];
+}
+
+export async function setHonourImage(id: string, imagePath: string | null): Promise<void> {
+  const { error } = await supabase.from('achievements').update({ image_url: imagePath }).eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
 export async function awardHonour(
@@ -46,4 +58,4 @@ export async function deleteHonour(id: string) {
   if (error) throw new Error(error.message);
 }
 
-export const honourService = { listRecentHonours, awardHonour, deleteHonour, client: supabase };
+export const honourService = { listRecentHonours, listHonoursFor, setHonourImage, awardHonour, deleteHonour, client: supabase };

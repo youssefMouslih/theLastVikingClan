@@ -81,13 +81,60 @@ export function Lightbox({ src, onClose }: { src: string; onClose: () => void })
   );
 }
 
-// Skeleton rows while lists load.
+// Skeleton rows while lists load. Wrap in LoadingRegion so the region
+// carries aria-busy while the geometry-preserving skeleton shows.
 export function SkeletonList({ rows = 3 }: { rows?: number }) {
   return (
     <div className="flex flex-col gap-2" aria-hidden>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="skeleton h-16" />
       ))}
+    </div>
+  );
+}
+
+// Geometry-preserving card skeleton: same footprint as the final card
+// (avatar row + title bar + stats block) so layout never jumps.
+export function SkeletonCard() {
+  return (
+    <div className="flex flex-col gap-2" aria-hidden>
+      <div className="skeleton h-24" />
+      <div className="flex items-center gap-2">
+        <div className="skeleton h-16 w-16 !rounded-full" />
+        <div className="skeleton h-10 flex-1" />
+      </div>
+      <div className="skeleton h-28" />
+    </div>
+  );
+}
+
+// Spinner for waits with no meaningful content shape.
+export function Spinner({ label }: { label: string }) {
+  return (
+    <p role="status" className="py-6 text-center text-sm opacity-70">
+      <span aria-hidden className="me-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand-400 border-t-transparent align-middle" />
+      {label}
+    </p>
+  );
+}
+
+// Loading region: aria-busy while loading; swaps skeleton/spinner for
+// content the moment loading completes.
+export function LoadingRegion({
+  loading,
+  label,
+  skeleton = 'list',
+  children,
+}: {
+  loading: boolean;
+  label: string;
+  skeleton?: 'list' | 'card' | 'spinner';
+  children: ReactNode;
+}) {
+  if (!loading) return <>{children}</>;
+  return (
+    <div aria-busy="true" aria-label={label}>
+      {skeleton === 'card' ? <SkeletonCard /> : skeleton === 'spinner' ? <Spinner label={label} /> : <SkeletonList rows={4} />}
     </div>
   );
 }

@@ -3,6 +3,8 @@ import { router } from './app/router';
 import { Providers } from './app/providers';
 import OfflineBanner from './components/ui/OfflineBanner';
 import UpdateBanner from './components/ui/UpdateBanner';
+import { ToastProvider } from './components/ui/Toast';
+import OnboardingGate from './components/onboarding/OnboardingGate';
 import { LocaleProvider } from './i18n/LocaleContext';
 import { ThemeProvider } from './theme';
 import './index.css';
@@ -31,7 +33,10 @@ export default function App() {
           </a>
           <UpdateBanner />
           <OfflineBanner />
-          <RouterProvider router={router} />
+          <ToastProvider>
+            <OnboardingGate />
+            <RouterProvider router={router} />
+          </ToastProvider>
         </Providers>
       </ThemeProvider>
     </LocaleProvider>

@@ -106,9 +106,12 @@ export default function ClanPage() {
       )}
 
       <section aria-label="Members" className="mt-4">
-        <h2 className="card-title mb-2">{t('clan.members', { n: members.length })}</h2>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="card-title">{t('clan.members', { n: members.length })}</h2>
+          <Link to="/gallery" className="btn-ghost h-10 px-3 text-xs">📖 {t('gallery.title')}</Link>
+        </div>
         {membersQuery.isLoading ? (
-          <SkeletonList rows={5} />
+          <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={5} /></div>
         ) : membersQuery.isError ? (
           <p role="alert" className="text-sm text-red-500">{t('clan.membersError')}{membersQuery.error instanceof Error ? ` (${membersQuery.error.message})` : ''}</p>
         ) : members.length === 0 ? (

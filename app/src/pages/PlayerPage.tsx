@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
+import { LoadingRegion } from '../components/ui/Motion';
 import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { getMember } from '../services/playerService';
@@ -35,7 +36,7 @@ export default function PlayerPage() {
     }
   }, [ratingQuery.data, prefilled]);
 
-  if (query.isLoading) return <main className="page text-sm">{t('player.loading')}</main>;
+  if (query.isLoading) return <main className="page"><LoadingRegion loading label={t('player.loading')} skeleton="card"><span /></LoadingRegion></main>;
   const m = query.data;
   if (!m) return <main className="page text-sm">{t('player.notFound')}</main>;
   const r = ratingQuery.data;

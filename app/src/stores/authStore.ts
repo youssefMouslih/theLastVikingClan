@@ -33,6 +33,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       return;
     }
     set({ profile, loading: false, initialized: true });
+    // Last-seen heartbeat (fire-and-forget): powers presence dot + "last seen".
+    void supabase
+      .from('profiles')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', user.id)
+      .then(() => {});
   },
   logout: async () => {
     await supabase.auth.signOut();

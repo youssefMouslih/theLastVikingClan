@@ -99,6 +99,25 @@ export async function getBannerUrl(filePath: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
+// Forged badge PNG. Bucket: clan-assets (private). Path: badges/{file}.
+export async function uploadBadgeImage(file: File | Blob, fileName: string): Promise<string> {
+  const path = `badges/${fileName}`;
+  const { error } = await supabase.storage.from('clan-assets').upload(path, file, {
+    contentType: 'image/png',
+    upsert: false,
+  });
+  if (error) throw new Error(`Badge upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getBadgeImageUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const { data, error } = await supabase.storage.from('clan-assets').createSignedUrl(path, 7 * 24 * 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
 // Delete a single stored file (best-effort: missing bucket/policy never throws).
 export async function deleteStoredFile(bucket: 'avatars' | 'match-evidence' | 'clan-assets', path: string): Promise<void> {
   try {
@@ -132,4 +151,4 @@ export async function purgeCompletedEvidence(competitionId: string): Promise<num
   return list.length;
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, deleteStoredFile, purgeCompletedEvidence, client: supabase };
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, deleteStoredFile, purgeCompletedEvidence, client: supabase };

@@ -5,11 +5,15 @@ import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
-import { updateOwnProfile } from '../services/playerService';
+import { isKnownNameTaken, updateOwnProfile } from '../services/playerService';
 import { getPlayerCareer } from '../services/statisticsService';
 import { COUNTRIES, parseCountry } from '../utils/countries';
 import { deleteStoredFile, uploadAvatar, uploadBanner } from '../services/storageService';
+import { useToast } from '../components/ui/Toast';
 import { useAuthStore } from '../stores/authStore';
+
+type EyeDropperInstance = { open: () => Promise<{ sRGBHex: string }> };
+type WindowWithEyeDropper = Window & { EyeDropper?: new () => EyeDropperInstance };
 
 // Pro player card (eFootball style): view by default, Edit reveals the form.
 export default function ProfilePage() {
@@ -37,7 +41,18 @@ export default function ProfilePage() {
   const avatarInput = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+  const eyeDropperSupported = typeof window !== 'undefined' && !!(window as WindowWithEyeDropper).EyeDropper;
   const careerQuery = useQuery({ queryKey: ['career', me?.id], queryFn: () => getPlayerCareer(me!.id), enabled: !!me });
+
+  async function pickFromScreen() {
+    const Ctor = (window as WindowWithEyeDropper).EyeDropper;
+    if (!Ctor) return;
+    try {
+      const result = await new Ctor().open();
+      if (result?.sRGBHex) setForm((f) => ({ ...f, banner_color: result.sRGBHex }));
+    } catch { /* user cancelled the sampler */ }
+  }
 
   if (!me) return <main className="page text-sm">{t('profile.notLogged')}</main>;
 
@@ -81,6 +96,14 @@ export default function ProfilePage() {
     e.preventDefault();
     setBusy(true); setMsg(null);
     try {
+      const cleanTag = form.known_name.trim();
+      if (cleanTag && cleanTag.toLowerCase() !== (me!.known_name ?? '').trim().toLowerCase()) {
+        let taken = false;
+        try {
+          taken = await isKnownNameTaken(cleanTag, me!.id);
+        } catch { /* fail open: DB constraint is the final guard */ }
+        if (taken) throw new Error(t('profile.tagTaken'));
+      }
       let avatar_url = me!.avatar_url;
       const oldAvatar = me!.avatar_url;
       if (avatarFile) avatar_url = await uploadAvatar(avatarFile, me!.id);
@@ -116,6 +139,7 @@ export default function ProfilePage() {
       if (oldBanner && oldBanner !== banner_image) await deleteStoredFile('avatars', oldBanner);
       await init();
       setEditing(false);
+      toast(t('profile.saved'));
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Save failed.');
     } finally {
@@ -208,18 +232,37 @@ export default function ProfilePage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-sm font-semibold">{t('profile.bannerColor')}</p>
-              <div className="mt-1 flex gap-1.5">
-                {['', '#7c3aed', '#f43f5e', '#2540ff', '#d4af37', '#16a34a'].map((c) => (
+              {/* Native color well: on macOS this is the NSColorWell expanded
+                  control (swatch + quick color-grid popover with eyedropper,
+                  caret opens the full color panel). */}
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={t('profile.bannerCustom')}
+                  value={/^#[0-9a-fA-F]{6}$/.test(form.banner_color) ? form.banner_color : '#d4af37'}
+                  onChange={(e) => setForm({ ...form, banner_color: e.target.value })}
+                  className="h-11 w-14 cursor-pointer rounded-lg border border-[var(--border)] bg-transparent p-1"
+                />
+                <div
+                  aria-hidden
+                  className="h-9 w-9 rounded-lg border border-[var(--border)]"
+                  style={{ background: form.banner_color || 'linear-gradient(115deg,#ffe500 20%,#2540ff 60%,#0f0f23)' }}
+                />
+                {form.banner_color && (
                   <button
-                    key={c || 'none'}
                     type="button"
-                    aria-label={c || 'default'}
-                    onClick={() => setForm({ ...form, banner_color: c })}
-                    className={`h-9 w-9 rounded-lg border-2 ${form.banner_color === c ? 'border-white' : 'border-transparent'}`}
-                    style={{ background: c || 'linear-gradient(115deg,#ffe500 20%,#2540ff 60%,#0f0f23)' }}
-                  />
-                ))}
+                    onClick={() => setForm({ ...form, banner_color: '' })}
+                    className="btn-ghost h-9 px-2 text-xs"
+                  >
+                    {t('profile.bannerDefault')}
+                  </button>
+                )}
               </div>
+              {eyeDropperSupported && (
+                <button type="button" onClick={pickFromScreen} className="btn-ghost mt-1 h-9 px-2 text-xs">
+                  {t('profile.eyedropper')}
+                </button>
+              )}
             </div>
             <label className="label">{t('profile.bannerImage')}
               <span className="file-upload text-xs">

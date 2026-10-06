@@ -398,6 +398,91 @@ input, textarea, select {
   transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ---- Saga Book: Viking gallery of warriors ---- */
+.book-wrap {
+  perspective: 2000px;
+}
+.book {
+  border: 2px solid transparent;
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(#14141f, #14141f) padding-box,
+    linear-gradient(165deg, #9aa1b2 0%, #3a3f4d 25%, #d7dce6 50%, #3a3f4d 75%, #9aa1b2 100%) border-box;
+  box-shadow:
+    0 0 0 1px #050607,
+    0 18px 50px -18px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  touch-action: pan-y;
+  transform-style: preserve-3d;
+}
+.book-page {
+  position: relative;
+  padding: 1.25rem;
+  background:
+    radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.1), transparent 65%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff 3%), var(--surface));
+}
+@media (min-width: 768px) {
+  .book-page:first-child {
+    border-inline-end: 1px solid var(--border);
+    background-image:
+      linear-gradient(90deg, transparent 92%, rgba(0, 0, 0, 0.45)),
+      radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.1), transparent 65%),
+      linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff 3%), var(--surface));
+  }
+  .book-page:last-child {
+    background-image:
+      linear-gradient(-90deg, transparent 92%, rgba(0, 0, 0, 0.45)),
+      radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.1), transparent 65%),
+      linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff 3%), var(--surface));
+  }
+}
+.book-cover {
+  background:
+    radial-gradient(30rem 16rem at 50% -20%, rgba(234, 179, 8, 0.16), transparent 65%),
+    radial-gradient(20rem 12rem at 50% 115%, rgba(124, 58, 237, 0.14), transparent 65%),
+    linear-gradient(170deg, #1c1611 0%, #14141f 55%, #0b0b12 100%);
+}
+/* Corner rivets: hammered steel studs holding the binding */
+.book-page::before,
+.book-page::after {
+  content: "";
+  position: absolute;
+  top: 0.6rem;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, #e6ebf4, #6b7280 55%, #23262e);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  opacity: 0.9;
+  pointer-events: none;
+}
+.book-page::before { inset-inline-start: 0.6rem; }
+.book-page::after { inset-inline-end: 0.6rem; }
+/* Knotwork divider: interlaced diamond braid in Valhalla Gold */
+.knot-divider {
+  height: 12px;
+  width: 180px;
+  background:
+    repeating-linear-gradient(45deg, rgba(234, 179, 8, 0.8) 0 2px, transparent 2px 10px),
+    repeating-linear-gradient(-45deg, rgba(234, 179, 8, 0.8) 0 2px, transparent 2px 10px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  opacity: 0.7;
+}
+@keyframes book-leaf-next {
+  0% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
+  50% { transform: perspective(2000px) rotateY(-9deg); filter: brightness(0.82); }
+  100% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
+}
+@keyframes book-leaf-prev {
+  0% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
+  50% { transform: perspective(2000px) rotateY(9deg); filter: brightness(0.82); }
+  100% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
+}
+.book-turn-next { animation: book-leaf-next 320ms ease; transform-origin: left center; }
+.book-turn-prev { animation: book-leaf-prev 320ms ease; transform-origin: right center; }
+
 /* Bottom nav active indicator (works off aria-current, no JS needed) */
 nav[aria-label="Primary"] a {
   position: relative;

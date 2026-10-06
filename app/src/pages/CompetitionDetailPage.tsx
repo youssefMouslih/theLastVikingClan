@@ -372,18 +372,18 @@ export default function CompetitionDetailPage() {
           </div>
         )}
         {tab === 'Standings' && (
-          standingsQuery.isLoading ? <p className="text-sm">{t('common.loading')}</p> :
+          standingsQuery.isLoading ? <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={4} /></div> :
           <StandingsTable rows={standingsQuery.data ?? []} names={names} />
         )}
         {tab === 'Matches' && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2" aria-busy={matchesQuery.isLoading}>
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('detail.tabMatches')} hint={t('detail.noFixtures')} />}
             {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}
           </div>
         )}
         {tab === 'Bracket' && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2" aria-busy={matchesQuery.isLoading}>
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="trophy" className="h-8 w-8" />} title={t('detail.tabBracket')} hint={t('detail.noBracket')} />}
             {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}
