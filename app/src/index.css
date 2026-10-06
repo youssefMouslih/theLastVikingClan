@@ -433,6 +433,7 @@ input, textarea, select {
   min-height: 0;
 }
 .book-half { min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; }
+.book-half > * { flex: 1 0 auto; }
 .book-half > .book-page { flex: 1; }
 .book-spread-leaf { height: 100%; }
 /* Spine: central leather binding with stitching, compression + inner shadow.
