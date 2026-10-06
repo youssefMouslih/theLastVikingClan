@@ -400,48 +400,103 @@ input, textarea, select {
 
 /* ---- Saga Book: Viking gallery of warriors ---- */
 .book-wrap {
-  perspective: 2000px;
+  perspective: 2400px;
 }
+/* Leather binding: dark hide, gold outer rule, steel corners */
 .book {
-  border: 2px solid transparent;
+  position: relative;
   border-radius: 1.25rem;
+  padding: 10px;
   background:
-    linear-gradient(#14141f, #14141f) padding-box,
-    linear-gradient(165deg, #9aa1b2 0%, #3a3f4d 25%, #d7dce6 50%, #3a3f4d 75%, #9aa1b2 100%) border-box;
+    linear-gradient(165deg, #2a2016 0%, #171310 45%, #0d0b09 100%);
+  border: 1px solid rgba(234, 179, 8, 0.35);
   box-shadow:
     0 0 0 1px #050607,
+    0 0 26px -6px rgba(234, 179, 8, 0.25),
     0 18px 50px -18px rgba(0, 0, 0, 0.85);
-  overflow: hidden;
   touch-action: pan-y;
-  transform-style: preserve-3d;
+  user-select: none;
+}
+.book-spread {
+  position: relative;
+  display: grid;
+  isolation: isolate;
+  perspective: 2400px;
+  grid-template-columns: 1fr;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+.book-half { min-width: 0; }
+.book-spread-leaf { height: 100%; }
+/* Spine: central leather binding with stitching, compression + inner shadow.
+   Pages disappear into it; every leaf hinge originates here. */
+.book-spine {
+  width: 14px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 9px, rgba(234, 179, 8, 0.5) 9px 11px),
+    linear-gradient(90deg, rgba(0,0,0,0.75), rgba(0,0,0,0.25) 28%, rgba(120,90,40,0.35) 50%, rgba(0,0,0,0.25) 72%, rgba(0,0,0,0.75)),
+    linear-gradient(180deg, #2b2114, #120e08);
+}
+@media (min-width: 768px) {
+  .book-spread { grid-template-columns: 1fr 14px 1fr; }
+}
+@media (max-width: 767px) {
+  .book-spine { display: none; }
+  .book-half.cell-b { display: none; }
 }
 .book-page {
   position: relative;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem 2.25rem;
+  min-height: 26rem;
   background:
     radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.1), transparent 65%),
     linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff 3%), var(--surface));
 }
 @media (min-width: 768px) {
-  .book-page:first-child {
-    border-inline-end: 1px solid var(--border);
-    background-image:
-      linear-gradient(90deg, transparent 92%, rgba(0, 0, 0, 0.45)),
-      radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.1), transparent 65%),
-      linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff 3%), var(--surface));
+  .book-half:first-child .book-page {
+    box-shadow: inset -26px 0 30px -22px rgba(20, 12, 4, 0.55);
   }
-  .book-page:last-child {
-    background-image:
-      linear-gradient(-90deg, transparent 92%, rgba(0, 0, 0, 0.45)),
-      radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.1), transparent 65%),
-      linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff 3%), var(--surface));
+  .book-half:last-child .book-page {
+    box-shadow: inset 26px 0 30px -22px rgba(20, 12, 4, 0.55);
   }
 }
-.book-cover {
+.book-sheet {
+  max-height: 34rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.book-blank {
+  min-height: 26rem;
+}
+/* Thick aged parchment: cream body, faint fiber noise, old stains, dark edges */
+.parchment {
+  color: #2b2f26;
+  background-color: #f1e7cf;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E"),
+    radial-gradient(10rem 7rem at 12% 82%, rgba(120, 85, 30, 0.10), transparent 70%),
+    radial-gradient(8rem 6rem at 88% 12%, rgba(120, 85, 30, 0.08), transparent 70%),
+    radial-gradient(26rem 14rem at 50% -10%, rgba(234, 179, 8, 0.14), transparent 65%),
+    linear-gradient(180deg, #f4ebd6 0%, #ecdfc2 60%, #e4d3ae 100%);
+  box-shadow: inset 0 0 46px rgba(101, 74, 32, 0.28);
+}
+/* Dark leather cover/back: embossed double rule, gold tooling */
+.book-cover, .leather {
+  color: #efe3c2;
   background:
-    radial-gradient(30rem 16rem at 50% -20%, rgba(234, 179, 8, 0.16), transparent 65%),
-    radial-gradient(20rem 12rem at 50% 115%, rgba(124, 58, 237, 0.14), transparent 65%),
-    linear-gradient(170deg, #1c1611 0%, #14141f 55%, #0b0b12 100%);
+    radial-gradient(30rem 16rem at 50% -20%, rgba(234, 179, 8, 0.14), transparent 65%),
+    radial-gradient(24rem 14rem at 50% 115%, rgba(90, 60, 20, 0.35), transparent 65%),
+    linear-gradient(170deg, #241a0e 0%, #150f07 60%, #0b0805 100%);
+}
+.leather-frame {
+  pointer-events: none;
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(232, 217, 176, 0.4);
+  outline: 3px double rgba(232, 217, 176, 0.28);
+  outline-offset: 5px;
+  border-radius: 4px;
 }
 /* Corner rivets: hammered steel studs holding the binding */
 .book-page::before,
@@ -459,6 +514,95 @@ input, textarea, select {
 }
 .book-page::before { inset-inline-start: 0.6rem; }
 .book-page::after { inset-inline-end: 0.6rem; }
+/* Fore-edge page lines + folio number */
+.book-foreedge {
+  height: 8px;
+  margin: 2px 14px 0;
+  border-radius: 0 0 6px 6px;
+  background: repeating-linear-gradient(180deg, #cfd4dd 0 2px, #7c8494 2px 3px);
+  opacity: 0.5;
+}
+.book-folio {
+  margin-top: 0.35rem;
+  text-align: center;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  opacity: 0.45;
+}
+/* ---- Member directory: paper pages, photo hero ---- */
+.page-book { max-width: 64rem; }
+.book-page.paper {
+  color: #28323c;
+  background:
+    radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.16), transparent 65%),
+    linear-gradient(180deg, #f8f2e4 0%, #eee2c8 100%);
+}
+@media (min-width: 768px) {
+  .book-half:first-child .book-page.paper {
+    background-image:
+      linear-gradient(90deg, transparent 90%, rgba(60, 45, 20, 0.28)),
+      radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.16), transparent 65%),
+      linear-gradient(180deg, #f8f2e4 0%, #eee2c8 100%);
+  }
+  .book-half:last-child .book-page.paper {
+    background-image:
+      linear-gradient(-90deg, transparent 90%, rgba(60, 45, 20, 0.28)),
+      radial-gradient(24rem 12rem at 50% -10%, rgba(234, 179, 8, 0.16), transparent 65%),
+      linear-gradient(180deg, #f8f2e4 0%, #eee2c8 100%);
+  }
+}
+/* Photo hero: the portrait fills the left page, caption bar below */
+.photo-page { display: flex; flex-direction: column; }
+.photo-hero {
+  position: relative;
+  flex: 1;
+  min-height: 20rem;
+  overflow: hidden;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(31, 43, 37, 0.3);
+  background: linear-gradient(170deg, #2b3038, #16181d);
+  box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6);
+}
+.photo-hero-img { width: 100%; height: 100%; object-fit: cover; display: block; position: absolute; inset: 0; }
+.photo-hero-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 6rem;
+  color: rgba(252, 211, 77, 0.85);
+}
+.photo-caption { padding: 0.9rem 0.25rem 0.25rem; text-align: start; color: #28323c; }
+/* Profile document: eyebrow, hairlines, definition rows */
+.doc-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  opacity: 0.55;
+}
+.doc-rule { height: 1px; background: rgba(31, 43, 37, 0.28); }
+.doc-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dotted rgba(31, 43, 37, 0.25);
+}
+.doc-row dt { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; opacity: 0.6; }
+.doc-row dd { margin: 0; font-weight: 600; text-align: end; }
+.doc-link { color: #4a5a12; text-decoration: underline; text-underline-offset: 2px; }
+.doc-h {
+  font-family: var(--font-display);
+  margin-top: 0.9rem;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  opacity: 0.65;
+}
 /* Knotwork divider: interlaced diamond braid in Valhalla Gold */
 .knot-divider {
   height: 12px;
@@ -470,18 +614,144 @@ input, textarea, select {
   mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
   opacity: 0.7;
 }
-@keyframes book-leaf-next {
-  0% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
-  50% { transform: perspective(2000px) rotateY(-9deg); filter: brightness(0.82); }
-  100% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
+.knot-sm { width: 120px; height: 9px; }
+/* Illuminated miniature: arched gold frame for the portrait */
+.miniature {
+  position: relative;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 6px;
+  border-radius: 999px 999px 14px 14px;
+  background: linear-gradient(165deg, #9aa1b2 0%, #3a3f4d 30%, #d7dce6 50%, #3a3f4d 70%, #9aa1b2 100%);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.9), 0 0 18px -4px rgba(234, 179, 8, 0.4);
 }
-@keyframes book-leaf-prev {
-  0% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
-  50% { transform: perspective(2000px) rotateY(9deg); filter: brightness(0.82); }
-  100% { transform: perspective(2000px) rotateY(0deg); filter: brightness(1); }
+.miniature-img {
+  display: block;
+  height: 11rem;
+  width: 11rem;
+  border-radius: 999px 999px 10px 10px;
+  object-fit: cover;
 }
-.book-turn-next { animation: book-leaf-next 320ms ease; transform-origin: left center; }
-.book-turn-prev { animation: book-leaf-prev 320ms ease; transform-origin: right center; }
+/* ---- Turning leaf: ONE page hinged exactly at the center spine ----
+   Desktop: half-spread leaf (right half for next, left half for prev).
+   Mobile: full-page leaf on the pad edge. The leaf is segmented — the outer
+   segment curls extra mid-turn so paper bends instead of pivoting flat.
+   Angle + curl + travelling light are driven live from JS (spring physics). */
+.book-leaf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  will-change: transform;
+}
+.leaf-half-r { left: 50%; right: 0; }
+.leaf-half-l { left: 0; right: 50%; }
+.leaf-full { left: 0; right: 0; }
+.hinge-l { transform-origin: left center; }
+.hinge-r { transform-origin: right center; }
+/* Segments: inner turns with the leaf, outer curls extra at the crease */
+.seg { position: absolute; top: 0; bottom: 0; width: 50%; }
+.seg-in { left: 0; }
+.seg-out { left: 50%; transform-origin: left center; }
+.book-leaf.flip .seg-in { left: auto; right: 0; }
+.book-leaf.flip .seg-out { left: 0; transform-origin: right center; }
+.cut { position: absolute; top: 0; bottom: 0; width: 200%; }
+.seg-in .cut { left: 0; clip-path: inset(0 50% 0 0); }
+.seg-out .cut { left: -100%; clip-path: inset(0 0 0 50%); }
+.book-leaf.flip .seg-in .cut { left: -100%; clip-path: inset(0 0 0 50%); }
+.book-leaf.flip .seg-out .cut { left: 0; clip-path: inset(0 50% 0 0); }
+.cut .book-page { height: 100%; min-height: 100%; }
+/* Crease shadow at the curl joint + page-thickness free edge */
+.seg-crease {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 16%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(20, 12, 4, 0.5) 50%, transparent);
+  pointer-events: none;
+}
+.leaf-edge { position: absolute; top: 0; bottom: 0; width: 4px; pointer-events: none; }
+.edge-r { right: 0; background: linear-gradient(90deg, rgba(0,0,0,0), #241c10 55%, #0d0a06); }
+.edge-l { left: 0; background: linear-gradient(-90deg, rgba(0,0,0,0), #241c10 55%, #0d0a06); }
+.book-leaf-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.book-leaf-back { transform: rotateY(180deg); }
+.book-leaf-back .book-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.book-leaf-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Clan rating stars: ink track, gold fill clipped to the score */
+.stars { position: relative; display: inline-block; font-size: 1.6rem; letter-spacing: 0.12em; color: rgba(43, 47, 38, 0.28); line-height: 1; }
+.stars-fill { position: absolute; inset: 0; overflow: hidden; white-space: nowrap; color: #8a6a14; }
+/* Viking social buttons: engraved outline, recognizable glyphs + labels */
+.social-btn {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(43, 47, 38, 0.45);
+  background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0));
+  color: #2b2f26;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 2px 5px -2px rgba(60, 45, 20, 0.5);
+}
+/* Table of contents: parchment panel, roman folio per warrior */
+.toc-panel {
+  border-radius: 1rem;
+  padding: 1rem;
+  color: #2b2f26;
+  background:
+    radial-gradient(20rem 10rem at 50% -10%, rgba(234, 179, 8, 0.14), transparent 65%),
+    linear-gradient(180deg, #f4ebd6, #e9d9b6);
+  border: 1px solid rgba(101, 74, 32, 0.5);
+  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(101, 74, 32, 0.2);
+}
+.toc-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.5rem;
+  text-align: start;
+  font-size: 0.875rem;
+  border-bottom: 1px dotted rgba(43, 47, 38, 0.25);
+}
+.toc-row:hover { background: rgba(101, 74, 32, 0.1); }
+/* Aged photograph: printed-on-parchment plate, gentle sepia, engraved frame */
+.photo-frame {
+  padding: 8px;
+  border-radius: 1rem;
+  background: linear-gradient(170deg, #3a332a, #211b12);
+  border: 1px solid rgba(232, 217, 176, 0.35);
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+.aged-photo { filter: sepia(0.24) saturate(0.92) contrast(1.02); }
+.laws-page ol { max-height: 30rem; }
+@media (min-width: 768px) {
+  .laws-page ol { max-height: 34rem; }
+}
+.info-scroll { max-height: 36rem; overflow-y: auto; scrollbar-width: thin; }
 
 /* Bottom nav active indicator (works off aria-current, no JS needed) */
 nav[aria-label="Primary"] a {

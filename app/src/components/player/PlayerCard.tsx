@@ -156,7 +156,7 @@ export default function PlayerCard({
             <span>{member.display_name}</span>
           )}
           {member.efootball_name && member.efootball_name !== member.known_name && (
-            <span>• ⚽ {member.efootball_name}</span>
+            <span className="inline-flex items-center gap-1">• <img src="/efootball.svg" alt="eFootball" className="h-4 w-4 rounded-[4px]" /> {member.efootball_name}</span>
           )}
           {(() => {
             const c = parseCountry(member.country);
@@ -265,7 +265,7 @@ export default function PlayerCard({
   );
 }
 
-function socialLink(kind: 'instagram' | 'tiktok' | 'kick', value: string | null): string | null {
+export function socialLink(kind: 'instagram' | 'tiktok' | 'kick', value: string | null): string | null {
   if (!value?.trim()) return null;
   const v = value.trim().replace(/^@/, '');
   if (/^https?:\/\//i.test(v)) return v;
