@@ -525,11 +525,7 @@ input, textarea, select {
 .book-page::after { inset-inline-end: 0.6rem; }
 /* Fore-edge page lines + folio number */
 .book-foreedge {
-  height: 8px;
-  margin: 2px 14px 0;
-  border-radius: 0 0 6px 6px;
-  background: repeating-linear-gradient(180deg, #cfd4dd 0 2px, #7c8494 2px 3px);
-  opacity: 0.5;
+  display: none;
 }
 .book-folio {
   margin-top: 0.35rem;
