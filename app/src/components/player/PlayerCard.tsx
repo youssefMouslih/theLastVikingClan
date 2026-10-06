@@ -4,7 +4,6 @@ import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
 import PresenceDot, { presenceFor } from '../ui/PresenceDot';
-import ScrambleName from '../ui/ScrambleName';
 import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
@@ -30,7 +29,6 @@ export default function PlayerCard({
   const { t, fmtDate } = useLocale();
   const [shared, setShared] = useState(false);
   const mainName = member.known_name ?? member.efootball_name ?? member.display_name ?? member.username;
-  const hasVikTag = /vik/i.test(mainName);
   const presence = presenceFor(member.last_login_at);
   const avatarQuery = useQuery({
     queryKey: ['avatar', member.id, member.avatar_url],
@@ -136,13 +134,9 @@ export default function PlayerCard({
       </div>
 
       <div className="p-4 pt-9">
-        {/* Game-name bar: warrior name (scramble decode when VIK-tagged), game name, real name */}
+        {/* Game-name bar: warrior name, game name, real name */}
         <div className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-2.5">
-          {hasVikTag ? (
-            <ScrambleName text={mainName} className="font-display truncate text-lg tracking-wide" />
-          ) : (
-            <span className="font-display truncate text-lg tracking-wide">{mainName}</span>
-          )}
+          <span className="font-display truncate text-lg tracking-wide">{mainName}</span>
           <button type="button" onClick={share} className="flex items-center gap-1 text-xs opacity-70 underline">
             {shared ? t('common.copied') : t('profile.share')}
           </button>

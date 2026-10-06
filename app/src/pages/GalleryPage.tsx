@@ -70,6 +70,22 @@ export default function GalleryPage() {
   const [spread, setSpread] = useState(0);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [indexOpen, setIndexOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [soundOn, setSoundOn] = useState(() => {
+    try {
+      return localStorage.getItem('vik-sound') !== '0';
+    } catch {
+      return true;
+    }
+  });
+  const [bookmarks, setBookmarks] = useState<string[]>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('vik-bookmarks') ?? '[]');
+      return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
   const spreadRef = useRef<HTMLDivElement>(null);
   const leafRef = useRef<HTMLDivElement>(null);
   const segRef = useRef<HTMLDivElement>(null);
@@ -95,7 +111,10 @@ export default function GalleryPage() {
     phys.current.vel = 0;
     phys.current.angle = 0;
     drag.current = null;
-    if (committed) setSpread(Math.max(0, Math.min(maxSpread, to)));
+    if (committed) {
+      playPageTurn();
+      setSpread(Math.max(0, Math.min(maxSpread, to)));
+    }
     setTurn(null);
   }, [maxSpread]);
 
@@ -262,11 +281,47 @@ export default function GalleryPage() {
     leafSheet = turn ? flatPages[turn.from] : undefined;
   }
 
+  function toggleBookmark(id: string) {
+    setBookmarks((prev) => {
+      const next = prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id];
+      writeBookmarks(next);
+      return next;
+    });
+  }
+
+  function jumpToMember(id: string) {
+    const i = members.findIndex((m) => m.id === id);
+    if (i < 0) return;
+    setSpread(wide ? 1 + i : 1 + i * 2);
+    setIndexOpen(false);
+    setQuery('');
+  }
+
+  const visibleMembers = members.filter((m) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const name = (m.known_name ?? m.display_name ?? m.username).toLowerCase();
+    return name.includes(q) || m.username.toLowerCase().includes(q) || (m.efootball_name ?? '').toLowerCase().includes(q);
+  });
+
   return (
     <main className="page page-book">
       <div className="mb-2 flex items-center gap-2">
         <Link to="/clan" aria-label={t('nav.clan')} className="btn-ghost h-10 w-10 !px-0">‹</Link>
         <h1 className="font-display flex-1 text-xl tracking-wide">{t('gallery.title')}</h1>
+        <button
+          type="button"
+          onClick={() => {
+            const next = !soundOn;
+            setSoundOn(next);
+            toggleSoundSetting(next);
+          }}
+          aria-label={soundOn ? t('gallery.soundOn') : t('gallery.soundOff')}
+          aria-pressed={soundOn}
+          className="btn-ghost h-10 w-10 !px-0"
+        >
+          <Icon name={soundOn ? 'volume' : 'volumeX'} className="h-5 w-5" />
+        </button>
         {members.length > 0 && (
           <span className="font-mono text-xs tabular-nums opacity-60" aria-live="polite">
             {t('gallery.pageOf', { n: face + 1, total: maxSpread + 1 })}
@@ -327,21 +382,46 @@ export default function GalleryPage() {
               <h2 className="font-display text-sm uppercase tracking-[0.2em]">{t('gallery.index')}</h2>
               <button type="button" onClick={() => setIndexOpen(false)} aria-label={t('common.close')} className="btn-ghost h-10 w-10 !px-0">✕</button>
             </div>
+            <div className="relative mt-2">
+              <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('gallery.search')}
+                aria-label={t('gallery.search')}
+                className="input ps-9 text-sm"
+              />
+            </div>
             <ol className="mt-2 flex flex-col gap-1">
-              {members.map((m, i) => (
+              {visibleMembers.map((m) => (
                 <li key={m.id}>
-                  <button
-                    type="button"
-                    onClick={() => { setSpread(1 + i * 2); setIndexOpen(false); }}
-                    className="toc-row"
-                  >
-                    <Avatar path={m.avatar_url} name={m.display_name ?? m.username} className="h-9 w-9 text-xs" />
-                    <span className="min-w-0 flex-1 text-start">
-                      <span className="block truncate font-semibold">{m.known_name ?? m.display_name ?? m.username}</span>
-                      <span className="block text-[11px] opacity-60">{m.role}</span>
-                    </span>
-                    <span className="font-display text-sm opacity-60">{toRoman(i + 1)}</span>
-                  </button>
+                  <div className="toc-row">
+                    <button
+                      type="button"
+                      onClick={() => jumpToMember(m.id)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-start"
+                    >
+                      <Avatar path={m.avatar_url} name={m.display_name ?? m.username} className="h-9 w-9 text-xs" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{m.known_name ?? m.display_name ?? m.username}</span>
+                        <span className="block text-[11px] opacity-60">{m.role}</span>
+                      </span>
+                      <span className="font-display text-sm opacity-60">{toRoman(members.findIndex((x) => x.id === m.id) + 1)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleBookmark(m.id)}
+                      aria-label={bookmarks.includes(m.id) ? t('gallery.bookmarkRemove') : t('gallery.bookmarkAdd')}
+                      aria-pressed={bookmarks.includes(m.id)}
+                      className="btn-ghost h-9 w-9 shrink-0 !px-0"
+                    >
+                      <Icon
+                        name="bookmark"
+                        className={`h-4 w-4 ${bookmarks.includes(m.id) ? 'fill-brand-400 text-brand-400' : 'opacity-60'}`}
+                      />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -353,9 +433,41 @@ export default function GalleryPage() {
   );
 }
 
-// Turning leaf: ONE page hinged exactly at the spine (desktop halves) or the
-// pad edge (mobile full page). Inner segment turns with the leaf; the outer
-// segment curls extra mid-turn for paper bend. Back = rune parchment.
+// Page-turn whisper: tiny synthesized paper flick (WebAudio, no assets).
+function playPageTurn() {
+  try {
+    if (localStorage.getItem('vik-sound') === '0') return;
+    const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.13);
+    osc.onended = () => void ctx.close().catch(() => {});
+  } catch {
+    /* silent */
+  }
+}
+
+function toggleSoundSetting(next: boolean) {
+  try {
+    localStorage.setItem('vik-sound', next ? '1' : '0');
+  } catch { /* ignore */ }
+}
+
+function writeBookmarks(ids: string[]) {
+  try {
+    localStorage.setItem('vik-bookmarks', JSON.stringify(ids));
+  } catch { /* ignore */ }
+}
 function Leaf({ dir, full, leafRef, segRef, shadeRef, creaseRef, children }: {
   dir: 'next' | 'prev';
   full: boolean;
