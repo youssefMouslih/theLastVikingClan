@@ -53,7 +53,7 @@ export default function GalleryPage() {
   const { t } = useLocale();
   const membersQuery = useQuery({ queryKey: ['active-members'], queryFn: listActiveMembers });
   const members = (membersQuery.data ?? []).filter((m) => m.status === 'ACTIVE');
-  const sheets: Sheet[] = useMemo(() => [
+  const flatPages: Sheet[] = useMemo(() => [
     { kind: 'cover' },
     ...members.flatMap((member) => [
       { kind: 'photo' as const, member },
@@ -61,7 +61,13 @@ export default function GalleryPage() {
     ]),
     ...(members.length > 0 ? [{ kind: 'laws' as const }, { kind: 'back' as const }] : []),
   ], [members]);
-  const maxSpread = Math.max(0, sheets.length - 2);
+  // Desktop spreads: exactly two pages per member — photo left, infos right.
+  const spreads: [Sheet | undefined, Sheet | undefined][] = useMemo(() => {
+    const arr: [Sheet | undefined, Sheet | undefined][] = [[undefined, { kind: 'cover' } as Sheet]];
+    for (const member of members) arr.push([{ kind: 'photo', member } as Sheet, { kind: 'info', member } as Sheet]);
+    if (members.length > 0) arr.push([{ kind: 'laws' } as Sheet, { kind: 'back' } as Sheet]);
+    return arr;
+  }, [members]);
   const [spread, setSpread] = useState(0);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [indexOpen, setIndexOpen] = useState(false);
@@ -75,6 +81,7 @@ export default function GalleryPage() {
   const raf = useRef(0);
   const reduced = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const wide = typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 768px)').matches;
+  const maxSpread = Math.max(0, (wide ? spreads.length : flatPages.length) - 1);
 
   const shown = Math.min(spread, maxSpread);
   const canNext = shown < maxSpread;
@@ -231,9 +238,30 @@ export default function GalleryPage() {
   // Base pages during a turn: the half under the leaf keeps the OUTGOING page
   // (spine side stays put on desktop); the other half already shows incoming.
   // The leaf itself always carries the outgoing page — nothing ever pops.
-  const baseL = !turn ? face : turn.dir === 'next' ? turn.from : face;
-  const baseR = !turn ? face + 1 : turn.dir === 'next' ? turn.from + 2 : turn.from + 1;
-  const leafSheetIdx = turn ? (turn.dir === 'next' ? (wide ? turn.from + 1 : turn.from) : turn.from) : -1;
+  const clampIdx = (i: number) => Math.max(0, Math.min(maxSpread, i));
+  let leftSheet: Sheet | undefined;
+  let rightSheet: Sheet | undefined;
+  let leafSheet: Sheet | undefined;
+  if (wide) {
+    const cur = spreads[clampIdx(face)];
+    if (!turn) {
+      leftSheet = cur[0];
+      rightSheet = cur[1];
+    } else if (turn.dir === 'next') {
+      leftSheet = spreads[turn.from][0];
+      rightSheet = spreads[clampIdx(turn.from + 1)][1];
+      leafSheet = spreads[turn.from][1];
+    } else {
+      leftSheet = spreads[clampIdx(turn.from - 1)][0];
+      rightSheet = spreads[turn.from][1];
+      leafSheet = spreads[turn.from][0];
+    }
+  } else {
+    const baseL = !turn ? face : turn.dir === 'next' ? turn.from : face;
+    leftSheet = flatPages[baseL];
+    rightSheet = undefined;
+    leafSheet = turn ? flatPages[turn.from] : undefined;
+  }
 
   return (
     <main className="page page-book">
@@ -264,12 +292,12 @@ export default function GalleryPage() {
               onPointerCancel={() => { drag.current = null; if (turn) finalize(false, shown); }}
             >
               <div className="book-spread">
-                <div className="book-half cell-a"><PageView sheet={sheets[baseL]} /></div>
+                <div className="book-half cell-a"><PageView sheet={leftSheet} /></div>
                 <div className="book-spine" aria-hidden />
-                <div className="book-half cell-b"><PageView sheet={wide ? sheets[baseR] : undefined} /></div>
+                <div className="book-half cell-b"><PageView sheet={wide ? rightSheet : undefined} /></div>
                 {turn && (
                   <Leaf dir={turn.dir} full={!wide} leafRef={leafRef} segRef={segRef} shadeRef={shadeRef} creaseRef={creaseRef}>
-                    <PageView sheet={sheets[leafSheetIdx]} />
+                    <PageView sheet={leafSheet} />
                   </Leaf>
                 )}
               </div>
