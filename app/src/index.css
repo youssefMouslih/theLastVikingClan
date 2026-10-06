@@ -406,6 +406,9 @@ input, textarea, select {
 .book {
   position: relative;
   border-radius: 1.25rem;
+  height: clamp(32rem, 80dvh, 44rem);
+  display: flex;
+  flex-direction: column;
   padding: 10px;
   background:
     linear-gradient(165deg, #2a2016 0%, #171310 45%, #0d0b09 100%);
@@ -426,8 +429,11 @@ input, textarea, select {
   border-radius: 0.75rem;
   overflow: hidden;
   background: var(--surface);
+  flex: 1;
+  min-height: 0;
 }
-.book-half { min-width: 0; }
+.book-half { min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; }
+.book-half > .book-page { flex: 1; }
 .book-spread-leaf { height: 100%; }
 /* Spine: central leather binding with stitching, compression + inner shadow.
    Pages disappear into it; every leaf hinge originates here. */

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../components/ui/Avatar';
@@ -101,6 +101,33 @@ export default function GalleryPage() {
   const shown = Math.min(spread, maxSpread);
   const canNext = shown < maxSpread;
   const canPrev = shown > 0;
+  const queryClient = useQueryClient();
+
+  // Warm the neighbors: prefetch adjacent members' page data so the
+  // destination spread is already loaded when the turn animation lands.
+  useEffect(() => {
+    const at = wide ? shown - 1 : Math.floor((shown - 1) / 2);
+    for (const m of [members[at - 1], members[at], members[at + 1]].filter(Boolean)) {
+      if (m!.avatar_url) {
+        void queryClient.prefetchQuery({
+          queryKey: ['avatar', m!.id, m!.avatar_url],
+          queryFn: () => getAvatarUrl(m!.avatar_url),
+          staleTime: 1000 * 60 * 60,
+        });
+      }
+      void queryClient.prefetchQuery({
+        queryKey: ['rating-book', m!.id],
+        queryFn: () => getRatingSummary(m!.id),
+        staleTime: 60_000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: ['xp', m!.id],
+        queryFn: () => getTotalXP(m!.id),
+        staleTime: 60_000,
+      });
+      void queryClient.prefetchQuery({ queryKey: ['honours-for', m!.id], queryFn: () => listHonoursFor(m!.id) });
+    }
+  }, [shown, members, wide, queryClient]);
   // Base always shows the destination; the leaf covers it mid-turn.
   const face = turn ? turn.from + (turn.dir === 'next' ? 1 : -1) : shown;
   // Desktop pairs two pages; mobile reads one page at a time (cell-b hidden).
@@ -587,10 +614,11 @@ function MemberPhotoPage({ member }: { member: Profile }) {
           <span className="absolute bottom-3 end-3"><PresenceDot status={presence} /></span>
         </div>
       </div>
-        <div className="photo-caption">
-          <span className="font-display block truncate text-2xl tracking-wide">{name}</span>
-          <span className="mt-0.5 block truncate text-sm opacity-70">{sub}</span>
-        </div>
+      <div className="photo-caption">
+        <span className="font-display block truncate text-2xl tracking-wide">{name}</span>
+        <span className="mt-0.5 block truncate text-sm opacity-70">{sub}</span>
+      </div>
+      <p aria-hidden className="mt-auto select-none pt-3 text-center text-[10px] tracking-[0.4em] opacity-30">ᚠᚢᚦᚨᚱᚲ</p>
     </section>
   );
 }
@@ -622,8 +650,8 @@ function MemberInfoPage({ member }: { member: Profile }) {
   for (const h of honours.filter((h) => /CHAMPION|MVP/.test(h.type))) distinctions.push(h.name);
 
   return (
-    <section className="book-page parchment info-scroll" aria-label={name}>
-      <FadeIn>
+    <section className="book-page parchment info-scroll flex flex-col" aria-label={name}>
+      <FadeIn className="flex flex-1 flex-col">
         <p className="doc-eyebrow">{t('dir.profile')}</p>
         <h3 className="font-display mt-1 truncate text-2xl tracking-wide">{name}</h3>
         <p className="mt-0.5 text-sm opacity-70">{member.role}{country ? ` • ${country.name}` : ''} • {xpQuery.data ?? 0} XP • {levelName}</p>
@@ -693,6 +721,7 @@ function MemberInfoPage({ member }: { member: Profile }) {
           </>
         )}
         <p className="mt-3 text-[11px] opacity-50">{t('profile.lastSeen', { when: member.last_login_at ? fmtDate(member.last_login_at) : t('profile.neverSeen') })}</p>
+        <p aria-hidden className="mt-auto select-none pt-3 text-center text-[10px] tracking-[0.4em] opacity-30">ᚠᚢᚦᚨᚱᚲ</p>
       </FadeIn>
     </section>
   );
