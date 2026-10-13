@@ -48,6 +48,22 @@ export function playPageTurn() {
   } catch { /* silent */ }
 }
 
+// Swords-shing book opening (mp3 asset, played on user gesture).
+let bookOpenAudio: HTMLAudioElement | null = null;
+
+export function playBookOpen() {
+  if (!enabled()) return;
+  try {
+    if (!bookOpenAudio) {
+      bookOpenAudio = new Audio('/book-open.mp3');
+      bookOpenAudio.preload = 'auto';
+      bookOpenAudio.volume = 0.7;
+    }
+    bookOpenAudio.currentTime = 0;
+    void bookOpenAudio.play().catch(() => {});
+  } catch { /* silent */ }
+}
+
 // Short rune click for taps.
 export function playRuneClick() {
   if (!enabled()) return;

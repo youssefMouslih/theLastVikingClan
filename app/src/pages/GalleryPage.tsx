@@ -3,31 +3,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../components/ui/Avatar';
 import BottomNav from '../components/ui/BottomNav';
-import { CLAN_EMBLEM } from '../components/emblem/Emblem';
 import Icon from '../components/ui/Icon';
 import { LoadingRegion } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
 import { listActiveMembers } from '../services/playerService';
 import { getTotalXP } from '../services/sagaService';
 import { getAvatarUrl } from '../services/storageService';
+import { playBookOpen, playPageTurn } from '../utils/sfx';
 import type { Profile } from '../types/database';
 
-// The Clan Member Book: a real paged book. Sheets run
-// [cover, (achieve, photo, info) × N, laws, back] and every turn flips ONE
-// page hinged exactly at the center spine (desktop) or pad edge (mobile).
-// The leaf is segmented — its outer half curls extra mid-turn — with travelling
-// light, crease shadow, edge thickness and a rune-parchment back, driven by
-// heavy-paper spring physics through refs (zero React renders mid-gesture).
-// All content (achievements, rating, socials, laws) is real app data.
+// The Clan Member Book. Page-turn animation is parked for now: navigation
+// swaps spread content instantly (buttons, swipe, keys, index) until the
+// leaf animation is reworked.
 type Sheet =
   | { kind: 'cover' }
   | { kind: 'back' }
   | { kind: 'grid'; members: Profile[] };
-
-interface Turn {
-  dir: 'next' | 'prev';
-  from: number;
-}
 
 function toRoman(n: number): string {
   if (n <= 0) return '–';
@@ -37,8 +28,6 @@ function toRoman(n: number): string {
   for (const [v, s] of table) while (rest >= v) { out += s; rest -= v; }
   return out + (n > 39 ? '+' : '');
 }
-
-const COVER_YEAR = new Date().getFullYear();
 
 export default function GalleryPage() {
   const { t } = useLocale();
@@ -52,13 +41,13 @@ export default function GalleryPage() {
     return out;
   }, [members]);
   const flatPages: Sheet[] = useMemo(() => [
-    { kind: 'cover' },
     ...groups.map((g): Sheet => ({ kind: 'grid', members: g })),
     ...(groups.length > 0 ? [{ kind: 'back' } as Sheet] : []),
   ], [groups]);
   // Desktop spreads pair grid halves so facing pages always belong together.
+  // No open-book cover spread: opening the closed cover lands on members.
   const spreads: [Sheet | undefined, Sheet | undefined][] = useMemo(() => {
-    const arr: [Sheet | undefined, Sheet | undefined][] = [[undefined, { kind: 'cover' } as Sheet]];
+    const arr: [Sheet | undefined, Sheet | undefined][] = [];
     for (const g of groups) {
       arr.push([
         { kind: 'grid', members: g.slice(0, 5) } as Sheet,
@@ -68,8 +57,7 @@ export default function GalleryPage() {
     if (groups.length > 0) arr.push([{ kind: 'back' } as Sheet, undefined]);
     return arr;
   }, [groups]);
-  const [spread, setSpread] = useState(0);
-  const [turn, setTurn] = useState<Turn | null>(null);
+  const [spread, setSpread] = useState(-1);
   const [indexOpen, setIndexOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
@@ -81,24 +69,19 @@ export default function GalleryPage() {
     }
   });
   const spreadRef = useRef<HTMLDivElement>(null);
-  const leafRef = useRef<HTMLDivElement>(null);
-  const segRef = useRef<HTMLDivElement>(null);
-  const shadeRef = useRef<HTMLDivElement>(null);
-  const creaseRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ startX: number; lastX: number; lastT: number; dir: 'next' | 'prev'; target: number } | null>(null);
-  const phys = useRef({ angle: 0, vel: 0, springTo: null as null | 0 | 1 });
-  const raf = useRef(0);
-  const reduced = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const drag = useRef<{ startX: number } | null>(null);
   const wide = typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 768px)').matches;
   const maxSpread = Math.max(0, (wide ? spreads.length : flatPages.length) - 1);
 
-  const shown = Math.min(spread, maxSpread);
+  // Spread -1 = closed book (front cover only). Opening goes to spread 0,
+  // going back past the cover closes it again.
+  const shown = Math.max(-1, Math.min(spread, maxSpread));
   const canNext = shown < maxSpread;
-  const canPrev = shown > 0;
+  const canPrev = shown > -1;
   const queryClient = useQueryClient();
 
   // Warm the neighbors: prefetch adjacent spreads' avatars + levels so the
-  // destination spread is already loaded when the turn animation lands.
+  // destination spread is already loaded when navigation lands.
   useEffect(() => {
     const near = [spreads[shown - 1], spreads[shown], spreads[shown + 1]].filter(Boolean);
     const ids = new Set<string>();
@@ -125,98 +108,18 @@ export default function GalleryPage() {
       });
     }
   }, [shown, spreads, members, queryClient]);
-  // Base always shows the destination; the leaf covers it mid-turn.
-  const face = turn ? turn.from + (turn.dir === 'next' ? 1 : -1) : shown;
-  // Desktop pairs two pages; mobile reads one page at a time (cell-b hidden).
-
-  const finalize = useCallback((committed: boolean, to: number) => {
-    cancelAnimationFrame(raf.current);
-    phys.current.springTo = null;
-    phys.current.vel = 0;
-    phys.current.angle = 0;
-    drag.current = null;
-    if (committed) {
-      setSpread(Math.max(0, Math.min(maxSpread, to)));
-    }
-    setTurn(null);
+  const goTo = useCallback((to: number) => {
+    setSpread(Math.max(-1, Math.min(maxSpread, to)));
   }, [maxSpread]);
 
-  // Paint leaf angle + curl + travelling light straight to the DOM.
-  const paint = useCallback((turnDir: 'next' | 'prev', deg: number) => {
-    const sign = turnDir === 'next' ? -1 : 1;
-    const leaf = leafRef.current;
-    if (leaf) {
-      const p = Math.min(1, Math.max(0, deg / 180));
-      const lift = 14 * Math.sin(p * Math.PI);
-      leaf.style.transform = `rotateY(${sign * deg}deg) translateZ(${lift}px)`;
-    }
-    const bend = 26 * Math.sin(Math.min(1, Math.max(0, deg / 180)) * Math.PI);
-    const seg = segRef.current;
-    if (seg) seg.style.transform = `rotateY(${sign * bend}deg)`;
-    const crease = creaseRef.current;
-    if (crease) crease.style.opacity = String((bend / 26) * 0.55);
-    const shade = shadeRef.current;
-    if (shade) {
-      const p = Math.min(1, Math.max(0, deg / 180));
-      const glow = Math.sin(p * Math.PI);
-      const at = turnDir === 'next' ? (1 - p) * 100 : p * 100;
-      shade.style.opacity = String(0.08 + glow * 0.3);
-      shade.style.background =
-        `linear-gradient(90deg, rgba(0,0,0,${0.45 * glow}), rgba(255,244,220,${0.12 * glow}) ${at}%,` +
-        ` rgba(0,0,0,${0.45 * glow}))`;
-    }
-  }, []);
-
-  // Heavy-paper physics: slow, deliberate, velocity-scaled (buttons ~800ms,
-  // normal swipe ~600-750ms, hard throw ~450-600ms). Zero setState inside.
-  const turnActive = turn !== null;
-  useEffect(() => {
-    if (!turnActive || reduced) return;
-    const dir = turn!.dir;
-    const from = turn!.from;
-    let last = performance.now();
-    const tick = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const d = drag.current;
-      const p = phys.current;
-      if (d) {
-        p.angle += (d.target - p.angle) * Math.min(1, dt * 30);
-        p.vel = 0;
-        paint(dir, p.angle);
-      } else if (p.springTo !== null) {
-        const accel = 55 * (p.springTo * 180 - p.angle) - 13.5 * p.vel;
-        p.vel += accel * dt;
-        p.angle += p.vel * dt;
-        paint(dir, p.angle);
-        if (Math.abs(p.vel) < 6 && Math.abs(p.springTo * 180 - p.angle) < 1) {
-          const done = p.springTo === 1;
-          const dest = from + (dir === 'next' ? 1 : -1);
-          requestAnimationFrame(() => finalize(done, dest));
-          return;
-        }
-      }
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnActive, reduced]);
-
   const startTurn = useCallback((dir: 'next' | 'prev') => {
-    if (turn) return;
     const ok = dir === 'next' ? canNext : canPrev;
     if (!ok) return;
-    const to = shown + (dir === 'next' ? 1 : -1);
-    if (reduced) {
-      setSpread(to);
-      return;
-    }
-    phys.current.angle = 0;
-    phys.current.vel = 0;
-    phys.current.springTo = 1;
-    setTurn({ dir, from: shown });
-  }, [turn, canNext, canPrev, reduced, shown]);
+    // Opening the closed book unsheathes swords; page moves flick paper.
+    if (shown < 0 && dir === 'next') playBookOpen();
+    else playPageTurn();
+    goTo(shown + (dir === 'next' ? 1 : -1));
+  }, [canNext, canPrev, goTo, shown]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -231,77 +134,33 @@ export default function GalleryPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [startTurn, indexOpen]);
 
-  function leafWidth(): number {
-    const w = spreadRef.current?.clientWidth ?? 320;
-    return wide ? w / 2 : w;
-  }
-
+  // Swipe swaps content instantly past a small threshold (no animation for now).
   function onPointerDown(e: React.PointerEvent) {
-    if (turn) return;
     if ((e.target as HTMLElement).closest('button,a,input,select,textarea')) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { startX: e.clientX, lastX: e.clientX, lastT: performance.now(), dir: 'next', target: 0 };
+    drag.current = { startX: e.clientX };
   }
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current;
-    if (!d || turn) return;
+    if (!d) return;
     const dx = e.clientX - d.startX;
-    if (Math.abs(dx) < 8) return;
-    const dir = dx < 0 ? 'next' : 'prev';
-    const ok = dir === 'next' ? canNext : canPrev;
-    const raw = Math.min(180, Math.abs(dx) / (leafWidth() * 0.65) * 180);
-    d.dir = dir;
-    d.lastX = e.clientX;
-    d.lastT = performance.now();
-    d.target = ok ? raw : raw * 0.15;
-    setTurn({ dir, from: shown });
-  }
-  function endDrag(e: React.PointerEvent) {
-    const d = drag.current;
-    if (!d || !turn) {
-      drag.current = null;
-      return;
-    }
-    const dt = Math.max(1, performance.now() - d.lastT);
-    const velocity = Math.min(900, (Math.abs(e.clientX - d.lastX) / dt) * 1000 * (180 / (leafWidth() * 0.65)));
-    const ok = turn.dir === 'next' ? canNext : canPrev;
-    const progress = d.target / 180;
+    if (Math.abs(dx) < 60) return;
     drag.current = null;
-    if (reduced) {
-      finalize(ok && d.target > 45, shown + (turn.dir === 'next' ? 1 : -1));
-      return;
-    }
-    const snap = ok && (progress > 0.32 || velocity > 500) ? 1 : 0;
-    phys.current.vel = snap === 1 ? velocity * 0.5 : 0;
-    phys.current.springTo = snap as 0 | 1;
+    startTurn(dx < 0 ? 'next' : 'prev');
+  }
+  function endDrag() {
+    drag.current = null;
   }
 
-  // Base pages during a turn: the half under the leaf keeps the OUTGOING page
-  // (spine side stays put on desktop); the other half already shows incoming.
-  // The leaf itself always carries the outgoing page — nothing ever pops.
   const clampIdx = (i: number) => Math.max(0, Math.min(maxSpread, i));
   let leftSheet: Sheet | undefined;
   let rightSheet: Sheet | undefined;
-  let leafSheet: Sheet | undefined;
   if (wide) {
-    const cur = spreads[clampIdx(face)];
-    if (!turn) {
-      leftSheet = cur[0];
-      rightSheet = cur[1];
-    } else if (turn.dir === 'next') {
-      leftSheet = spreads[turn.from][0];
-      rightSheet = spreads[clampIdx(turn.from + 1)][1];
-      leafSheet = spreads[turn.from][1];
-    } else {
-      leftSheet = spreads[clampIdx(turn.from - 1)][0];
-      rightSheet = spreads[turn.from][1];
-      leafSheet = spreads[turn.from][0];
-    }
+    const cur = spreads[clampIdx(shown)];
+    leftSheet = cur?.[0];
+    rightSheet = cur?.[1];
   } else {
-    const baseL = !turn ? face : turn.dir === 'next' ? turn.from : face;
-    leftSheet = flatPages[baseL];
+    leftSheet = flatPages[shown];
     rightSheet = undefined;
-    leafSheet = turn ? flatPages[turn.from] : undefined;
   }
 
   function toggleBookmark(id: string) {
@@ -315,7 +174,8 @@ export default function GalleryPage() {
   function jumpToMember(id: string) {
     const gi = groups.findIndex((g) => g.some((m) => m.id === id));
     if (gi < 0) return;
-    setSpread(1 + gi);
+    playPageTurn();
+    setSpread(gi);
     setIndexOpen(false);
     setQuery('');
   }
@@ -332,9 +192,9 @@ export default function GalleryPage() {
       <div className="mb-2 flex items-center gap-2">
         <Link to="/clan" aria-label={t('nav.clan')} className="btn-ghost h-10 w-10 !px-0">‹</Link>
         <h1 className="font-display flex-1 text-xl tracking-wide">{t('gallery.title')}</h1>
-        {members.length > 0 && (
+        {members.length > 0 && shown >= 0 && (
           <span className="font-mono text-xs tabular-nums opacity-60" aria-live="polite">
-            {t('gallery.pageOf', { n: face + 1, total: maxSpread + 1 })}
+            {t('gallery.pageOf', { n: shown + 1, total: maxSpread + 1 })}
           </span>
         )}
       </div>
@@ -342,6 +202,15 @@ export default function GalleryPage() {
       <LoadingRegion loading={membersQuery.isLoading} label={t('common.loading')} skeleton="card">
         {members.length === 0 ? (
           <p className="card mt-3 text-sm opacity-70">{t('gallery.empty')}</p>
+        ) : shown < 0 ? (
+          <div className="book-wrap">
+            <button type="button" onClick={() => startTurn('next')} className="book-closed" aria-label={`${t('gallery.title')} — ${t('gallery.next')}`}>
+              <img src="/book-cover.jpg" alt="" aria-hidden className="book-closed-img" />
+            </button>
+            <button type="button" onClick={() => startTurn('next')} className="btn-ghost mt-3 flex h-11 w-full items-center justify-center text-sm">
+              {t('gallery.next')} ›
+            </button>
+          </div>
         ) : (
           <div className="book-wrap">
             <div
@@ -353,30 +222,25 @@ export default function GalleryPage() {
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={endDrag}
-              onPointerCancel={() => { drag.current = null; if (turn) finalize(false, shown); }}
+              onPointerCancel={endDrag}
             >
               <div className="book-spread">
                 <div className="book-half cell-a"><PageView sheet={leftSheet} /></div>
                 <div className="book-spine" aria-hidden />
                 <div className="book-half cell-b"><PageView sheet={wide ? rightSheet : undefined} /></div>
-                {turn && (
-                  <Leaf dir={turn.dir} full={!wide} leafRef={leafRef} segRef={segRef} shadeRef={shadeRef} creaseRef={creaseRef}>
-                    <PageView sheet={leafSheet} />
-                  </Leaf>
-                )}
               </div>
               <div className="book-foreedge" aria-hidden />
-              <p className="book-folio" aria-hidden>{face + 1} · {maxSpread + 1}</p>
+              <p className="book-folio" aria-hidden>{shown + 1} · {maxSpread + 1}</p>
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-2">
-              <button type="button" onClick={() => startTurn('prev')} disabled={!canPrev || !!turn} className="btn-ghost h-11 flex-1 text-sm">
+              <button type="button" onClick={() => startTurn('prev')} disabled={!canPrev} className="btn-ghost h-11 flex-1 text-sm">
                 ‹ {t('gallery.prev')}
               </button>
-              <button type="button" onClick={() => setIndexOpen(true)} disabled={!!turn} className="btn-ghost h-11 px-4 text-sm" aria-label={t('gallery.index')} aria-haspopup="dialog">
+              <button type="button" onClick={() => setIndexOpen(true)} className="btn-ghost h-11 px-4 text-sm" aria-label={t('gallery.index')} aria-haspopup="dialog">
                 <Icon name="scroll" className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => startTurn('next')} disabled={!canNext || !!turn} className="btn-ghost h-11 flex-1 text-sm">
+              <button type="button" onClick={() => startTurn('next')} disabled={!canNext} className="btn-ghost h-11 flex-1 text-sm">
                 {t('gallery.next')} ›
               </button>
             </div>
@@ -448,36 +312,6 @@ function writeBookmarks(ids: string[]) {
     localStorage.setItem('vik-bookmarks', JSON.stringify(ids));
   } catch { /* ignore */ }
 }
-function Leaf({ dir, full, leafRef, segRef, shadeRef, creaseRef, children }: {
-  dir: 'next' | 'prev';
-  full: boolean;
-  leafRef: React.RefObject<HTMLDivElement | null>;
-  segRef: React.RefObject<HTMLDivElement | null>;
-  shadeRef: React.RefObject<HTMLDivElement | null>;
-  creaseRef: React.RefObject<HTMLDivElement | null>;
-  children: React.ReactNode;
-}) {
-  const flip = dir === 'prev' ? ' flip' : '';
-  const span = full ? 'leaf-full' : dir === 'next' ? 'leaf-half-r' : 'leaf-half-l';
-  const hinge = dir === 'next' ? 'hinge-l' : 'hinge-r';
-  const edge = dir === 'next' ? 'edge-r' : 'edge-l';
-  return (
-    <div aria-hidden ref={leafRef} className={`book-leaf ${span} ${hinge}${flip}`}>
-      <div className="seg seg-in"><div className="cut">{children}</div></div>
-      <div ref={segRef} className="seg seg-out"><div className="cut cut-r">{children}</div></div>
-      <div className="book-leaf-face book-leaf-back">
-        <section className="book-page parchment items-center justify-center text-center">
-          <img src={CLAN_EMBLEM} alt="" className="mx-auto w-full max-w-[220px] rounded-xl opacity-90" />
-          <p className="rune-strip mt-4 text-center">ᛟ ᛞ ᚨ ᛚ</p>
-        </section>
-      </div>
-      <div ref={creaseRef} className="seg-crease" style={{ opacity: 0 }} />
-      <div className={`leaf-edge ${edge}`} aria-hidden />
-      <div ref={shadeRef} className="book-leaf-shade" style={{ opacity: 0.08 }} />
-    </div>
-  );
-}
-
 function PageView({ sheet }: {
   sheet: Sheet | undefined;
 }) {
@@ -498,13 +332,13 @@ function GridCards({ members }: {
         {members.map((m) => {
           const name = m.known_name ?? m.display_name ?? m.username;
           return (
-            <div key={m.id} role="listitem" className="war-card group relative rounded-xl border border-[#6b5320]/50 bg-[#14100b]/90 p-3 text-center">
-              <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-brand-500/60 transition group-hover:text-brand-400">ᚱᚢᚾ</span>
-              <Link to={`/players/${m.id}`} className="flex h-full flex-col items-center gap-2" aria-label={name}>
-                <Avatar path={m.avatar_url} name={name} className="h-20 w-20 text-2xl" />
-                <span className="font-display w-full truncate text-sm tracking-wide text-[#f3e6c2]">{name}</span>
-              </Link>
-            </div>
+              <div key={m.id} role="listitem" className="war-card group relative rounded-xl p-2 text-center">
+                <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-[#6b5320]/70 transition group-hover:text-[#6b5320]">ᚱᚢᚾ</span>
+                <Link to={`/players/${m.id}`} className="flex h-full flex-col items-center gap-1.5" aria-label={name}>
+                  <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
+                  <span className="font-display w-full truncate text-xs tracking-wide">{name}</span>
+                </Link>
+              </div>
           );
         })}
       </div>
@@ -514,16 +348,9 @@ function GridCards({ members }: {
 
 function CoverPage() {
   const { t } = useLocale();
-  const year = COVER_YEAR;
   return (
-    <section className="book-page leather items-center justify-center text-center" aria-label={t('dir.title')}>
-      <div aria-hidden className="leather-frame" />
-      <img src={CLAN_EMBLEM} alt="VIK Clan vintage emblem" className="mx-auto w-full max-w-[240px] rounded-xl shadow-2xl shadow-black/70" />
-      <p className="doc-eyebrow mt-5 text-[#e8d9b0]">{t('dir.org')}</p>
-      <h2 className="font-display mt-2 text-3xl tracking-wide text-[#f3e6c2]">{t('dir.coverMembers')}</h2>
-      <p className="font-display mt-1 text-base opacity-70">{year}</p>
-      <div aria-hidden className="mx-auto mt-4 h-px w-28 bg-[#e8d9b0]/50" />
-      <p className="mt-4 text-[11px] uppercase tracking-[0.25em] text-[#e8d9b0]/80">{t('dir.coverMotto')}</p>
+    <section className="book-cover-art" aria-label={t('dir.title')}>
+      <img src="/book-cover.jpg" alt="The Last Vikings — clan book cover" className="book-cover-img" />
     </section>
   );
 }
