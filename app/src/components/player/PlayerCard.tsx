@@ -55,7 +55,6 @@ export default function PlayerCard({
   const avatar = avatarQuery.data ?? null;
   const bannerImg = bannerQuery.data ?? null;
   const recent = recentQuery.data ?? [];
-  const total = (career?.wins ?? 0) + (career?.draws ?? 0) + (career?.losses ?? 0);
   const ig = socialLink('instagram', member.instagram);
   const tk = socialLink('tiktok', member.tiktok);
   const kk = socialLink('kick', member.kick);
@@ -202,9 +201,9 @@ export default function PlayerCard({
             </div>
           </div>
           <div className="mt-2 flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
-            <div className="min-w-[64px] bg-green-500 text-zinc-950" style={{ width: `${total ? ((career?.wins ?? 0) / total) * 100 : 0}%` }}>{t('player.wins')}</div>
-            <div className="min-w-[64px] bg-zinc-500 text-white" style={{ width: `${total ? ((career?.draws ?? 0) / total) * 100 : 0}%` }}>{t('player.draws')}</div>
-            <div className="min-w-[64px] flex-1 bg-red-500 text-white">{t('player.losses')}</div>
+            <div className="min-w-0 flex-1 bg-green-500 text-zinc-950">{t('player.wins')}</div>
+            <div className="min-w-0 flex-1 bg-zinc-500 text-white">{t('player.draws')}</div>
+            <div className="min-w-0 flex-1 bg-red-500 text-white">{t('player.losses')}</div>
           </div>
           <div className="mt-1 grid grid-cols-3 text-center text-sm">
             <div className="font-display text-lg">{career?.wins ?? '—'}</div>
