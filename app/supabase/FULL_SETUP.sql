@@ -1,4 +1,4 @@
--- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0024).
+-- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0025).
 -- Paste the whole file into Supabase SQL editor and Run.
 -- Safe to re-run: every statement is IF NOT EXISTS / DROP IF EXISTS / OR REPLACE.
 -- If you already ran an older FULL_SETUP.sql, just run the newer 00NN_*.sql
@@ -129,6 +129,7 @@ create table if not exists public.matches (
   confirmed_at timestamptz,
   winner_id uuid references public.profiles(id),
   forfeit_player_id uuid references public.profiles(id),
+  forfeit_claimed_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (player_a_id != player_b_id)
@@ -806,3 +807,12 @@ create unique index if not exists profiles_known_name_unique
 
 alter table public.achievements
   add column if not exists image_url text;
+
+
+-- ========== 0025_forfeit_claim.sql ==========
+-- VIK Clan migration 0025: player-claimed forfeit on match results.
+-- Run AFTER 0024. The confirming opponent may concede instead of confirming;
+-- moderators accept (FORFEIT) or send back.
+
+alter table public.matches
+  add column if not exists forfeit_claimed_by uuid references public.profiles(id) on delete set null;

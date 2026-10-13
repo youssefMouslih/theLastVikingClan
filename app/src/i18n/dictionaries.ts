@@ -27,6 +27,7 @@ const en = {
   'common.refresh': 'Refresh',
   'common.copy': 'Copy',
   'common.copied': 'Copied',
+  'common.viewPhoto': 'View photo of {name}',
   'common.inviteLink': 'Copy invite link',
 
   'pwa.update': 'New version available',
@@ -240,6 +241,12 @@ const en = {
   'match.forfeitB': 'Forfeit to B',
   'match.forfeitMsgA': 'Forfeit 3–0 to A (logged).',
   'match.forfeitMsgB': 'Forfeit 3–0 to B (logged).',
+  'match.forfeitCheck': 'Forfeit — I concede this match',
+  'match.confirmForfeit': 'Confirm forfeit',
+  'match.forfeitClaimed': 'Forfeit claimed — awaiting moderator review.',
+  'match.forfeitClaimedBy': 'Forfeit claimed by {name}',
+  'match.acceptForfeit': 'Accept forfeit',
+  'match.forfeitAccepted': 'Forfeit accepted.',
 
   'reason.incorrect': 'Incorrect score',
   'reason.noMatch': 'Match did not happen',
@@ -790,6 +797,7 @@ const fr: Dict = {
   'common.refresh': 'Actualiser',
   'common.copy': 'Copier',
   'common.copied': 'Copié',
+  'common.viewPhoto': 'Voir la photo de {name}',
   'common.inviteLink': 'Copier le lien',
 
   'pwa.update': 'Nouvelle version disponible',
@@ -1003,6 +1011,12 @@ const fr: Dict = {
   'match.forfeitB': 'Forfait pour B',
   'match.forfeitMsgA': 'Forfait 3–0 pour A (journalisé).',
   'match.forfeitMsgB': 'Forfait 3–0 pour B (journalisé).',
+  'match.forfeitCheck': 'Forfait — j’abandonne ce match',
+  'match.confirmForfeit': 'Confirmer le forfait',
+  'match.forfeitClaimed': 'Forfait déclaré — en attente du modérateur.',
+  'match.forfeitClaimedBy': 'Forfait déclaré par {name}',
+  'match.acceptForfeit': 'Accepter le forfait',
+  'match.forfeitAccepted': 'Forfait accepté.',
 
   'reason.incorrect': 'Score incorrect',
   'reason.noMatch': 'Le match n’a pas eu lieu',
@@ -1551,6 +1565,7 @@ const ar: Dict = {
   'common.refresh': 'تحديث',
   'common.copy': 'نسخ',
   'common.copied': 'تم النسخ',
+  'common.viewPhoto': 'عرض صورة {name}',
   'common.inviteLink': 'نسخ رابط الدعوة',
 
   'pwa.update': 'نسخة جديدة متوفرة',
@@ -1764,6 +1779,12 @@ const ar: Dict = {
   'match.forfeitB': 'انسحاب لصالح B',
   'match.forfeitMsgA': 'انسحاب 3–0 لصالح A (مُسجّل).',
   'match.forfeitMsgB': 'انسحاب 3–0 لصالح B (مُسجّل).',
+  'match.forfeitCheck': 'انسحاب — أتنازل عن هذه المباراة',
+  'match.confirmForfeit': 'تأكيد الانسحاب',
+  'match.forfeitClaimed': 'تم إعلان الانسحاب — بانتظار المشرف.',
+  'match.forfeitClaimedBy': 'أعلن {name} الانسحاب',
+  'match.acceptForfeit': 'قبول الانسحاب',
+  'match.forfeitAccepted': 'تم قبول الانسحاب.',
 
   'reason.incorrect': 'نتيجة غير صحيحة',
   'reason.noMatch': 'لم تُلعب المباراة',

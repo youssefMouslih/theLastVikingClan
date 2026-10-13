@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
+import { Lightbox } from '../ui/Motion';
 import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
@@ -27,6 +28,7 @@ export default function PlayerCard({
 }) {
   const { t } = useLocale();
   const [shared, setShared] = useState(false);
+  const [zoom, setZoom] = useState(false);
   const mainName = member.known_name ?? member.efootball_name ?? member.display_name ?? member.username;
   const avatarQuery = useQuery({
     queryKey: ['avatar', member.id, member.avatar_url],
@@ -113,17 +115,27 @@ export default function PlayerCard({
                 <Icon name="camera" className="h-6 w-6 text-white" />
               </span>
             </button>
+          ) : avatar ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setZoom(true);
+              }}
+              aria-label={t('common.viewPhoto', { name: mainName })}
+              className="relative block rounded-full"
+            >
+              <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
+            </button>
           ) : (
             <span className="relative block rounded-full">
-              {avatar ? (
-                <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
-              ) : (
-                <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
-                  {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
-                </div>
-              )}
+              <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
+                {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
+              </div>
             </span>
           )}
+          {zoom && avatar && <Lightbox src={avatar} onClose={() => setZoom(false)} />}
         </div>
         {action && <div className="absolute bottom-2 end-3">{action}</div>}
       </div>

@@ -8,7 +8,7 @@ import { Countdown, Lightbox } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import { supabase } from '../lib/supabase';
-import { adminRejectResult, adminSetResult, awardForfeit, confirmResult, disputeResult, getMatch, submitResult } from '../services/matchService';
+import { adminRejectResult, adminSetResult, awardForfeit, claimForfeit, confirmResult, disputeResult, getMatch, submitResult } from '../services/matchService';
 import { getMember } from '../services/playerService';
 import { getEvidenceSignedUrl } from '../services/storageService';
 import { useAuthStore } from '../stores/authStore';
@@ -44,6 +44,7 @@ export default function MatchPage() {
   const [disputeReason, setDisputeReason] = useState<string>(REASON_KEYS[0]);
   const [disputeText, setDisputeText] = useState('');
   const [disputing, setDisputing] = useState(false);
+  const [forfeitCheck, setForfeitCheck] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [refuseComment, setRefuseComment] = useState('');
 
@@ -101,6 +102,11 @@ export default function MatchPage() {
   const iAmParticipant = me && (me.id === m.player_a_id || me.id === m.player_b_id);
   const iAmOpponent = m.status === 'RESULT_SUBMITTED' && me && me.id !== m.submitted_by && (me.id === m.player_a_id || me.id === m.player_b_id);
   const deadlinePassed = m.deadline ? Date.now() > new Date(m.deadline).getTime() : false;
+  // Claimed forfeit: evidence stays blurred for everyone except staff.
+  const forfeitPending = !!m.forfeit_claimed_by;
+  const blurred = forfeitPending && !isAdmin;
+  const claimerId = forfeitPending ? m.forfeit_claimed_by : null;
+  const forfeitWinnerId = claimerId ? (claimerId === m.player_a_id ? m.player_b_id : m.player_a_id) : null;
 
   return (
     <main className="page">
@@ -134,7 +140,7 @@ export default function MatchPage() {
           <span className="font-bold">{t('match.modNote')}: </span>{m.moderation_comment}
         </p>
       )}
-      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} blurred={blurred} />}
 
       {iAmParticipant && (m.status === 'SCHEDULED' || m.status === 'OVERDUE' || m.status === 'RESULT_SUBMITTED') && (
         <form
@@ -212,10 +218,24 @@ export default function MatchPage() {
           {m.submission_comment && (
             <p className="mt-1 rounded-lg bg-white/5 p-2 text-sm italic">“{m.submission_comment}”</p>
           )}
-          <div className="mt-2 flex gap-2">
-            <button disabled={busy} onClick={() => run(() => confirmResult(m, me!.id), t('match.confirmed'))} className="btn-primary h-12 flex-1">{t('match.confirm')}</button>
-            <button disabled={busy} onClick={() => setDisputing((d) => !d)} className="btn-danger h-12 flex-1">{t('match.wrongBtn')}</button>
-          </div>
+          {forfeitPending ? (
+            <p role="status" className="mt-2 rounded-xl border border-amber-500/50 p-2 text-sm font-semibold text-amber-400">{t('match.forfeitClaimed')}</p>
+          ) : (
+            <>
+              <label className="mt-2 flex items-start gap-2 rounded-xl bg-white/5 p-2 text-sm">
+                <input type="checkbox" checked={forfeitCheck} onChange={(e) => setForfeitCheck(e.target.checked)} className="mt-1 h-5 w-5 accent-[#ef4444]" />
+                {t('match.forfeitCheck')}
+              </label>
+              <div className="mt-2 flex gap-2">
+                {forfeitCheck ? (
+                  <button disabled={busy} onClick={() => run(() => claimForfeit(m, me!.id), t('match.forfeitClaimed'))} className="btn-cta h-12 flex-1">{t('match.confirmForfeit')}</button>
+                ) : (
+                  <button disabled={busy} onClick={() => run(() => confirmResult(m, me!.id), t('match.confirmed'))} className="btn-primary h-12 flex-1">{t('match.confirm')}</button>
+                )}
+                <button disabled={busy} onClick={() => setDisputing((d) => !d)} className="btn-danger h-12 flex-1">{t('match.wrongBtn')}</button>
+              </div>
+            </>
+          )}
           {disputing && (
             <div className="mt-2 flex flex-col gap-2 rounded-xl bg-white/5 p-2">
               <select aria-label={t('match.disputeReason')} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} className="input">
@@ -228,6 +248,10 @@ export default function MatchPage() {
         </div>
       )}
 
+      {forfeitPending && iAmParticipant && !iAmOpponent && (
+        <p role="status" className="card mt-3 border-amber-500/50 text-sm font-semibold text-amber-400">{t('match.forfeitClaimed')}</p>
+      )}
+
       {evidenceQuery.data && evidenceQuery.data.length > 0 && (
         <section className="card mt-3">
           <h2 className="card-title">{t('match.evidenceTitle')}</h2>
@@ -235,7 +259,7 @@ export default function MatchPage() {
             {evidenceQuery.data.map((e) => (
               e.url ? (
                 <button key={e.id} type="button" onClick={() => setLightbox(e.url!)} className="block w-full" aria-label={t('match.viewShot')}>
-                  <img src={e.url} alt="Match evidence" className="max-h-80 w-full rounded-xl border border-white/10 object-contain" loading="lazy" />
+                  <img src={e.url} alt="Match evidence" className={`max-h-80 w-full rounded-xl border border-white/10 object-contain${blurred ? ' blur-md' : ''}`} loading="lazy" />
                 </button>
               ) : (
                 <p key={e.id} className="text-sm opacity-60">{t('match.noAccess')}</p>
@@ -268,6 +292,20 @@ export default function MatchPage() {
           )}
           {m.submission_comment && (
             <p className="mt-2 rounded-lg bg-white/5 p-2 text-sm italic">“{m.submission_comment}”</p>
+          )}
+          {claimerId && forfeitWinnerId && (
+            <div className="mt-2 rounded-xl border border-amber-500/50 p-2 text-sm">
+              <p className="font-bold text-amber-400">
+                {t('match.forfeitClaimedBy', { name: names[claimerId] ?? claimerId.slice(0, 8) })}
+              </p>
+              <button
+                disabled={busy}
+                onClick={() => run(() => awardForfeit(m.id, forfeitWinnerId, claimerId, me!.id), t('match.forfeitAccepted'))}
+                className="btn-cta mt-2 h-10 w-full text-xs"
+              >
+                {t('match.acceptForfeit')}
+              </button>
+            </div>
           )}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <input type="number" min={0} placeholder={t('match.scoreA')} aria-label={t('match.scoreA')} value={scoreA} onChange={(e) => setScoreA(e.target.value)} className="input text-center" />

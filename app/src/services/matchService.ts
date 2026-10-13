@@ -152,9 +152,34 @@ export async function submitResult(
   await notify(opponent, 'RESULT_SUBMITTED', 'Result submitted', `Your opponent submitted ${scoreA}–${scoreB}. Confirm or dispute.`, { type: 'match', id: match.id });
 }
 
+// Forfeit claim (§37 confirm step): the opponent concedes instead of
+// confirming the score. Evidence stays blurred for non-admins until a
+// moderator accepts (FORFEIT) or sends back.
+export async function claimForfeit(match: Match, userId: string) {
+  if (match.status !== 'RESULT_SUBMITTED') throw new Error('Nothing to confirm.');
+  if (match.submitted_by === userId) throw new Error('The submitter cannot claim forfeit — opponent must confirm.');
+  if (userId !== match.player_a_id && userId !== match.player_b_id) throw new Error('Only the opponent can claim forfeit.');
+  if (match.forfeit_claimed_by) throw new Error('Forfeit already claimed — awaiting moderator.');
+  const { error } = await supabase
+    .from('matches')
+    .update({ forfeit_claimed_by: userId, updated_at: new Date().toISOString() })
+    .eq('id', match.id);
+  if (error) throw new Error(error.message);
+  if (match.submitted_by && match.submitted_by !== userId) {
+    await notify(match.submitted_by, 'RESULT_DISPUTED', 'Forfeit claimed', 'Your opponent concedes — a moderator will review.', { type: 'match', id: match.id });
+  }
+  const { data: staff } = await supabase.from('profiles').select('id').in('role', ['OWNER', 'ADMIN', 'MODERATOR']).eq('status', 'ACTIVE');
+  for (const s of (staff ?? []) as { id: string }[]) {
+    if (s.id !== userId && s.id !== match.submitted_by) {
+      await notify(s.id, 'RESULT_DISPUTED', 'Forfeit claim', 'Review needed: accept or send back.', { type: 'match', id: match.id });
+    }
+  }
+}
+
 // Confirmation (§39-40). Must be the opponent, not the submitter.
 export async function confirmResult(match: Match, userId: string) {
   if (match.status !== 'RESULT_SUBMITTED') throw new Error('Nothing to confirm.');
+  if (match.forfeit_claimed_by) throw new Error('Forfeit claim pending moderator review.');
   if (match.submitted_by === userId) throw new Error('The submitter cannot confirm their own result — opponent must confirm.');
   if (userId !== match.player_a_id && userId !== match.player_b_id) throw new Error('Only the opponent can confirm.');
   const winner = match.score_a! > match.score_b! ? match.player_a_id : match.score_a! < match.score_b! ? match.player_b_id : null;
@@ -188,7 +213,7 @@ export async function adminRejectResult(match: Match, adminId: string, comment: 
   if (match.status !== 'RESULT_SUBMITTED' && match.status !== 'DISPUTED') throw new Error('Nothing to send back.');
   const { error } = await supabase
     .from('matches')
-    .update({ status: 'SCHEDULED', submitted_by: null, submitted_at: null, moderation_comment: comment.trim(), updated_at: new Date().toISOString() })
+    .update({ status: 'SCHEDULED', submitted_by: null, submitted_at: null, forfeit_claimed_by: null, moderation_comment: comment.trim(), updated_at: new Date().toISOString() })
     .eq('id', match.id);
   if (error) throw new Error(error.message);
   await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_REJECTED_RESULT', entity_type: 'match', entity_id: match.id, reason: comment.trim() });
@@ -231,7 +256,7 @@ export async function awardForfeit(matchId: string, winnerId: string, loserId: s
   const scoreB = mm.player_b_id === winnerId ? 3 : 0;
   const { error } = await supabase
     .from('matches')
-    .update({ score_a: scoreA, score_b: scoreB, status: 'FORFEIT', winner_id: winnerId, forfeit_player_id: loserId, confirmed_by: adminId, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({ score_a: scoreA, score_b: scoreB, status: 'FORFEIT', winner_id: winnerId, forfeit_player_id: loserId, forfeit_claimed_by: null, confirmed_by: adminId, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('id', matchId);
   if (error) throw new Error(error.message);
   await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_AWARDED_FORFEIT', entity_type: 'match', entity_id: matchId, new_data: { winnerId, loserId } });
@@ -279,6 +304,7 @@ export const matchService = {
   generateLeagueFixtures,
   generateKnockoutFixtures,
   submitResult,
+  claimForfeit,
   confirmResult,
   adminRejectResult,
   disputeResult,
