@@ -478,16 +478,16 @@ input, textarea, select {
 .book-blank {
   min-height: 26rem;
 }
-/* Thick aged parchment: cream body, faint fiber noise, old stains, dark edges */
+/* Rune page art fitted exactly to each page (ornaments land on the corners) */
 .parchment {
   color: #2b2f26;
-  background-color: #f1e7cf;
+  background-color: #ece0c4;
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E"),
-    radial-gradient(10rem 7rem at 12% 82%, rgba(120, 85, 30, 0.10), transparent 70%),
-    radial-gradient(8rem 6rem at 88% 12%, rgba(120, 85, 30, 0.08), transparent 70%),
-    radial-gradient(26rem 14rem at 50% -10%, rgba(234, 179, 8, 0.14), transparent 65%),
-    linear-gradient(180deg, #f4ebd6 0%, #ecdfc2 60%, #e4d3ae 100%);
+    linear-gradient(180deg, rgba(246, 238, 220, 0.90), rgba(246, 238, 220, 0.84)),
+    url(/book-page.jpg);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
   box-shadow: inset 0 0 46px rgba(101, 74, 32, 0.28);
 }
 /* Dark leather cover/back: embossed double rule, gold tooling */
@@ -506,6 +506,56 @@ input, textarea, select {
   outline: 3px double rgba(232, 217, 176, 0.28);
   outline-offset: 5px;
   border-radius: 4px;
+}
+/* Closed book: front cover only, tap to open */
+.book-closed {
+  position: relative;
+  display: block;
+  width: min(100%, 46vh);
+  margin-inline: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 1rem;
+  box-shadow: 0 18px 50px -18px rgba(0, 0, 0, 0.85), 0 0 26px -6px rgba(234, 179, 8, 0.25);
+  cursor: pointer;
+  background: none;
+}
+.book-closed-img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+.book-open-hint {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 1rem;
+  margin-inline: auto;
+  width: fit-content;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  background: rgba(8, 9, 10, 0.72);
+  border: 1px solid rgba(234, 179, 8, 0.55);
+  color: #f3e6c2;
+  font-size: 0.85rem;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+}
+/* Book cover art: full-bleed AI cover, cropped to the page */
+.book-cover-art {
+  position: relative;
+  min-height: 26rem;
+  overflow: hidden;
+}
+.book-cover-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 /* Corner rivets: hammered steel studs holding the binding */
 .book-page::before,
@@ -702,6 +752,17 @@ input, textarea, select {
   pointer-events: none;
 }
 
+/* First grid row breathes below the page edge */
+.war-card:nth-child(-n+3) { margin-top: 1.3rem; }
+/* Player cards: parchment-tinted glass so the page motif shows through */
+.war-card {
+  color: #2b2f26;
+  background: linear-gradient(180deg, rgba(248, 242, 228, 0.20), rgba(248, 242, 228, 0.08));
+  backdrop-filter: blur(5px) saturate(1.15);
+  -webkit-backdrop-filter: blur(5px) saturate(1.15);
+  border: 1px solid rgba(107, 83, 32, 0.5);
+  box-shadow: 0 8px 22px -12px rgba(60, 45, 20, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
 /* Clan rating stars: ink track, gold fill clipped to the score */
 .stars { position: relative; display: inline-block; font-size: 1.6rem; letter-spacing: 0.12em; color: rgba(43, 47, 38, 0.28); line-height: 1; }
 .stars-fill { position: absolute; inset: 0; overflow: hidden; white-space: nowrap; color: #8a6a14; }
