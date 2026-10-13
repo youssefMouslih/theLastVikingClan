@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
-import PresenceDot, { presenceFor } from '../ui/PresenceDot';
 import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
@@ -26,10 +25,9 @@ export default function PlayerCard({
   action?: React.ReactNode;
   onAvatarClick?: () => void;
 }) {
-  const { t, fmtDate } = useLocale();
+  const { t } = useLocale();
   const [shared, setShared] = useState(false);
   const mainName = member.known_name ?? member.efootball_name ?? member.display_name ?? member.username;
-  const presence = presenceFor(member.last_login_at);
   const avatarQuery = useQuery({
     queryKey: ['avatar', member.id, member.avatar_url],
     queryFn: () => getAvatarUrl(member.avatar_url),
@@ -112,7 +110,6 @@ export default function PlayerCard({
                   {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <span className="absolute bottom-0 end-0"><PresenceDot status={presence} /></span>
               <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition group-hover:opacity-100">
                 <Icon name="camera" className="h-6 w-6 text-white" />
               </span>
@@ -126,7 +123,6 @@ export default function PlayerCard({
                   {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
                 </div>
               )}
-              <span className="absolute bottom-0 end-0"><PresenceDot status={presence} /></span>
             </span>
           )}
         </div>
@@ -140,10 +136,6 @@ export default function PlayerCard({
           <button type="button" onClick={share} className="flex items-center gap-1 text-xs opacity-70 underline">
             {shared ? t('common.copied') : t('profile.share')}
           </button>
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs opacity-80">
-          <PresenceDot status={presence} showLabel />
-          <span>• {t('profile.lastSeen', { when: member.last_login_at ? fmtDate(member.last_login_at) : t('profile.neverSeen') })}</span>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs opacity-80">
           {member.display_name && member.display_name !== (member.known_name ?? member.efootball_name) && (

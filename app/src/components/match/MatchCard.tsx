@@ -5,7 +5,7 @@ import { useLocale } from '../../i18n/LocaleContext';
 import type { MatchWithPhones } from '../../services/matchService';
 import { useAuthStore } from '../../stores/authStore';
 import Avatar from '../ui/Avatar';
-import Icon from '../ui/Icon';
+import WhatsAppIcon from '../ui/WhatsAppIcon';
 import StatusBadge from '../ui/StatusBadge';
 
 export default function MatchCard({ match, names, avatars, compName }: { match: Match; names?: Record<string, string>; avatars?: Record<string, string | null>; compName?: string }) {
@@ -75,7 +75,7 @@ export default function MatchCard({ match, names, avatars, compName }: { match: 
             title={t('match.dmChat')}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#25d366]/15 text-[#25d366]"
           >
-            <Icon name="chat" className="h-4 w-4" />
+            <WhatsAppIcon className="h-5 w-5" />
           </button>
         )}
       </div>

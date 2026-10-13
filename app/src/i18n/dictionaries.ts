@@ -86,6 +86,9 @@ const en = {
   'comps.loading': 'Loading competitions…',
   'comps.loadError': 'Could not load competitions.',
   'comps.empty': 'No active competitions. Check back when the next one opens.',
+  'comps.simTitle': 'Try the league simulator',
+  'comps.simDesc': '16 fake players · full season · live table',
+  'comps.simCta': 'Open simulation',
   'comps.closes': 'closes {date}',
 
   'detail.back': '← Competitions',
@@ -339,8 +342,6 @@ const en = {
   'profile.titleNone': 'No title tag',
   'profile.rateSubmit': 'Submit rating',
   'profile.rateAvg3': '{a}/{b}/{c} avg · {n} votes',
-  'profile.lastSeen': 'Last seen {when}',
-  'profile.neverSeen': 'not seen yet',
   'profile.bannerCustom': 'Custom banner color',
   'profile.bannerDefault': 'Default',
   'profile.eyedropper': 'Pick color from screen',
@@ -358,11 +359,6 @@ const en = {
   'onboard.needTag': 'Tag must include VIK (e.g. VIK Pride).',
   'onboard.needPhone': 'Enter a valid WhatsApp number.',
   'onboard.tagTaken': 'That warrior tag is already taken — choose another.',
-
-  'presence.available': 'Available',
-  'presence.away': 'Away',
-  'presence.busy': 'Busy',
-  'presence.offline': 'Offline',
 
   'dir.org': 'VIK Clan',
   'dir.title': 'Member Directory',
@@ -853,6 +849,9 @@ const fr: Dict = {
   'comps.loading': 'Chargement des compétitions…',
   'comps.loadError': 'Impossible de charger les compétitions.',
   'comps.empty': 'Aucune compétition active. Revenez à l’ouverture de la prochaine.',
+  'comps.simTitle': 'Essayer le simulateur',
+  'comps.simDesc': '16 joueurs fictifs · saison complète · tableau en direct',
+  'comps.simCta': 'Ouvrir la simulation',
   'comps.closes': 'clôture le {date}',
 
   'detail.back': '← Compétitions',
@@ -1106,8 +1105,6 @@ const fr: Dict = {
   'profile.titleNone': 'Sans titre',
   'profile.rateSubmit': 'Envoyer la note',
   'profile.rateAvg3': 'moy. {a}/{b}/{c} · {n} votes',
-  'profile.lastSeen': 'Vu {when}',
-  'profile.neverSeen': 'jamais vu',
   'profile.bannerCustom': 'Couleur de bannière personnalisée',
   'profile.bannerDefault': 'Défaut',
   'profile.eyedropper': 'Pipette : choisir à l’écran',
@@ -1125,11 +1122,6 @@ const fr: Dict = {
   'onboard.needTag': 'Le tag doit contenir VIK (ex. VIK Pride).',
   'onboard.needPhone': 'Entre un numéro WhatsApp valide.',
   'onboard.tagTaken': 'Ce tag de guerrier est déjà pris — choisis-en un autre.',
-
-  'presence.available': 'Disponible',
-  'presence.away': 'Absent',
-  'presence.busy': 'Occupé',
-  'presence.offline': 'Hors ligne',
 
   'dir.org': 'VIK Clan',
   'dir.title': 'Annuaire des membres',
@@ -1618,6 +1610,9 @@ const ar: Dict = {
   'comps.loading': 'جارٍ تحميل البطولات…',
   'comps.loadError': 'تعذّر تحميل البطولات.',
   'comps.empty': 'لا بطولات نشطة. عُد عند فتح البطولة القادمة.',
+  'comps.simTitle': 'جرّب محاكي الدوري',
+  'comps.simDesc': '١٦ لاعبًا وهميًا · موسم كامل · جدول مباشر',
+  'comps.simCta': 'افتح المحاكاة',
   'comps.closes': 'يُغلق {date}',
 
   'detail.back': '← البطولات',
@@ -1871,8 +1866,6 @@ const ar: Dict = {
   'profile.titleNone': 'بلا لقب',
   'profile.rateSubmit': 'إرسال التقييم',
   'profile.rateAvg3': 'متوسط {a}/{b}/{c} · {n} أصوات',
-  'profile.lastSeen': 'آخر ظهور {when}',
-  'profile.neverSeen': 'لم يظهر بعد',
   'profile.bannerCustom': 'لون بانر مخصص',
   'profile.bannerDefault': 'افتراضي',
   'profile.eyedropper': 'التقاط لون من الشاشة',
@@ -1890,11 +1883,6 @@ const ar: Dict = {
   'onboard.needTag': 'يجب أن يتضمن الوسم VIK (مثل VIK Pride).',
   'onboard.needPhone': 'أدخل رقم واتساب صالحًا.',
   'onboard.tagTaken': 'وسم المحارب هذا مأخوذ — اختر وسمًا آخر.',
-
-  'presence.available': 'متاح',
-  'presence.away': 'غائب',
-  'presence.busy': 'مشغول',
-  'presence.offline': 'غير متصل',
 
   'dir.org': 'VIK Clan',
   'dir.title': 'دليل الأعضاء',

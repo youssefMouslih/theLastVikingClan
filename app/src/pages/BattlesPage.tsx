@@ -8,6 +8,7 @@ import CopyButton from '../components/ui/CopyButton';
 import { usePersistentTab } from '../hooks/usePersistentTab';
 import { Lightbox } from '../components/ui/Motion';
 import Icon from '../components/ui/Icon';
+import WhatsAppIcon from '../components/ui/WhatsAppIcon';
 import { EmptyState, FadeIn } from '../components/ui/Motion';
 import SquadsTab from '../components/battle/SquadsTab';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -256,13 +257,13 @@ export default function BattlesPage() {
               rel="noreferrer"
               className="flex h-10 items-center justify-center gap-1 rounded-xl bg-[#25d366] px-3 text-xs font-bold text-white"
             >
-              <Icon name="chat" className="h-4 w-4" /> WhatsApp
+              <WhatsAppIcon className="h-5 w-5" /> WhatsApp
             </a>
           )}
           {ch.status === 'RESULT_SUBMITTED' && iSubmit && (
             <p className="text-xs opacity-70">{t('match.submitted')}</p>
           )}
-          {(ch.status === 'PENDING' || ch.status === 'ACCEPTED') && !isIn && (
+          {(ch.status === 'PENDING' || ch.status === 'ACCEPTED') && (!isIn || ch.type === 'FRIENDLY') && (
             <button disabled={busy} onClick={() => { if (confirm(t('battle.cancel') + '?')) run(() => cancelChallenge(ch, me!.id), t('battle.cancelled')); }} className="btn-ghost h-9 px-3 text-xs">{t('battle.cancel')}</button>
           )}
           {!isIn && (
