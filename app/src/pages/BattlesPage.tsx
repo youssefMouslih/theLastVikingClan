@@ -450,7 +450,12 @@ export default function BattlesPage() {
       {tab === 'commands' && (
         <div className="mt-3 flex flex-col gap-2">
           <label className="label">{t('battle.cmdName')}
-            <input value={rivalName} onChange={(e) => setRivalName(e.target.value)} className="input text-sm" placeholder="…" />
+            <input value={rivalName} onChange={(e) => setRivalName(e.target.value)} className="input text-sm" placeholder="…" list="vik-rivals" autoComplete="off" />
+            <datalist id="vik-rivals">
+              {candidates.map((m) => (
+                <option key={m.id} value={m.known_name ?? m.display_name ?? m.username} />
+              ))}
+            </datalist>
           </label>
           {COMMANDS.map((c) => (
             <article key={c.title} className="card p-3 text-sm">
