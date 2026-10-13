@@ -134,6 +134,31 @@ const PATHS: Record<string, React.ReactNode> = {
       <circle cx="16" cy="17" r="2" fill="var(--surface)" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </>
+  ),
+  bookmark: <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z" />,
+  volume: (
+    <>
+      <path d="M4 10v4h3l4 3.5v-11L7 10Z" />
+      <path d="M15 9.5a4 4 0 0 1 0 5M17.5 7.5a7 7 0 0 1 0 9" />
+    </>
+  ),
+  volumeX: (
+    <>
+      <path d="M4 10v4h3l4 3.5v-11L7 10Z" />
+      <path d="m16 10 5 5M21 10l-5 5" />
+    </>
+  ),
+  crown: (
+    <>
+      <path d="m4 18 1.5-9L9 12l3-7 3 7 3.5-3L20 18Z" />
+      <path d="M5 20.5h14" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

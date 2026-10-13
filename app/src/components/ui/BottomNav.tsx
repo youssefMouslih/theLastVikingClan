@@ -49,7 +49,7 @@ export default function BottomNav() {
             <NavLink
               key={tab.to}
               to={tab.to}
-              className={({ isActive }) =>
+              className={({ isActive }: { isActive: boolean }) =>
                 `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-semibold ${isActive ? 'text-brand-400' : 'opacity-60'}`
               }
             >

@@ -65,6 +65,17 @@ export default function CompetitionsPage() {
       </form>
       {joinError && <p role="alert" className="mt-1 text-sm text-red-500">{joinError}</p>}
 
+      <Link to="/sim" className="card mt-3 flex items-center gap-3 border-brand-500/50 p-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/15">
+          <span className="font-display text-lg text-brand-300">16</span>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-brand-300">{t('comps.simTitle')}</span>
+          <span className="block truncate text-xs opacity-60">{t('comps.simDesc')}</span>
+        </span>
+        <span className="btn-primary h-10 shrink-0 px-4 text-sm">{t('comps.simCta')}</span>
+      </Link>
+
       <div className="mt-3 flex flex-col gap-2">
         {query.isLoading && <p className="text-sm">{t('comps.loading')}</p>}
         {query.isError && <p className="text-sm text-red-500">{t('comps.loadError')}</p>}

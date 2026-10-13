@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="eFootball">
+  <rect x="4" y="4" width="248" height="248" rx="56" fill="#0a0a0a"/>
+  <circle cx="128" cy="128" r="102" fill="#ffe600"/>
+  <rect x="20" y="96" width="216" height="14" fill="#0a0a0a"/>
+  <rect x="20" y="140" width="216" height="14" fill="#0a0a0a"/>
+  <rect x="184" y="92" width="72" height="72" fill="#0a0a0a"/>
+  <rect x="184" y="110" width="22" height="30" fill="#ffe600"/>
+</svg>

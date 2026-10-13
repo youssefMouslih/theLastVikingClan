@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
+import WhatsAppIcon from '../components/ui/WhatsAppIcon';
+import { LoadingRegion } from '../components/ui/Motion';
 import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { getMember } from '../services/playerService';
@@ -35,7 +37,7 @@ export default function PlayerPage() {
     }
   }, [ratingQuery.data, prefilled]);
 
-  if (query.isLoading) return <main className="page text-sm">{t('player.loading')}</main>;
+  if (query.isLoading) return <main className="page"><LoadingRegion loading label={t('player.loading')} skeleton="card"><span /></LoadingRegion></main>;
   const m = query.data;
   if (!m) return <main className="page text-sm">{t('player.notFound')}</main>;
   const r = ratingQuery.data;
@@ -78,7 +80,7 @@ export default function PlayerPage() {
           rel="noreferrer"
           className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25d366] text-base font-bold text-white"
         >
-          <Icon name="chat" className="h-5 w-5" /> WhatsApp
+          <WhatsAppIcon className="h-6 w-6" /> WhatsApp
         </a>
       )}
       {!isSelf && me && (

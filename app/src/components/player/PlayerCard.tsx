@@ -27,6 +27,7 @@ export default function PlayerCard({
 }) {
   const { t } = useLocale();
   const [shared, setShared] = useState(false);
+  const mainName = member.known_name ?? member.efootball_name ?? member.display_name ?? member.username;
   const avatarQuery = useQuery({
     queryKey: ['avatar', member.id, member.avatar_url],
     queryFn: () => getAvatarUrl(member.avatar_url),
@@ -113,12 +114,16 @@ export default function PlayerCard({
                 <Icon name="camera" className="h-6 w-6 text-white" />
               </span>
             </button>
-          ) : avatar ? (
-            <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
           ) : (
-            <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
-              {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
-            </div>
+            <span className="relative block rounded-full">
+              {avatar ? (
+                <img src={avatar} alt="" className="h-16 w-16 rounded-full border-2 border-white/70 object-cover" />
+              ) : (
+                <div aria-hidden className="font-display flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/70 bg-zinc-800 text-2xl">
+                  {(member.display_name ?? member.username).slice(0, 1).toUpperCase()}
+                </div>
+              )}
+            </span>
           )}
         </div>
         {action && <div className="absolute bottom-2 end-3">{action}</div>}
@@ -127,7 +132,7 @@ export default function PlayerCard({
       <div className="p-4 pt-9">
         {/* Game-name bar: warrior name, game name, real name */}
         <div className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-2.5">
-          <span className="font-display truncate text-lg tracking-wide">{member.known_name ?? member.efootball_name ?? member.display_name ?? member.username}</span>
+          <span className="font-display truncate text-lg tracking-wide">{mainName}</span>
           <button type="button" onClick={share} className="flex items-center gap-1 text-xs opacity-70 underline">
             {shared ? t('common.copied') : t('profile.share')}
           </button>
@@ -137,7 +142,7 @@ export default function PlayerCard({
             <span>{member.display_name}</span>
           )}
           {member.efootball_name && member.efootball_name !== member.known_name && (
-            <span>• ⚽ {member.efootball_name}</span>
+            <span className="inline-flex items-center gap-1">• <img src="/efootball.svg" alt="eFootball" className="h-4 w-4 rounded-[4px]" /> {member.efootball_name}</span>
           )}
           {(() => {
             const c = parseCountry(member.country);
@@ -246,7 +251,7 @@ export default function PlayerCard({
   );
 }
 
-function socialLink(kind: 'instagram' | 'tiktok' | 'kick', value: string | null): string | null {
+export function socialLink(kind: 'instagram' | 'tiktok' | 'kick', value: string | null): string | null {
   if (!value?.trim()) return null;
   const v = value.trim().replace(/^@/, '');
   if (/^https?:\/\//i.test(v)) return v;
