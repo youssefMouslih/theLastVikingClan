@@ -17,7 +17,7 @@ export default function ClanPage() {
   const me = useAuthStore((s) => s.profile);
   const canEdit = me?.role === 'OWNER' || me?.role === 'ADMIN';
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', tag: '', description: '', rules: '' });
+  const [form, setForm] = useState({ name: '', tag: '', description: '', rules: '', quest_names: 'classic' as 'classic' | 'norse' });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -38,6 +38,7 @@ export default function ClanPage() {
       tag: clan?.tag ?? '',
       description: clan?.description ?? '',
       rules: clan?.rules ?? '',
+      quest_names: clan?.quest_names ?? 'classic',
     });
     setSaveError(null);
     setEditing(true);
@@ -47,7 +48,7 @@ export default function ClanPage() {
     e.preventDefault();
     setSaving(true); setSaveError(null);
     try {
-      await updateClanSettings({ name: form.name.trim() || 'VIK', tag: form.tag.trim() || null, description: form.description || null, rules: form.rules || null });
+      await updateClanSettings({ name: form.name.trim() || 'VIK', tag: form.tag.trim() || null, description: form.description || null, rules: form.rules || null, quest_names: form.quest_names });
       await clanQuery.refetch();
       setEditing(false);
     } catch (err) {
@@ -90,6 +91,12 @@ export default function ClanPage() {
           <label className="label">{t('clan.tag')}<input className="input" value={form.tag} onChange={(e) => setForm({ ...form, tag: e.target.value })} placeholder="VIK" /></label>
           <label className="label">{t('clan.description')}<textarea className="input h-auto py-2" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
           <label className="label">{t('clan.rules')}<textarea className="input h-auto py-2" rows={4} value={form.rules} onChange={(e) => setForm({ ...form, rules: e.target.value })} placeholder={t('clan.rulesPlaceholder')} /></label>
+          <label className="label">{t('clan.questNames')}
+            <select value={form.quest_names} onChange={(e) => setForm({ ...form, quest_names: e.target.value as 'classic' | 'norse' })} className="input">
+              <option value="classic">{t('clan.questClassic')}</option>
+              <option value="norse">{t('clan.questNorse')}</option>
+            </select>
+          </label>
           {saveError && <p role="alert" className="text-sm text-red-500">{saveError}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary h-11 flex-1">{saving ? t('clan.saving') : t('clan.save')}</button>

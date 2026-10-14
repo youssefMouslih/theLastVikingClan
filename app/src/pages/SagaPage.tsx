@@ -9,6 +9,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import Icon from '../components/ui/Icon';
 import { useLocale } from '../i18n/LocaleContext';
 import { claimQuest, getSeasonBoard, getTotalXP, levelFor, QUESTS, questProgress, answerGift, listIncomingGifts, listOutgoingGifts, type QuestDef } from '../services/sagaService';
+import { getClanSettings } from '../services/clanService';
 import { useAuthStore } from '../stores/authStore';
 
 // Saga: Glory levels, quest board, seasonal leaderboard.
@@ -24,6 +25,8 @@ export default function SagaPage() {
   const boardQuery = useQuery({ queryKey: ['season-board'], queryFn: () => getSeasonBoard() });
   const giftsInQuery = useQuery({ queryKey: ['gifts-in', me?.id], queryFn: () => listIncomingGifts(me!.id), enabled: !!me });
   const giftsOutQuery = useQuery({ queryKey: ['gifts-out', me?.id], queryFn: () => listOutgoingGifts(me!.id), enabled: !!me });
+  const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
+  const norse = (clanQuery.data?.quest_names ?? 'classic') === 'norse';
   const xp = xpQuery.data ?? 0;
   const { level, next, progress } = levelFor(xp);
 
@@ -56,7 +59,19 @@ export default function SagaPage() {
 
       {tab === 'quests' && (
         <div className="mt-3 flex flex-col gap-2">
-          {QUESTS.map((q, i) => <FadeIn key={q.key} delay={Math.min(i * 60, 300)}><QuestRow quest={q} userId={me!.id} busyKey={busyKey} setBusyKey={setBusyKey} setMsg={setMsg} /></FadeIn>)}
+          {QUESTS.map((q, i) => <FadeIn key={q.key} delay={Math.min(i * 60, 300)}><QuestRow quest={q} userId={me!.id} busyKey={busyKey} setBusyKey={setBusyKey} setMsg={setMsg} norse={norse} /></FadeIn>)}
+          {norse && (
+            <>
+              <button
+                type="button"
+                onClick={() => document.getElementById('war-words')?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}
+                className="h-11 text-sm font-semibold text-brand-400 underline"
+              >
+                {t('saga.wordsLink')}
+              </button>
+              <WarWords />
+            </>
+          )}
         </div>
       )}
 
@@ -142,12 +157,43 @@ export default function SagaPage() {
   );
 }
 
-function QuestRow({ quest, userId, busyKey, setBusyKey, setMsg }: {
+// War-words glossary: every Old Norse term used in the app, with its meaning
+// in the player's own language (norse.* keys follow the selected locale).
+const QUEST_WORDS = ['berserksgangr', 'viking', 'strandhogg', 'felag', 'drengskapr', 'holmganga'] as const;
+const MORE_WORDS = ['utlagr', 'mansongr', 'hersir', 'vikingaferd', 'skjaldborg', 'blodorn'] as const;
+
+function WarWords() {
+  const { t } = useLocale();
+  const group = (titleKey: 'saga.wordsQuests' | 'saga.wordsMore', words: readonly string[]) => (
+    <>
+      <h3 className="card-title mt-2">{t(titleKey)}</h3>
+      <dl className="mt-1 flex flex-col">
+        {words.map((w) => (
+          <div key={w} className="border-b border-[var(--border)] py-1.5 last:border-0">
+            <dt className="font-display text-sm tracking-wide text-brand-300">{t(`norse.${w}` as 'norse.viking')}</dt>
+            <dd className="text-xs opacity-75">{t(`norse.${w}D` as 'norse.vikingD')}</dd>
+          </div>
+        ))}
+      </dl>
+    </>
+  );
+  return (
+    <section id="war-words" aria-label={t('saga.wordsTitle')} className="card mt-1 scroll-mt-24 p-4">
+      <h2 className="font-display text-base tracking-wide">{t('saga.wordsTitle')}</h2>
+      <p className="mt-0.5 text-xs opacity-70">{t('saga.wordsHint')}</p>
+      {group('saga.wordsQuests', QUEST_WORDS)}
+      {group('saga.wordsMore', MORE_WORDS)}
+    </section>
+  );
+}
+
+function QuestRow({ quest, userId, busyKey, setBusyKey, setMsg, norse }: {
   quest: QuestDef;
   userId: string;
   busyKey: string | null;
   setBusyKey: (k: string | null) => void;
   setMsg: (m: string | null) => void;
+  norse: boolean;
 }) {
   const { t } = useLocale();
   const query = useQuery({ queryKey: ['quest', userId, quest.key], queryFn: () => questProgress(userId, quest) });
@@ -170,7 +216,7 @@ function QuestRow({ quest, userId, busyKey, setBusyKey, setMsg }: {
     <article className="card p-3 text-sm">
       <div className="flex items-center gap-2">
         <div className="flex-1">
-          <p className="font-bold">{t(quest.titleKey)}</p>
+          <p className="font-bold">{t(norse ? quest.norseKey : quest.titleKey)}</p>
           <p className="text-xs opacity-70">{t(quest.descKey)}</p>
         </div>
         <span className="font-display flex items-center gap-1 text-accent-400"><CoinImg className="h-4 w-4" />+{quest.xp}</span>

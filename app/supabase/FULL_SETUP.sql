@@ -1,4 +1,4 @@
--- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0025).
+-- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0026).
 -- Paste the whole file into Supabase SQL editor and Run.
 -- Safe to re-run: every statement is IF NOT EXISTS / DROP IF EXISTS / OR REPLACE.
 -- If you already ran an older FULL_SETUP.sql, just run the newer 00NN_*.sql
@@ -46,6 +46,7 @@ create table if not exists public.clan_settings (
   rules text,
   country text,
   timezone text not null default 'Africa/Casablanca',
+  quest_names text not null default 'classic' check (quest_names in ('classic', 'norse')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -816,3 +817,12 @@ alter table public.achievements
 
 alter table public.matches
   add column if not exists forfeit_claimed_by uuid references public.profiles(id) on delete set null;
+
+
+-- ========== 0026_quest_names.sql ==========
+-- VIK Clan migration 0026: admin-switchable quest names.
+-- Run AFTER 0025. Classic titles by default; Norse war words when chosen.
+
+alter table public.clan_settings
+  add column if not exists quest_names text not null default 'classic'
+  check (quest_names in ('classic', 'norse'));

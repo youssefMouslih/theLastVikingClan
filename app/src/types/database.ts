@@ -68,6 +68,7 @@ export interface ClanSettings {
   rules: string | null;
   country: string | null;
   timezone: string; // e.g. Africa/Casablanca
+  quest_names: 'classic' | 'norse';
   created_at: string;
   updated_at: string;
 }

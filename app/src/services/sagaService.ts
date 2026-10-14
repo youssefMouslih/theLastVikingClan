@@ -93,17 +93,18 @@ export interface QuestDef {
   kind: 'daily' | 'weekly';
   xp: number;
   titleKey: 'saga.qBlood' | 'saga.qWanderer' | 'saga.qCaller' | 'saga.qSquire' | 'saga.qVeteran' | 'saga.qRival';
+  norseKey: 'saga.qBloodNorse' | 'saga.qWandererNorse' | 'saga.qCallerNorse' | 'saga.qSquireNorse' | 'saga.qVeteranNorse' | 'saga.qRivalNorse';
   descKey: 'saga.qBloodD' | 'saga.qWandererD' | 'saga.qCallerD' | 'saga.qSquireD' | 'saga.qVeteranD' | 'saga.qRivalD';
   target: number;
 }
 
 export const QUESTS: QuestDef[] = [
-  { key: 'first-blood', kind: 'daily', xp: 30, titleKey: 'saga.qBlood', descKey: 'saga.qBloodD', target: 1 },
-  { key: 'wanderer', kind: 'daily', xp: 60, titleKey: 'saga.qWanderer', descKey: 'saga.qWandererD', target: 2 },
-  { key: 'caller', kind: 'daily', xp: 15, titleKey: 'saga.qCaller', descKey: 'saga.qCallerD', target: 1 },
-  { key: 'squire', kind: 'daily', xp: 20, titleKey: 'saga.qSquire', descKey: 'saga.qSquireD', target: 1 },
-  { key: 'veteran', kind: 'weekly', xp: 80, titleKey: 'saga.qVeteran', descKey: 'saga.qVeteranD', target: 3 },
-  { key: 'rival', kind: 'weekly', xp: 50, titleKey: 'saga.qRival', descKey: 'saga.qRivalD', target: 1 },
+  { key: 'first-blood', kind: 'daily', xp: 30, titleKey: 'saga.qBlood', norseKey: 'saga.qBloodNorse', descKey: 'saga.qBloodD', target: 1 },
+  { key: 'wanderer', kind: 'daily', xp: 60, titleKey: 'saga.qWanderer', norseKey: 'saga.qWandererNorse', descKey: 'saga.qWandererD', target: 2 },
+  { key: 'caller', kind: 'daily', xp: 15, titleKey: 'saga.qCaller', norseKey: 'saga.qCallerNorse', descKey: 'saga.qCallerD', target: 1 },
+  { key: 'squire', kind: 'daily', xp: 20, titleKey: 'saga.qSquire', norseKey: 'saga.qSquireNorse', descKey: 'saga.qSquireD', target: 1 },
+  { key: 'veteran', kind: 'weekly', xp: 80, titleKey: 'saga.qVeteran', norseKey: 'saga.qVeteranNorse', descKey: 'saga.qVeteranD', target: 3 },
+  { key: 'rival', kind: 'weekly', xp: 50, titleKey: 'saga.qRival', norseKey: 'saga.qRivalNorse', descKey: 'saga.qRivalD', target: 1 },
 ];
 
 function dayStart(): number {
