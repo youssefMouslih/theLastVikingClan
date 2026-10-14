@@ -62,4 +62,12 @@ function humanDbError(msg: string): string {
   return msg;
 }
 
-export const authService = { signIn, signOut, resetPassword, signUpWithInvite, fetchProfile, client: supabase };
+export async function updatePassword(email: string, currentPassword: string, newPassword: string) {
+  // Re-authenticate first: proves the requester knows the current password.
+  const { error: signErr } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+  if (signErr) throw new Error(mapAuthError(signErr.message));
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(mapAuthError(error.message));
+}
+
+export const authService = { signIn, signOut, resetPassword, updatePassword, signUpWithInvite, fetchProfile, client: supabase };

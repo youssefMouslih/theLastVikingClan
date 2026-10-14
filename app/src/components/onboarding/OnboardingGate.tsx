@@ -85,7 +85,7 @@ export default function OnboardingGate() {
             <span className="text-xs font-normal opacity-60">{t('onboard.tagHint')}</span>
           </label>
           <label className="label">{t('profile.whatsapp')}
-            <input type="tel" className="input h-12 text-base" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+212600000000" dir="ltr" autoComplete="tel" />
+            <input type="tel" inputMode="tel" className="input h-12 text-base" required value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, '').slice(0, 18))} placeholder="+212600000000" dir="ltr" autoComplete="tel" />
           </label>
         </div>
         {error && <p role="alert" className="mt-2 text-sm font-medium text-red-500">{error}</p>}

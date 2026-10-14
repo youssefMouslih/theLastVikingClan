@@ -36,6 +36,18 @@ export async function issueChallenge(input: IssueChallengeInput, challengerId: s
     const balance = await getTotalXP(challengerId).catch(() => 0);
     if (balance < 100) throw new Error('Unrefusable calls require holding 100 GP.');
   }
+  if (input.for_throne) {
+    // One active throne pledge per challenger — no stacking duplicate claims.
+    const { data: dupes, error: dErr } = await supabase
+      .from('challenges')
+      .select('id')
+      .eq('challenger_id', challengerId)
+      .eq('for_throne', true)
+      .in('status', ['PENDING', 'ACCEPTED', 'RESULT_SUBMITTED'])
+      .limit(1);
+    if (dErr) throw new Error(dErr.message);
+    if (dupes && dupes.length > 0) throw new Error('You already have an active throne challenge — resolve it first.');
+  }
   const { data, error } = await supabase
     .from('challenges')
     .insert({

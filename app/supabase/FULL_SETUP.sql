@@ -826,3 +826,190 @@ alter table public.matches
 alter table public.clan_settings
   add column if not exists quest_names text not null default 'classic'
   check (quest_names in ('classic', 'norse'));
+
+
+-- ========== 0027_registration_open.sql ==========
+-- VIK Clan migration 0027: admin-controlled platform access (signup toggle).
+-- Run AFTER 0026. Adds a single registration_open flag on clan_settings so
+-- admins can show or hide the Create account button on the login screen.
+-- The login page (logged out) must read this flag: open a minimal anon
+-- SELECT on clan_settings (single public row; writes stay owner/admin-only).
+
+alter table public.clan_settings
+  add column if not exists registration_open boolean not null default true;
+
+drop policy if exists "anon read clan settings" on public.clan_settings;
+create policy "anon read clan settings"
+  on public.clan_settings for select to anon using (true);
+
+
+-- ========== 0028_clan_assets_policies.sql ==========
+-- VIK Clan migration 0028: storage policies for clan-assets (badge forge).
+-- Run AFTER 0027. The clan-assets bucket (banners, forged honour badges)
+-- had no storage.objects policies, so badge uploads failed with
+-- "new row violates row-level security policy".
+-- Members read; OWNER/ADMIN manage (badge forge is Admin → Honours).
+
+-- Helper (also defined in 0001; repeated here so this file works even if
+-- 0001 was skipped or partially applied — CREATE OR REPLACE is idempotent).
+create or replace function public.is_clan_role(required text[])
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = any(required) and p.status = 'ACTIVE'
+  );
+$$;
+
+do $$ begin
+  create policy "members read clan assets" on storage.objects for select to authenticated using (bucket_id = 'clan-assets');
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create policy "admins manage clan assets" on storage.objects for all to authenticated using (bucket_id = 'clan-assets' and public.is_clan_role(array['OWNER','ADMIN'])) with check (bucket_id = 'clan-assets');
+exception when duplicate_object then null; end $$;
+
+
+-- ========== 0029_tryout_requests.sql ==========
+-- VIK Clan migration 0029: tryout requests (ask to join the clan).
+-- Run AFTER 0028. Logged-out visitors submit a tryout request from the
+-- login page (name + WhatsApp + optional note). Anyone may insert ONLY a
+-- fresh PENDING request; OWNER/ADMIN read and resolve (accept/decline).
+
+create table if not exists public.tryout_requests (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  contact text not null,
+  note text,
+  status text not null default 'PENDING' check (status in ('PENDING', 'ACCEPTED', 'DECLINED')),
+  admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.tryout_requests enable row level security;
+
+drop policy if exists "anon submit tryout" on public.tryout_requests;
+create policy "anon submit tryout"
+  on public.tryout_requests for insert to anon
+  with check (status = 'PENDING' and char_length(name) > 0 and char_length(contact) > 0);
+
+drop policy if exists "admins manage tryouts" on public.tryout_requests;
+create policy "admins manage tryouts"
+  on public.tryout_requests for all to authenticated
+  using (public.is_clan_role(array['OWNER', 'ADMIN']))
+  with check (public.is_clan_role(array['OWNER', 'ADMIN']));
+
+create index if not exists tryout_requests_status_created
+  on public.tryout_requests (status, created_at desc);
+
+
+-- ========== 0030_tryout_notify.sql ==========
+-- VIK Clan migration 0030: notify admins on new tryout requests.
+-- Run AFTER 0029. A trigger fans every tryout insert out to all ACTIVE
+-- OWNER/ADMIN profiles as in-app notifications (bell + notification center).
+-- Server-side by design: logged-out submitters can't reach admin inboxes
+-- themselves. The insert is exception-guarded so a notification failure can
+-- never break the tryout submission itself.
+
+create or replace function public.notify_admins_tryout()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.notifications (user_id, type, title, message, entity_type, entity_id)
+  select p.id, 'TRYOUT_REQUEST', 'New tryout request',
+    NEW.name || ' wants to join — review in Admin → Tryouts.',
+    'tryout', NEW.id
+  from public.profiles p
+  where p.role in ('OWNER', 'ADMIN') and p.status = 'ACTIVE';
+  return NEW;
+exception when others then
+  return NEW;
+end $$;
+
+drop trigger if exists tryout_notify_admins on public.tryout_requests;
+create trigger tryout_notify_admins
+  after insert on public.tryout_requests
+  for each row execute function public.notify_admins_tryout();
+
+
+-- ========== 0031_tryout_verdict.sql ==========
+-- VIK Clan migration 0031: tester assignment + verdict on tryout requests.
+-- Run AFTER 0030. An admin assigns a clan member as tester; the tester plays
+-- the trial match and reports PASS/FAIL with the score. Trust model matches
+-- the rest of the app (client-scoped writes, everything visible to admins).
+
+alter table public.tryout_requests
+  add column if not exists assigned_tester_id uuid references public.profiles(id) on delete set null,
+  add column if not exists verdict text check (verdict is null or verdict in ('PASS', 'FAIL')),
+  add column if not exists verdict_score_a smallint,
+  add column if not exists verdict_score_b smallint,
+  add column if not exists verdict_note text,
+  add column if not exists verdict_at timestamptz;
+
+-- Assigned tester reads only their own tasks.
+drop policy if exists "tester reads tasks" on public.tryout_requests;
+create policy "tester reads tasks"
+  on public.tryout_requests for select to authenticated
+  using (assigned_tester_id = auth.uid());
+
+-- Assigned tester reports the verdict on their own tasks.
+drop policy if exists "tester reports verdict" on public.tryout_requests;
+create policy "tester reports verdict"
+  on public.tryout_requests for update to authenticated
+  using (assigned_tester_id = auth.uid())
+  with check (assigned_tester_id = auth.uid());
+
+create index if not exists tryout_requests_tester
+  on public.tryout_requests (assigned_tester_id) where status = 'PENDING';
+
+-- Notify the tester the moment they are assigned.
+create or replace function public.notify_tester_assigned()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.notifications (user_id, type, title, message, entity_type, entity_id)
+  values (NEW.assigned_tester_id, 'TRYOUT_REQUEST', 'Tester task',
+    NEW.name || ' awaits your trial match — report the verdict.',
+    'tryout', NEW.id);
+  return NEW;
+exception when others then
+  return NEW;
+end $$;
+
+drop trigger if exists tryout_notify_tester on public.tryout_requests;
+create trigger tryout_notify_tester
+  after update of assigned_tester_id on public.tryout_requests
+  for each row
+  when (NEW.assigned_tester_id is not null and OLD.assigned_tester_id is distinct from NEW.assigned_tester_id)
+  execute function public.notify_tester_assigned();
+
+-- Notify admins the moment a verdict lands.
+create or replace function public.notify_verdict_submitted()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.notifications (user_id, type, title, message, entity_type, entity_id)
+  select p.id, 'TRYOUT_REQUEST', 'Trial verdict in',
+    NEW.name || ': ' || NEW.verdict ||
+    coalesce(' ' || NEW.verdict_score_a || '-' || NEW.verdict_score_b, '') || ' — review in Admin → Tryouts.',
+    'tryout', NEW.id
+  from public.profiles p
+  where p.role in ('OWNER', 'ADMIN') and p.status = 'ACTIVE';
+  return NEW;
+exception when others then
+  return NEW;
+end $$;
+
+drop trigger if exists tryout_notify_verdict on public.tryout_requests;
+create trigger tryout_notify_verdict
+  after update of verdict on public.tryout_requests
+  for each row
+  when (NEW.verdict is not null and OLD.verdict is distinct from NEW.verdict)
+  execute function public.notify_verdict_submitted();
+
+
+-- ========== 0032_tryout_email.sql ==========
+-- VIK Clan migration 0032: email on tryout requests (auto-provisioning).
+-- Run AFTER 0031. The tryout form mirrors signup (name + email + WhatsApp)
+-- so an accepted candidate's account can be created directly — no password
+-- is ever collected or stored; the candidate sets it via Supabase invite email.
+-- The existing anon-insert policy already permits the new nullable column.
+
+alter table public.tryout_requests
+  add column if not exists email text;

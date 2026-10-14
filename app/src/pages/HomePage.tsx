@@ -14,6 +14,7 @@ import { listCompetitions } from '../services/competitionService';
 import { listMyUpcoming, recentConfirmedResults } from '../services/matchService';
 import { listIncoming } from '../services/challengeService';
 import { listIncomingGifts } from '../services/sagaService';
+import TesterTasks from '../components/tryouts/TesterTasks';
 import { listNotifications } from '../services/notificationService';
 import { listActiveMembers } from '../services/playerService';
 import { getCurrentReign, getReignHistory } from '../services/throneService';
@@ -77,6 +78,8 @@ export default function HomePage() {
         </section>
       )}
 
+      <TesterTasks />
+
       <section aria-label={t('home.nextMatch')} className="hero hero-glow mt-4">
         <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider opacity-70"><Icon name="swords" className="h-4 w-4" /> {t('home.nextMatch')}</h2>
         {upcomingQuery.isLoading ? (
@@ -113,16 +116,18 @@ export default function HomePage() {
         {throneQuery.data?.holder ? (
           <div className="mt-2">
             <div className="flex items-center gap-3">
-              <Avatar path={throneQuery.data.holder.avatar_url} name={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username} className="h-12 w-12 text-lg" />
-              <div className="flex-1">
-                <p className="font-display text-lg leading-tight">{throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}</p>
-                <p className="text-xs opacity-70">
-                  {t('throne.reignSince', { date: fmtDate(throneQuery.data.started_at, false) })} • {t('throne.defenses', { n: throneQuery.data.defenses })}
-                </p>
-              </div>
+              <Link to={`/players/${throneQuery.data.holder_id}`} className="flex min-w-0 flex-1 items-center gap-3" aria-label={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}>
+                <Avatar path={throneQuery.data.holder.avatar_url} name={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username} className="h-12 w-12 text-lg" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-display truncate text-lg leading-tight underline decoration-brand-500/60 underline-offset-2">{throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}</p>
+                  <p className="text-xs opacity-70">
+                    {t('throne.reignSince', { date: fmtDate(throneQuery.data.started_at, false) })} • {t('throne.defenses', { n: throneQuery.data.defenses })}
+                  </p>
+                </div>
+              </Link>
             </div>
             {throneQuery.data.holder_id !== me?.id && (
-              <Link to={`/battles?opponent=${throneQuery.data.holder_id}`} className="btn-cta mt-2 w-full text-sm">
+              <Link to={`/battles?opponent=${throneQuery.data.holder_id}&throne=1`} className="btn-cta mt-2 w-full text-sm">
                 {t('throne.challenge')}
               </Link>
             )}

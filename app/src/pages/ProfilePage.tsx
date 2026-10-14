@@ -6,6 +6,7 @@ import Icon from '../components/ui/Icon';
 import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { isKnownNameTaken, updateOwnProfile } from '../services/playerService';
+import { updatePassword } from '../services/authService';
 import { getPlayerCareer } from '../services/statisticsService';
 import { COUNTRIES, parseCountry } from '../utils/countries';
 import { deleteStoredFile, uploadAvatar, uploadBanner } from '../services/storageService';
@@ -41,6 +42,30 @@ export default function ProfilePage() {
   const avatarInput = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pw0, setPw0] = useState('');
+  const [pw1, setPw1] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [pwBusy, setPwBusy] = useState(false);
+
+  async function changePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwMsg(null);
+    if (!me?.email) { setPwMsg('Failed.'); return; }
+    if (pw1.length < 6) { setPwMsg(t('profile.passwordShort')); return; }
+    if (pw1 !== pw2) { setPwMsg(t('profile.passwordMismatch')); return; }
+    setPwBusy(true);
+    try {
+      await updatePassword(me.email, pw0, pw1);
+      setPw0(''); setPw1(''); setPw2(''); setPwOpen(false);
+      setPwMsg(t('profile.passwordChanged'));
+    } catch (err) {
+      setPwMsg(err instanceof Error ? err.message : 'Failed.');
+    } finally {
+      setPwBusy(false);
+    }
+  }
   const { toast } = useToast();
   const eyeDropperSupported = typeof window !== 'undefined' && !!(window as WindowWithEyeDropper).EyeDropper;
   const careerQuery = useQuery({ queryKey: ['career', me?.id], queryFn: () => getPlayerCareer(me!.id), enabled: !!me });
@@ -226,7 +251,7 @@ export default function ProfilePage() {
               <label className="label">{t('profile.instagram')}<input className="input" value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} placeholder="@handle" dir="ltr" /></label>
               <label className="label">{t('profile.tiktok')}<input className="input" value={form.tiktok} onChange={(e) => setForm({ ...form, tiktok: e.target.value })} placeholder="@handle" dir="ltr" /></label>
               <label className="label">{t('profile.kick')}<input className="input" value={form.kick} onChange={(e) => setForm({ ...form, kick: e.target.value })} placeholder="channel" dir="ltr" /></label>
-              <label className="label">{t('profile.whatsapp')}<input type="tel" className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })} placeholder="+212600000000" dir="ltr" /></label>
+              <label className="label">{t('profile.whatsapp')}<input type="tel" inputMode="tel" className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value.replace(/[^\d+]/g, '').slice(0, 20) })} placeholder="+212600000000" dir="ltr" /></label>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -287,7 +312,35 @@ export default function ProfilePage() {
           <Icon name="shield" className="h-5 w-5" /> {t('admin.title')}
         </Link>
       )}
-      <button onClick={logout} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
+      <div className="card mt-3 p-3">
+        {!pwOpen ? (
+          <button type="button" onClick={() => { setPwOpen(true); setPwMsg(null); }} className="btn-ghost h-11 w-full text-sm">
+            {t('profile.changePassword')}
+          </button>
+        ) : (
+          <form onSubmit={changePassword} className="flex flex-col gap-2">
+            <h2 className="font-bold">{t('profile.changePassword')}</h2>
+            <label className="label">{t('profile.currentPassword')}
+              <input type="password" required autoComplete="current-password" className="input" value={pw0} onChange={(e) => setPw0(e.target.value)} />
+            </label>
+            <label className="label">{t('profile.newPassword')}
+              <input type="password" required minLength={6} autoComplete="new-password" className="input" value={pw1} onChange={(e) => setPw1(e.target.value)} />
+            </label>
+            <label className="label">{t('profile.confirmPassword')}
+              <input type="password" required minLength={6} autoComplete="new-password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+            </label>
+            {pwMsg && <p className="text-sm opacity-80">{pwMsg}</p>}
+            <div className="flex gap-2">
+              <button type="submit" disabled={pwBusy} className="btn-primary h-11 flex-1 text-sm">
+                {pwBusy ? t('profile.saving') : t('common.save')}
+              </button>
+              <button type="button" onClick={() => setPwOpen(false)} className="btn-ghost h-11 px-4 text-sm">{t('common.cancel')}</button>
+            </div>
+          </form>
+        )}
+        {!pwOpen && pwMsg && <p className="mt-1 text-center text-sm text-green-500">{pwMsg}</p>}
+      </div>
+      <button onClick={() => { if (confirm(`${t('profile.logout')}?`)) logout(); }} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
       <BottomNav />
     </main>
   );

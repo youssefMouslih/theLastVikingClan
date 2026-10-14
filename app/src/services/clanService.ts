@@ -8,7 +8,7 @@ export async function getClanSettings(): Promise<ClanSettings | null> {
   return (data as ClanSettings | null) ?? null;
 }
 
-export async function updateClanSettings(patch: Partial<Pick<ClanSettings, 'name' | 'tag' | 'description' | 'rules' | 'country' | 'timezone' | 'logo_url' | 'banner_url' | 'quest_names'>>) {
+export async function updateClanSettings(patch: Partial<Pick<ClanSettings, 'name' | 'tag' | 'description' | 'rules' | 'country' | 'timezone' | 'logo_url' | 'banner_url' | 'quest_names' | 'registration_open'>>) {
   const current = await getClanSettings();
   if (!current) {
     const { error } = await supabase.from('clan_settings').insert({ ...patch });

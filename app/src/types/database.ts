@@ -69,6 +69,27 @@ export interface ClanSettings {
   country: string | null;
   timezone: string; // e.g. Africa/Casablanca
   quest_names: 'classic' | 'norse';
+  registration_open: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TryoutStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
+
+export interface TryoutRequest {
+  id: string;
+  name: string;
+  contact: string;
+  email: string | null;
+  note: string | null;
+  status: TryoutStatus;
+  admin_note: string | null;
+  assigned_tester_id: string | null;
+  verdict: 'PASS' | 'FAIL' | null;
+  verdict_score_a: number | null;
+  verdict_score_b: number | null;
+  verdict_note: string | null;
+  verdict_at: string | null;
   created_at: string;
   updated_at: string;
 }

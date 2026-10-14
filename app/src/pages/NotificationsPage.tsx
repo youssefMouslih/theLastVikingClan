@@ -66,6 +66,7 @@ export default function NotificationsPage() {
               {n.entity_type === 'match' && n.entity_id && <Link to={`/matches/${n.entity_id}`} className="font-semibold text-brand-400">{t('notif.viewMatch')}</Link>}
               {n.entity_type === 'competition' && n.entity_id && <Link to={`/competitions/${n.entity_id}`} className="font-semibold text-brand-400">{t('notif.viewComp')}</Link>}
               {n.entity_type === 'battle' && <Link to="/battles" className="font-semibold text-brand-400">{t('notif.viewBattle')}</Link>}
+              {n.entity_type === 'tryout' && <Link to="/admin" className="font-semibold text-brand-400">{t('notif.viewTryouts')}</Link>}
               {!n.entity_id && n.entity_type !== 'battle' && <Link to="/home" className="font-semibold text-brand-400">{t('notif.viewHome')}</Link>}
               {!n.read_at && (
                 <button onClick={async () => { await markRead(n.id); query.refetch(); }} className="underline">{t('notif.markRead')}</button>

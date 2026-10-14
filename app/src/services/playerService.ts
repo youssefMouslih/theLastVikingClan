@@ -79,15 +79,14 @@ export async function manageMember(args: {
 }): Promise<void> {
   const { target, role, status, actorId, actorRole } = args;
   if (target.id === actorId) throw new Error('You cannot change your own role or status.');
+  // Owner keeps their position no matter what — role can never be changed.
+  if (target.role === 'OWNER' && role !== 'OWNER') {
+    throw new Error('The owner keeps their position — this role cannot be changed.');
+  }
   const sensitiveTarget = target.role === 'OWNER' || target.role === 'ADMIN';
   const sensitiveGrant = role === 'OWNER' || role === 'ADMIN';
   if ((sensitiveTarget || sensitiveGrant || status === 'REMOVED') && actorRole !== 'OWNER') {
     throw new Error('Only the owner can assign Admin/Owner roles or remove members.');
-  }
-  if (target.role === 'OWNER' && role !== 'OWNER') {
-    // Never leave the clan without an owner: require another owner first.
-    const { count } = await supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'OWNER').eq('status', 'ACTIVE');
-    if ((count ?? 0) <= 1) throw new Error('Transfer ownership first — the clan must keep at least one active owner.');
   }
   const { error } = await supabase
     .from('profiles')

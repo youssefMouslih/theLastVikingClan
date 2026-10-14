@@ -143,6 +143,7 @@ const STATUS_STYLE: Record<Status, string> = {
 interface RowHandlers {
   role: 'player' | 'admin';
   mine: boolean;
+  meSide: 'a' | 'b' | null;
   openDm: (id: string) => void;
   confirmOne: () => void;
   startReject: () => void;
@@ -154,10 +155,12 @@ interface RowHandlers {
   zoom: (url: string) => void;
 }
 
-function FixtureRow({ aName, bName, score, showScore, img, st, comment, h }: {
+function FixtureRow({ aName, bName, score, showScore, img, st, comment, winner, h }: {
   aName: string; bName: string; score: string; showScore: boolean;
-  img: string | null; st: Status; comment?: string; h: RowHandlers;
+  img: string | null; st: Status; comment?: string; winner: 'a' | 'b' | null; h: RowHandlers;
 }) {
+  const colorA = winner ? (winner === 'a' ? 'font-bold text-green-400' : 'text-red-400') : '';
+  const colorB = winner ? (winner === 'b' ? 'font-bold text-green-400' : 'text-red-400') : '';
   return (
     <li className="flex flex-col gap-1.5 rounded-xl bg-white/5 p-2.5 text-sm">
       <div className="flex items-center gap-1.5">
@@ -166,17 +169,17 @@ function FixtureRow({ aName, bName, score, showScore, img, st, comment, h }: {
             <WhatsAppIcon className="h-5 w-5" />
           </button>
         )}
-        {h.role !== 'admin' && h.mine && (
+        {h.role !== 'admin' && h.meSide === 'b' && (
           <OppMsgButton onOpen={() => h.openDm('opp')} />
         )}
         <span
-          className={`flex-1 truncate text-right font-semibold ${h.role === 'admin' ? 'cursor-pointer text-[#25d366]' : ''}`}
+          className={`flex-1 truncate text-right font-semibold ${colorA} ${h.role === 'admin' ? 'cursor-pointer' : ''}`}
           onClick={h.role === 'admin' ? () => h.openDm('a') : undefined}
           title={h.role === 'admin' ? `Message ${aName} on WhatsApp` : undefined}
         >{aName}</span>
         <span className={`shrink-0 font-mono font-bold ${showScore ? '' : 'opacity-30'}`}>{score}</span>
         <span
-          className={`flex-1 truncate font-semibold ${h.role === 'admin' ? 'cursor-pointer text-[#25d366]' : ''}`}
+          className={`flex-1 truncate font-semibold ${colorB} ${h.role === 'admin' ? 'cursor-pointer' : ''}`}
           onClick={h.role === 'admin' ? () => h.openDm('b') : undefined}
           title={h.role === 'admin' ? `Message ${bName} on WhatsApp` : undefined}
         >{bName}</span>
@@ -185,7 +188,7 @@ function FixtureRow({ aName, bName, score, showScore, img, st, comment, h }: {
             <WhatsAppIcon className="h-5 w-5" />
           </button>
         )}
-        {h.role !== 'admin' && h.mine && (
+        {h.role !== 'admin' && h.meSide === 'a' && (
           <OppMsgButton onOpen={() => h.openDm('opp')} />
         )}
       </div>
@@ -253,13 +256,223 @@ function drawAvatar(g: CanvasRenderingContext2D, id: string, cx: number, cy: num
 // PWA logo watermark, top-right of every video.
 const logoImg = typeof Image !== 'undefined' ? new Image() : null;
 if (logoImg) logoImg.src = '/logo.png';
-function drawLogo(g: CanvasRenderingContext2D) {
+function drawLogo(g: CanvasRenderingContext2D, W = 720) {
   if (!logoImg || !logoImg.complete || !logoImg.naturalWidth) return;
-  const s = 92, x = 720 - 32 - s, y = 32;
+  const s = 92, x = W - 32 - s, y = 32;
   g.save();
   g.beginPath(); g.arc(x + s / 2, y + s / 2, s / 2, 0, Math.PI * 2); g.clip();
   g.drawImage(logoImg, x, y, s, s);
   g.restore();
+}
+
+// ---------- PNG export (admin shareables): gameweek preview / results with
+// crowns, league table, cup bracket. Portrait cards, PWA theme, logo mark.
+const PX_FONT = '"Chakra Petch", Arial, sans-serif';
+const PX_DISPLAY = '"Cinzel", Georgia, serif';
+
+function pngCanvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D | null] {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return [c, c.getContext('2d')];
+}
+function pngBg(g: CanvasRenderingContext2D, W: number, H: number) {
+  const bg = g.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0b1220'); bg.addColorStop(1, '#1a2a4a');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+}
+function pngHead(g: CanvasRenderingContext2D, W: number, title: string, subtitle: string) {
+  drawLogo(g, W);
+  g.textAlign = 'center';
+  g.fillStyle = '#fbbf24'; g.font = `800 54px ${PX_DISPLAY}`;
+  g.fillText(title, W / 2, 140);
+  g.fillStyle = '#94a3b8'; g.font = `600 28px ${PX_FONT}`;
+  g.fillText(subtitle, W / 2, 190);
+}
+function pngFoot(g: CanvasRenderingContext2D, W: number, H: number) {
+  g.textAlign = 'center';
+  g.fillStyle = '#94a3b8'; g.font = `600 24px ${PX_FONT}`;
+  g.fillText(`${new Date().toLocaleDateString()} · VIK Championship`, W / 2, H - 48);
+}
+function rrect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  g.beginPath();
+  if (typeof g.roundRect === 'function') g.roundRect(x, y, w, h, r);
+  else g.rect(x, y, w, h);
+}
+const short15 = (s: string) => (s.length > 15 ? s.slice(0, 14) + '…' : s);
+
+export interface ExportTie { a: string; b: string; sa: number; sb: number; decided: boolean; winner: 'a' | 'b' | null }
+
+// Gameweek card: preview (no scores) or results (scores + crown by winner).
+function matchImage(title: string, subtitle: string, ties: ExportTie[], withScores: boolean): string | null {
+  const W = 1080, rowH = 130, top = 300;
+  const H = top + ties.length * rowH + 130;
+  const [c, g] = pngCanvas(W, H);
+  if (!g) return null;
+  pngBg(g, W, H);
+  pngHead(g, W, title, subtitle);
+  ties.forEach((t, i) => {
+    const ry = top + i * rowH;
+    g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(64, ry); g.lineTo(W - 64, ry); g.stroke();
+    const cy = ry + 82;
+    g.font = `700 40px ${PX_FONT}`;
+    const aN = short15(t.a), bN = short15(t.b);
+    const wA = g.measureText(aN).width;
+    // A (left, right-aligned) · score · B (left-aligned), crown hugging the winner.
+    g.textAlign = 'right';
+    g.fillStyle = withScores && t.decided && t.winner === 'a' ? '#4ade80' : '#e2e8f0';
+    g.fillText(aN, 450, cy);
+    g.textAlign = 'center';
+    if (withScores && t.decided) {
+      g.fillStyle = '#fbbf24'; g.font = `800 44px ${PX_FONT}`;
+      g.fillText(`${t.sa} - ${t.sb}`, 540, cy + 2);
+    } else {
+      g.fillStyle = 'rgba(148,163,184,.6)'; g.font = `600 32px ${PX_FONT}`;
+      g.fillText('vs', 540, cy);
+    }
+    g.textAlign = 'left';
+    g.fillStyle = withScores && t.decided && t.winner === 'b' ? '#4ade80' : '#e2e8f0';
+    g.font = `700 40px ${PX_FONT}`;
+    g.fillText(bN, 630, cy);
+    if (withScores && t.decided && t.winner) {
+      g.font = '40px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#fff';
+      if (t.winner === 'a') g.fillText('👑', 450 - wA - 52, cy);
+      else g.fillText('👑', 630 + g.measureText(bN).width + 52, cy);
+    }
+  });
+  pngFoot(g, W, H);
+  return c.toDataURL('image/png');
+}
+
+export interface ExportRow { pos: number; name: string; p: number; w: number; d: number; l: number; gf: number; ga: number; gd: number; pts: number }
+
+// League table card.
+function tableImage(title: string, subtitle: string, rows: ExportRow[]): string | null {
+  const W = 1080, rowH = 72, top = 300;
+  const H = top + rows.length * rowH + 130;
+  const [c, g] = pngCanvas(W, H);
+  if (!g) return null;
+  pngBg(g, W, H);
+  pngHead(g, W, title, subtitle);
+  const cols = [100, 620, 680, 740, 800, 865, 920, 972, 1022];
+  const heads = ['#', 'P', 'W', 'D', 'L', 'GF', 'GA', 'GD', 'PTS'];
+  g.font = `700 26px ${PX_FONT}`;
+  heads.forEach((h, i) => {
+    g.fillStyle = '#94a3b8'; g.textAlign = i === 0 ? 'center' : 'center';
+    g.fillText(h, cols[i], top - 16);
+  });
+  g.textAlign = 'left';
+  g.fillStyle = '#94a3b8';
+  g.fillText('Player', 150, top - 16);
+  rows.forEach((r, i) => {
+    const y = top + i * rowH;
+    if (i < 4) {
+      g.fillStyle = i === 0 ? 'rgba(234,179,8,.10)' : 'rgba(255,255,255,.03)';
+      rrect(g, 48, y + 6, W - 96, rowH - 8, 12); g.fill();
+    }
+    const vals = [String(r.pos), String(r.p), String(r.w), String(r.d), String(r.l), String(r.gf), String(r.ga), `${r.gd > 0 ? '+' : ''}${r.gd}`];
+    g.font = `700 30px ${PX_FONT}`;
+    vals.forEach((v, j) => {
+      g.fillStyle = j === 0 ? '#94a3b8' : '#e2e8f0';
+      g.textAlign = 'center';
+      g.fillText(v, cols[j], y + 48);
+    });
+    g.textAlign = 'left';
+    g.fillStyle = '#e2e8f0';
+    const nm = r.name.length > 17 ? r.name.slice(0, 16) + '…' : r.name;
+    g.fillText(nm, 150, y + 48);
+    g.fillStyle = '#fbbf24'; g.font = `800 32px ${PX_FONT}`; g.textAlign = 'center';
+    g.fillText(String(r.pts), cols[8], y + 48);
+    if (i === 0) {
+      g.font = '30px sans-serif'; g.textAlign = 'center';
+      g.fillText('👑', 150 + g.measureText(nm).width + 90, y + 48);
+    }
+  });
+  pngFoot(g, W, H);
+  return c.toDataURL('image/png');
+}
+
+// Cup bracket card (landscape): computed columns, winners crowned, links drawn.
+function bracketImage(
+  title: string, subtitle: string,
+  rounds: { name: string; ties: { a: string | null; b: string | null; sa: number; sb: number; decided: boolean; winner: 'a' | 'b' | null }[] }[],
+  champion: string | null,
+): string | null {
+  const W = 1600, H = 1000, mX = 80, colW = 300, gapX = 80;
+  const top = 240, cardH = 64;
+  const n0 = rounds[0]?.ties.length || 8;
+  const avail = H - top - 120;
+  const gap0 = n0 > 1 ? (avail - n0 * cardH) / (n0 - 1) : 0;
+  // Tops: round 0 evenly spaced; later rounds centered on their feeders.
+  const yPos = (r: number, s: number): number => {
+    if (r === 0) return top + s * (cardH + gap0);
+    return (yPos(r - 1, s * 2) + yPos(r - 1, s * 2 + 1)) / 2;
+  };
+  const [c, g] = pngCanvas(W, H);
+  if (!g) return null;
+  pngBg(g, W, H);
+  drawLogo(g, W);
+  g.textAlign = 'center';
+  g.fillStyle = '#fbbf24'; g.font = `800 52px ${PX_DISPLAY}`;
+  g.fillText(title, W / 2, 120);
+  g.fillStyle = '#94a3b8'; g.font = `600 28px ${PX_FONT}`;
+  g.fillText(subtitle, W / 2, 168);
+  const colX = (r: number) => mX + r * (colW + gapX);
+  rounds.forEach((rd, r) => {
+    g.fillStyle = '#94a3b8'; g.font = `700 24px ${PX_FONT}`; g.textAlign = 'center';
+    g.fillText(rd.name, colX(r) + colW / 2, top - 24);
+    rd.ties.forEach((t, s) => {
+      const y = yPos(r, s);
+      g.fillStyle = 'rgba(255,255,255,.06)';
+      rrect(g, colX(r), y, colW, cardH, 10); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 2;
+      rrect(g, colX(r), y, colW, cardH, 10); g.stroke();
+      g.font = `700 24px ${PX_FONT}`;
+      const rows = [
+        { n: t.a, sc: t.decided && t.a ? String(t.sa) : '–', win: t.winner === 'a' },
+        { n: t.b, sc: t.decided && t.b ? String(t.sb) : '–', win: t.winner === 'b' },
+      ];
+      rows.forEach((row, k) => {
+        const ry = y + 26 + k * 26;
+        g.textAlign = 'left';
+        g.fillStyle = row.win ? '#4ade80' : row.n ? '#e2e8f0' : 'rgba(148,163,184,.5)';
+        const nm = row.n && row.n.length > 14 ? row.n.slice(0, 13) + '…' : (row.n ?? 'TBD');
+        g.fillText(nm, colX(r) + 14, ry);
+        g.textAlign = 'right'; g.fillStyle = '#e2e8f0';
+        g.fillText(row.sc, colX(r) + colW - 14, ry);
+      });
+      if (t.winner) {
+        const wn = t.winner === 'a' ? t.a! : t.b!;
+        const ww = g.measureText(wn && wn.length > 14 ? wn.slice(0, 13) + '…' : (wn ?? '')).width;
+        g.font = '22px sans-serif'; g.textAlign = 'left';
+        g.fillText('👑', colX(r) + 14 + ww + 10, y + (t.winner === 'a' ? 26 : 52));
+      }
+      // Full elbow from both feeders into this match.
+      if (r > 0) {
+        const c1 = yPos(r - 1, s * 2) + cardH / 2;
+        const c2 = yPos(r - 1, s * 2 + 1) + cardH / 2;
+        const ct = y + cardH / 2;
+        const x1 = colX(r - 1) + colW, x2 = colX(r), mx = (x1 + x2) / 2;
+        g.strokeStyle = t.decided ? 'rgba(234,179,8,.7)' : 'rgba(255,255,255,.15)';
+        g.lineWidth = 2;
+        g.beginPath();
+        g.moveTo(x1, c1); g.lineTo(mx, c1);
+        g.moveTo(x1, c2); g.lineTo(mx, c2);
+        g.moveTo(mx, c1); g.lineTo(mx, c2);
+        g.moveTo(mx, ct); g.lineTo(x2, ct);
+        g.stroke();
+      }
+    });
+  });
+  g.textAlign = 'center';
+  if (champion) {
+    g.fillStyle = '#fbbf24'; g.font = `800 40px ${PX_DISPLAY}`;
+    g.fillText(`🏆 CHAMPION · ${champion}`, W / 2, H - 52);
+  } else {
+    g.fillStyle = '#94a3b8'; g.font = `600 28px ${PX_FONT}`;
+    g.fillText('Champion decided at the final', W / 2, H - 52);
+  }
+  return c.toDataURL('image/png');
 }
 
 interface RecapTie { round: number; a: string | null; b: string | null; sa: number; sb: number }
@@ -633,6 +846,7 @@ export default function SimPage() {
   const [dmTo, setDmTo] = useState<{ id: string; prefill: string } | null>(null);
   const [dmText, setDmText] = useState('');
   const [dmSent, setDmSent] = useState<string | null>(null);
+  const [imgModal, setImgModal] = useState<{ url: string; name: string } | null>(null);
   const current = Math.min(played + 1, rounds);
   const shown = Math.min(Math.max(round, 1), rounds);
   const cupCurrent = Math.min(cupPlayed + 1, cupRounds);
@@ -977,6 +1191,16 @@ export default function SimPage() {
     if (recapUrl) void shareFile(recapUrl, recapExt, 'vik-cup-recap', 'VIK Cup Recap');
   };
 
+  const exportPng = (make: () => string | null, filename: string) => {
+    try {
+      const url = make();
+      if (url) setImgModal({ url, name: `${filename}.png` });
+    } catch { /* canvas unavailable — no-op */ }
+  };
+
+  const shareImage = () => {
+    if (imgModal) void shareFile(imgModal.url, 'png', imgModal.name.replace(/\.png$/, ''), 'VIK Competition');
+  };
   const switchComp = (c: 'league' | 'cup') => {
     setComp(c);
     setTab(c === 'league' ? 'table' : 'bracket');
@@ -1004,11 +1228,11 @@ export default function SimPage() {
       <div className="mt-2 flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <label className="text-xs opacity-60">You
-            <input value={myA} onChange={(e) => setMyA(e.target.value)} inputMode="numeric" maxLength={1} aria-label="Your score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
+            <input value={myA} onChange={(e) => setMyA(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={1} aria-label="Your score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
           </label>
           <span className="font-mono opacity-60">–</span>
           <label className="text-xs opacity-60">Opp
-            <input value={myB} onChange={(e) => setMyB(e.target.value)} inputMode="numeric" maxLength={1} aria-label="Opponent score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
+            <input value={myB} onChange={(e) => setMyB(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={1} aria-label="Opponent score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
           </label>
           <button onClick={() => submitMine(target, isCup)} className="btn-primary h-11 flex-1 text-sm">
             {effRes.st === 'REJECTED' ? 'Resubmit' : 'Submit result'}
@@ -1052,6 +1276,7 @@ export default function SimPage() {
   ): RowHandlers => ({
     role,
     mine,
+    meSide: aId === ME ? 'a' : bId === ME ? 'b' : null,
     openDm: (which: string) => {
       const id = which === 'opp' ? (aId === ME ? bId : aId) : which === 'a' ? aId : bId;
       if (id) openDm(id, label, e.comment);
@@ -1195,6 +1420,15 @@ export default function SimPage() {
       {comp === 'league' && tab === 'table' && (
         <section className="card mt-3" aria-label="Standings">
           <h2 className="card-title">League table · {confirmedCount} matches confirmed · tap a player for profile</h2>
+          {role === 'admin' && (
+            <button
+              onClick={() => exportPng(() => tableImage('VIK LEAGUE', `Standings · after ${played} matchdays`, standings.map((r, i) => ({
+                pos: i + 1, name: NAMES[r.player_id] ?? r.player_id, p: r.played, w: r.wins, d: r.draws, l: r.losses,
+                gf: r.goals_for, ga: r.goals_against, gd: r.goal_difference, pts: r.points,
+              }))), 'vik-league-table')}
+              className="btn-ghost mt-2 h-10 px-3 text-xs"
+            >📷 Table image (PNG)</button>
+          )}
           <div className="mt-2"><StandingsTable rows={standings} names={NAMES} onPlayerClick={setProfileId} /></div>
         </section>
       )}
@@ -1217,6 +1451,27 @@ export default function SimPage() {
           <p className="mt-1 text-xs opacity-60">
             Matchday {shown}{shown === current && played < rounds ? ' · playing now (deadline in 2 days)' : shown <= played ? ' · finished' : ' · upcoming'}
           </p>
+          {role === 'admin' && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                onClick={() => exportPng(() => matchImage('VIK LEAGUE', `Matchday ${shown} · fixtures`, roundFixtures.map((f) => (
+                  { a: NAMES[f.a], b: NAMES[f.b], sa: 0, sb: 0, decided: false, winner: null }
+                )), false), `vik-league-md${shown}-preview`)}
+                className="btn-ghost h-10 flex-1 px-3 text-xs"
+              >📷 Preview image</button>
+              <button
+                onClick={() => exportPng(() => matchImage('VIK LEAGUE', `Matchday ${shown} · results`, roundFixtures.map((f) => {
+                  const e = eff(f);
+                  const decided = e.st !== 'SCHEDULED';
+                  return {
+                    a: NAMES[f.a], b: NAMES[f.b], sa: e.sa, sb: e.sb, decided,
+                    winner: decided ? (e.sa > e.sb ? 'a' as const : e.sb > e.sa ? 'b' as const : null) : null,
+                  };
+                }), true), `vik-league-md${shown}-results`)}
+                className="btn-ghost h-10 flex-1 px-3 text-xs"
+              >📷 Results image</button>
+            </div>
+          )}
           <ul className="mt-2 flex flex-col gap-2">
             {roundFixtures.map((f) => {
               const e = eff(f);
@@ -1228,7 +1483,8 @@ export default function SimPage() {
               return (
                 <FixtureRow key={k} aName={NAMES[f.a]} bName={NAMES[f.b]}
                   score={showScore ? `${e.sa}–${e.sb}` : 'vs'} showScore={showScore}
-                  img={e.shot ?? img} st={e.st} comment={e.comment} h={h} />
+                  img={e.shot ?? img} st={e.st} comment={e.comment}
+                  winner={showScore ? (e.sa > e.sb ? 'a' : e.sb > e.sa ? 'b' : null) : null} h={h} />
               );
             })}
           </ul>
@@ -1236,15 +1492,55 @@ export default function SimPage() {
       )}
 
       {comp === 'cup' && tab === 'bracket' && (
-        <CupBracket
-          cupMatches={cupMatches} cupRounds={cupRounds} cupCurrent={cupCurrent} cupWinners={cupWinners}
-          cupEff={cupEff} champion={champion} drawn={!!draw} onOpenMatches={() => setTab('matches')}
-        />
+        <>
+          <CupBracket
+            cupMatches={cupMatches} cupRounds={cupRounds} cupCurrent={cupCurrent} cupWinners={cupWinners}
+            cupEff={cupEff} champion={champion} drawn={!!draw} onOpenMatches={() => setTab('matches')}
+          />
+          {role === 'admin' && (
+            <button
+              onClick={() => exportPng(() => bracketImage('VIK CUP', 'Knockout bracket', Array.from({ length: cupRounds }, (_, i) => i + 1).map((r) => ({
+                name: roundNameForSize(16, r),
+                ties: cupMatches.filter((m) => m.round === r).sort((x, y) => x.slot - y.slot).map((m) => {
+                  const e = cupEff(m, cupWinners);
+                  const decided = e.st !== 'SCHEDULED' && !!e.a && !!e.b;
+                  return {
+                    a: e.a ? NAMES[e.a] : null, b: e.b ? NAMES[e.b] : null, sa: e.sa, sb: e.sb, decided,
+                    winner: decided ? (e.sa > e.sb ? 'a' : 'b') as 'a' | 'b' : null,
+                  };
+                }),
+              })), champion ? NAMES[champion] : null), 'vik-cup-bracket')}
+              className="btn-ghost mt-2 h-10 w-full px-3 text-xs"
+            >📷 Bracket image (PNG)</button>
+          )}
+        </>
       )}
 
       {comp === 'cup' && tab === 'matches' && (
         <section className="card mt-3" aria-label="Cup matches">
           <h2 className="card-title">Matches · evidence, confirm & message</h2>
+          {role === 'admin' && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                onClick={() => exportPng(() => matchImage('VIK CUP', `${roundNameForSize(16, cupCurrent)} · fixtures`, cupMatches.filter((m) => m.round === cupCurrent).sort((x, y) => x.slot - y.slot).map((m) => {
+                  const e = cupEff(m, cupWinners);
+                  return { a: e.a ? NAMES[e.a] : 'TBD', b: e.b ? NAMES[e.b] : 'TBD', sa: 0, sb: 0, decided: false, winner: null };
+                }), false), `vik-cup-${roundNameForSize(16, cupCurrent).toLowerCase().replace(/ /g, '-')}-preview`)}
+                className="btn-ghost h-10 flex-1 px-3 text-xs"
+              >📷 Round preview</button>
+              <button
+                onClick={() => exportPng(() => matchImage('VIK CUP', `${roundNameForSize(16, cupCurrent)} · results`, cupMatches.filter((m) => m.round === cupCurrent).sort((x, y) => x.slot - y.slot).map((m) => {
+                  const e = cupEff(m, cupWinners);
+                  const decided = e.st !== 'SCHEDULED' && !!e.a && !!e.b;
+                  return {
+                    a: e.a ? NAMES[e.a] : 'TBD', b: e.b ? NAMES[e.b] : 'TBD', sa: e.sa, sb: e.sb, decided,
+                    winner: decided ? (e.sa > e.sb ? 'a' : 'b') as 'a' | 'b' : null,
+                  };
+                }), true), `vik-cup-${roundNameForSize(16, cupCurrent).toLowerCase().replace(/ /g, '-')}-results`)}
+                className="btn-ghost h-10 flex-1 px-3 text-xs"
+              >📷 Round results</button>
+            </div>
+          )}
           {Array.from({ length: cupRounds }, (_, i) => i + 1).map((r) => (
             <div key={r} className="mt-3 first:mt-2">
               <p className={`text-xs font-bold uppercase tracking-wider ${r === cupCurrent ? 'text-brand-300' : 'opacity-60'}`}>
@@ -1262,7 +1558,8 @@ export default function SimPage() {
                     <FixtureRow key={k}
                       aName={e.a ? NAMES[e.a] : 'TBD'} bName={e.b ? NAMES[e.b] : 'TBD'}
                       score={showScore ? `${e.sa}–${e.sb}` : 'vs'} showScore={showScore}
-                      img={e.shot ?? img} st={e.st} comment={e.comment} h={h} />
+                      img={e.shot ?? img} st={e.st} comment={e.comment}
+                      winner={showScore ? (e.sa > e.sb ? 'a' : e.sb > e.sa ? 'b' : null) : null} h={h} />
                   );
                 })}
               </ul>
@@ -1306,6 +1603,20 @@ export default function SimPage() {
               <a href={recapUrl} download={`vik-cup-recap.${recapExt}`} className="btn-primary flex h-11 flex-1 items-center justify-center text-sm">Download</a>
               <button onClick={shareRecap} className="btn-ghost h-11 flex-1 text-sm">Share</button>
               <button onClick={closeRecap} className="btn-ghost h-11 px-4 text-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {imgModal && (
+        <div role="dialog" aria-label="Generated image" onClick={() => setImgModal(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+          <div onClick={(e) => e.stopPropagation()} className="card w-full max-w-sm">
+            <h3 className="font-bold">Shareable image 🖼️</h3>
+            <img src={imgModal.url} alt="Generated shareable" className="mt-2 max-h-[50vh] w-full rounded-xl border border-white/20 bg-black object-contain" />
+            <div className="mt-2 flex gap-2">
+              <a href={imgModal.url} download={imgModal.name} className="btn-primary flex h-11 flex-1 items-center justify-center text-sm">Download PNG</a>
+              <button onClick={shareImage} className="btn-ghost h-11 flex-1 text-sm">Share</button>
+              <button onClick={() => setImgModal(null)} className="btn-ghost h-11 px-4 text-sm">Close</button>
             </div>
           </div>
         </div>

@@ -18,26 +18,27 @@ Live loop: **next match → deadline → play → submit + screenshot → oppone
 - **League & cup simulator** (`/sim`, linked from Competitions — fake data, never touches the DB): 16-player round-robin (15 matchdays, 120 fixtures via the real `generateRoundRobin` + `calculateStandings` engines and the real table UI) and 16-player single-elimination cup (pure-CSS bracket with connector elbows, champion node). Player/Admin POV toggle — players submit, admins confirm/reject with comment, DM either side (WhatsApp buttons), screenshots zoomable, animated random draw ceremony (ties lock one by one) auto-recorded to a shareable portrait video, plus an auto-generated full-results recap video at the final.
 - **Matches**: submit score + **mandatory screenshot** (styled upload, button explains itself) + fair-play checklist (tag worn, clean play) + optional note + issue reports (auto-file disputes) → opponent sees **Confirm + Wrong?** with submitter name, note and zoomable proof → moderator **review card** (score, proof, who/when, confirm-set/forfeit/**send-back with comment**) → standings recompute from CONFIRMED only → Glory + streak badges auto-awarded. Evidence kept **24h after final**, then purged (Free storage button + auto on Finish); replaced avatars/banners/evidence deleted, never orphaned.
 - **Trust & safety**: dispute queue with audit log; RLS on every table; soft-delete with **two-person rule** for started competitions (requester can never self-approve; restorable, never hard-deleted).
-- **Profiles**: rune-forged eFootball card (tap photo to change it, native color-well banner color/image + screen eyedropper, IG/TikTok/Kick links, WhatsApp number + chat button, real / **unique** warrior-tagged / in-game names with hints, eFootball brand mark by the game name, flag + country picker from full list, labeled About area), scramble-decode VIK name, stats panel (win rate · goals · clean sheets + W/D/L bar), horizontal last-5 (avatar → name → type → score, matches + battles merged), share-as-image posters, member management (roles/status, owner-only guards). No last-seen timestamps, no availability dots. New accounts complete name + VIK tag + phone in a blocking gate for **+80 GP**.
+- **Profiles**: rune-forged eFootball card (tap photo to change it, native color-well banner color/image + screen eyedropper, IG/TikTok/Kick links, WhatsApp number + chat button, real / **unique** warrior-tagged / in-game names with hints, eFootball brand mark by the game name, flag + country picker from full list, labeled About area), scramble-decode VIK name, stats panel (win rate · goals · clean sheets + W/D/L bar), horizontal last-5 (avatar → name → type → score, matches + battles merged), share-as-image posters, member management (roles/status, owner-only guards, **owner role locked**). Clan member list shows **no role badges** (only inactive-status badges). No last-seen timestamps, no availability dots. New accounts complete name + VIK tag + phone in a blocking gate for **+80 GP**.
 - **Clan Member Book** (`/gallery`, from Clan): closed book with full-bleed AI cover (`book-cover.jpg`, tap/Next to open, back past the cover closes it), rune page art (`book-page.jpg`) with glass member cards (9-per-spread grids, 5+4 desktop), search + bookmarks + Viking index with roles, back colophon. Page-turn animation currently parked — navigation swaps instantly (buttons, swipe, keys, index). Paper-flick turn sound + swords unsheathe on open (`utils/sfx.ts`, `vik-sound` mutes); cover/page art + audio precached for offline.
 - **Badge forge** (`src/services/badgeForge.ts`, Admin → Honours): one Viking badge PNG per honour (8 achievement types + 8 saga ranks, shared engraved-ring/knotwork/rune-circle family, per-type metal/motif/rune). Default on-device procedural renderer (no GPU); optional local Stable Diffusion via `VITE_BADGE_DIFFUSION_URL` (A1111/Forge API) with automatic fallback. Exact names/titles always drawn programmatically post-generation. Batch with hardware-throttled queue (concurrency from CPU count), 2 retries, unique filenames, progress + per-item errors; files in `clan-assets/badges/`, path on `achievements.image_url`. Agent API: `generateOne`, `generateBatch`, `previewBadge`, `buildBadgePrompt`.
 - **Vintage emblems** (`public/emblems/`, `src/components/emblem/Emblem.tsx`): instant SVG badge art per honour type + clan plate on the gallery cover, shown wherever a forged PNG is not yet available. Built with the [illustration-vintage-emblem skill](https://github.com/MengTo/Skills) (seven-colour screen-print, path wordmarks, palette-linted) — generator: `vik-emblems.gen.mjs` + skill `emblem-kit`/`wordmark` tooling.
 - **Community**: announcements (publish → all notified), notification center with deep links (match/competition/battle/home, one link each), realtime + throttled focus-refetch (60s min interval, 30s min absence, `active` queries only) + manual refresh + Home action center, PWA install (Home card + permanent Settings → Install entry sharing one `useInstallPrompt` deferred prompt; Android manual ⋮ → Install steps; install requires the HTTPS deploy, never LAN/localhost), update prompt with 24h dismiss memory.
 - **Push (Raven Messages)**: custom service worker (precache + offline navigation fallback + push display + tap-to-open), `send-push` Edge Function (JWT-verified, owner-only delivery, dead-subscription pruning), Settings subscribe toggle with iPhone install-first guidance. Needs: VAPID keys + `supabase functions deploy send-push`.
+- **Tryouts** (recruitment): logged-out visitors apply from Login (name + WhatsApp + email + note → `tryout_requests` PENDING). Admin → Tryouts queue: WhatsApp chat button, tester assignment, PASS/FAIL verdict with tester/candidate scores + note, then **Accept** (provisions a real account via the `accept-tryout` Edge Function — pre-confirmed user + ACTIVE PLAYER profile, one-time temp password shown once for the admin to forward over WhatsApp) or Decline. Testers see their tasks in `TesterTasks`. Needs: migrations `0029`–`0032` + `supabase functions deploy accept-tryout`.
 
 ## Roles & permissions
 
 | Role | Can |
 |---|---|
-| OWNER | Everything: grant/revoke Admin & Owner, remove members, clan settings, approve deletions, crown, audit. Last active owner can't be demoted. |
-| ADMIN | Create/edit competitions, fixtures, registration, disputes queue, replacements, announcements, honours, throne crown; manage members up to Moderator. |
+| OWNER | Everything: grant/revoke Admin, remove members, clan settings, approve deletions, crown, audit. The Owner role is **locked** — it can never be changed to another role by anyone, and the Admin UI hides role editing for owners. |
+| ADMIN | Create/edit competitions, fixtures, registration, disputes queue, replacements, announcements, honours, throne crown; manage members up to Moderator (role dropdown offers PLAYER/MODERATOR only — Admin/Owner grants are owner-only). Tryout queue + verdicts + accept/decline. |
 | MODERATOR | Review card on submitted results (confirm/set/forfeit/send-back), resolve disputes. No Admin dashboard. |
 | PLAYER | View, join (after oath), submit/confirm/dispute, challenges, quests, gifts, rate peers, edit own profile. |
 
 ## Tech
 
 - **App** (`app/`): React 19 + TypeScript + Vite, Tailwind v4, React Router (auth-guarded + `*` fallback to Home), TanStack Query (keep-previous-data, throttled focus refetch), Zustand, Supabase JS, vite-plugin-pwa (injectManifest custom SW), Vitest (34 tests). Quality gate: `npm run check` = `oxlint` + `tsc -b` + `vitest run`.
-- **Backend**: Supabase Postgres + Auth + Storage + Realtime + Edge Function `send-push`. No custom server otherwise.
+- **Backend**: Supabase Postgres + Auth + Storage + Realtime + Edge Functions `send-push` (push) and `accept-tryout` (tryout → account provisioning, OWNER/ADMIN-only, CORS-enabled). No custom server otherwise.
 - **Design**: Valhalla Gold + Runic Steel, dark-first with light/dark/system setting; Cinzel display + Chakra Petch body; SVG icon set; safe-area + standalone PWA; motion system (entrances, live countdowns, count-ups, skeletons, nav glow); sticky action bars; reduced-motion respected.
 - **i18n**: `src/i18n/dictionaries.ts` (en/fr/ar, identical key sets enforced by `Dict = typeof en`), RTL via `document.dir`, locale dates. Bottom nav: Hall · Arena · League · Code · Profile. Top bar: emblem, live GP + coin, raven bell.
 
@@ -52,11 +53,13 @@ npm run check    # lint + typecheck + vitest (34) — run before every PR/build
 npm run build    # tsc -b + vite + PWA precache
 ```
 
-Database: **fresh installs** run **`app/supabase/FULL_SETUP.sql` once** in SQL editor (now bundles `0001`–`0024`, idempotent). **Existing DBs** created from an older bundle: run only the missing `supabase/migrations/00NN_*.sql` files in numeric order instead (`0023` unique warrior tags, `0024` badge image column). Then: private buckets `avatars`, `clan-assets`, `match-evidence`; first user via Auth (auto-confirm) + `profiles` row `OWNER`/`ACTIVE`; **Confirm sign up** email OFF while testing.
+Database: **fresh installs** run **`app/supabase/FULL_SETUP.sql` once** in SQL editor (now bundles `0001`–`0032`, idempotent — incl. tryout_requests + verdict + email columns). **Existing DBs** created from an older bundle: run only the missing `supabase/migrations/00NN_*.sql` files in numeric order instead (`0023` unique warrior tags, `0024` badge image column, `0025` forfeit claims, `0026` quest names, `0027` registration open, `0028` clan-asset policies, `0029`–`0032` tryout system). Then: private buckets `avatars`, `clan-assets`, `match-evidence`; first user via Auth (auto-confirm) + `profiles` row `OWNER`/`ACTIVE`; **Confirm sign up** email OFF while testing.
 
 Setup health: Admin → **Setup health → Run check** (`src/services/setupCheck.ts`) verifies `.env`, private buckets, `OWNER`/`ACTIVE` bootstrap, and VAPID key with fix hints — no more manual guessing.
 
 VAPID (push): public key → `VITE_VAPID_PUBLIC_KEY` (local .env + Netlify env); private key stays secret for the Edge Function (`supabase secrets set …; supabase functions deploy send-push`).
+
+Tryout provisioning: no secrets to set (`SUPABASE_URL` + `SERVICE_ROLE_KEY` are auto-injected) — just `supabase link --project-ref <ref>` then `supabase functions deploy accept-tryout`. The function ships CORS headers (`authorization, x-client-info, apikey, content-type`) so `supabase.functions.invoke('accept-tryout')` works from the browser.
 
 ## Deploy (Netlify)
 
@@ -76,14 +79,15 @@ app/
     competition/   pure engines + tests (league/knockout/standings/deadline/replacement/joinCode)
     components/    ui (Icon/Avatar/WhatsAppIcon/AppBar/BottomNav/StatusBadge/CopyButton/CoinImg/InstallPrompt/Motion/UpdateBanner/OfflineBanner), battle, competition, match, player, clan, admin
     pages/         Home, Login, Competitions, CompetitionDetail, Match, Join, Clan, Player, Profile, Settings, Code, Battles, Saga, Gallery (Saga Book), Admin (+Setup health card), Notifications, Sim (16-player league/cup demo, fake data)
-    services/      auth/player/clan/competition/match/standings/dispute/replacement/statistics/rating/announcement/notification/honour/throne/challenge/squad/saga/storage/push/setupCheck/badgeForge (+badgeForge.test)
-    components/    onboarding/OnboardingGate (+80 GP gate), emblem/Emblem (vintage badge art)
+    services/      auth/player/clan/competition/match/standings/dispute/replacement/statistics/rating/announcement/notification/honour/throne/challenge/squad/saga/storage/push/setupCheck/badgeForge (+badgeForge.test), tryoutService (tryout queue + acceptWithAccount)
+    components/    onboarding/OnboardingGate (+80 GP gate), emblem/Emblem (vintage badge art), tryouts/TesterTasks, admin/TryoutsTab + AccessTab
     public/emblems/  9 vintage emblem SVGs (clan + 8 honour types)
     stores/        authStore (zustand)   hooks/ useOath, useRealtime, usePersistentTab
     i18n/          dictionaries + LocaleContext (t(), fmtDate(), statusLabel())
     sw.ts          custom service worker (precache + offline nav + push + tap-to-open)
     utils/         shareBattle (canvas posters), sfx (page-turn flick, book-open swords, rune click), theme.tsx, countries.ts
-  supabase/migrations/  0001–0024 (= FULL_SETUP.sql bundle; keep in sync — new migration → append to bundle)
+  supabase/migrations/  0001–0032 (= FULL_SETUP.sql bundle; keep in sync — new migration → append to bundle; 0029–0032 = tryout system)
+  supabase/functions/accept-tryout/  tryout → account provisioning (OWNER/ADMIN-only, CORS-enabled)
   supabase/functions/send-push/  Web Push sender
 ```
 

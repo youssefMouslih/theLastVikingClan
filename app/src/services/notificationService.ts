@@ -16,7 +16,8 @@ export type NotificationType =
   | 'COMPETITION_FINISHED'
   | 'PLAYER_REPLACED'
   | 'ANNOUNCEMENT'
-  | 'WAITLIST_AVAILABLE';
+  | 'WAITLIST_AVAILABLE'
+  | 'TRYOUT_REQUEST';
 
 export interface NotificationRow {
   id: string;

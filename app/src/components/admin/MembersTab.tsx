@@ -7,7 +7,7 @@ import { crownHolder, getCurrentReign, vacateThrone } from '../../services/thron
 import type { MemberStatus, Profile, Role } from '../../types/database';
 import { useAuthStore } from '../../stores/authStore';
 
-const ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN', 'OWNER'];
+const ALL_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN', 'OWNER'];
 const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT', 'REMOVED'];
 
 // Owner-managed user permissions (§10): who may create leagues/cups (ADMIN),
@@ -74,13 +74,33 @@ export default function MembersTab() {
         const d = drafts[m.id] ?? { role: m.role, status: m.status };
         const set = (patch: Partial<typeof d>) => setDrafts({ ...drafts, [m.id]: { ...d, ...patch } });
         const dirty = d.role !== m.role || d.status !== m.status;
+        const isHolder = throneQuery.data?.holder_id === m.id;
+        const isOwnerTarget = m.role === 'OWNER';
+        // Owner keeps their position no matter what — role locked for everyone.
+        // Only OWNER may grant ADMIN/OWNER (enforced server-side too).
+        // Admins get PLAYER/MODERATOR only — OWNER option hidden.
+        const availableRoles: Role[] =
+          me?.role === 'OWNER' ? ALL_ROLES : (['PLAYER', 'MODERATOR'] as Role[]);
+        const roleOptions = availableRoles.includes(d.role)
+          ? availableRoles
+          : [d.role, ...availableRoles];
         return (
           <div key={m.id} className="card p-3 text-sm">
             <Link to={`/players/${m.id}`} className="font-semibold">{m.display_name ?? m.username} <span className="opacity-60">@{m.username}</span></Link>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <label className="label">{t('members.role')}
-                <select value={d.role} onChange={(e) => set({ role: e.target.value as Role })} className="input text-sm">
-                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                <select
+                  value={d.role}
+                  disabled={isOwnerTarget}
+                  title={isOwnerTarget ? 'Owner keeps their position' : undefined}
+                  onChange={(e) => set({ role: e.target.value as Role })}
+                  className="input text-sm disabled:opacity-60"
+                >
+                  {roleOptions.map((r) => (
+                    <option key={r} value={r} disabled={!availableRoles.includes(r)}>
+                      {r}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="label">{t('members.status')}
@@ -94,9 +114,13 @@ export default function MembersTab() {
                 {busyId === m.id ? t('common.saving') : t('members.save')}
               </button>
             )}
-            <button disabled={busyId === m.id} onClick={() => crown(m)} className="btn-ghost mt-1 h-9 text-xs">
-              {t('throne.crown')}
-            </button>
+            {isHolder ? (
+              <span className="mt-1 inline-block rounded-full bg-brand-500/15 px-2 py-1 text-[11px] font-bold text-brand-300">{t('throne.holder')}</span>
+            ) : (
+              <button disabled={busyId === m.id} onClick={() => crown(m)} className="btn-ghost mt-1 h-9 text-xs">
+                {t('throne.crown')}
+              </button>
+            )}
           </div>
         );
       })}

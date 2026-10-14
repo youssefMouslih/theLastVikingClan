@@ -19,7 +19,6 @@ export default function MemberRow({ member }: { member: Profile }) {
         </div>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <StatusBadge value={member.role} />
         {inactive && <StatusBadge value={member.status} />}
       </div>
     </Link>

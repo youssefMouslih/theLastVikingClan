@@ -100,14 +100,28 @@ export default function BattlesPage() {
   const holderId = reignQuery.data?.holder_id ?? null;
   const candidates = (membersQuery.data ?? []).filter((m) => m.id !== me?.id);
 
-  async function run(fn: () => Promise<unknown>, ok: string) {
+  // Throne pledge entry (?opponent=<holder>&throne=1 from the throne card):
+  // pre-arm an Honor Duel flagged for the throne once the reign loads.
+  const pledgeArmed = useRef(false);
+  useEffect(() => {
+    const oid = params.get('opponent');
+    const holder = reignQuery.data?.holder_id;
+    if (!pledgeArmed.current && params.get('throne') === '1' && oid && holder && oid === holder) {
+      pledgeArmed.current = true;
+      setForm((f) => (f.opponent_id === oid ? { ...f, type: 'HONOR', for_throne: true } : f));
+    }
+  }, [params, reignQuery.data]);
+
+  async function run(fn: () => Promise<unknown>, ok: string): Promise<boolean> {
     setBusy(true); setMsg(null);
     try {
       await fn();
       await Promise.all([incomingQuery.refetch(), outgoingQuery.refetch(), historyQuery.refetch(), openQuery.refetch()]);
       if (ok) setMsg(ok);
+      return true;
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Failed.');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -115,12 +129,14 @@ export default function BattlesPage() {
 
   async function issue(e: React.FormEvent) {
     e.preventDefault();
-    await run(
+    const sent = await run(
       async () => {
         if (form.for_throne) {
           if (form.type !== 'HONOR') throw new Error('Throne battles must be Honor Duels.');
           if (!holderId) throw new Error('The throne is vacant - ask an admin to crown a champion.');
           if (form.opponent_id !== holderId) throw new Error(t('throne.mustTarget'));
+          const dup = (outgoingQuery.data ?? []).some((ch) => ch.for_throne && ['PENDING', 'ACCEPTED', 'RESULT_SUBMITTED'].includes(ch.status));
+          if (dup) throw new Error(t('battle.oneThronePledge'));
         }
         await issueChallenge(
           {
@@ -139,6 +155,7 @@ export default function BattlesPage() {
       t('battle.issued'),
     );
     setForm({ opponent_id: '', opponent_label: '', type: 'HEAD', conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
+    if (sent) setTab('history');
   }
 
   function rematchOf(ch: ChallengeRow) {
@@ -359,6 +376,9 @@ export default function BattlesPage() {
               <input type="checkbox" checked={form.for_throne} onChange={(e) => setForm({ ...form, for_throne: e.target.checked })} className="h-5 w-5 accent-[#f43f5e]" />
               {t('throne.forThrone')}
             </label>
+          )}
+          {form.for_throne && form.opponent_id === holderId && (
+            <p className="rounded-xl bg-accent-500/10 p-2 text-xs text-accent-400">{t('throne.pledgeHint')}</p>
           )}
           {form.type === 'HEAD' && form.opponent_id && (
             <label className="flex items-start gap-2 text-sm">
