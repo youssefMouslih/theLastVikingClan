@@ -531,6 +531,9 @@ const en = {
   'install.ios2': 'Choose “Add to Home Screen”',
   'install.ios3': 'Open VIK Clan from your home screen',
   'install.later': 'Later',
+  'install.done': 'Installed — launch VIK Clan from your home screen.',
+  'install.android1': 'Open the ⋮ menu (top right of Chrome)',
+  'install.android2': 'Tap “Install app” (or “Add to Home screen”)',
 
   'replace.replace': 'Replace',
   'replace.select': 'Select replacement (active, not in comp)…',
@@ -1301,6 +1304,9 @@ const fr: Dict = {
   'install.ios2': 'Choisissez « Sur l’écran d’accueil »',
   'install.ios3': 'Ouvrez VIK depuis l’accueil',
   'install.later': 'Plus tard',
+  'install.done': 'Installé — lancez VIK Clan depuis l’écran d’accueil.',
+  'install.android1': 'Ouvrez le menu ⋮ (en haut à droite de Chrome)',
+  'install.android2': 'Touchez « Installer l’appli » (ou « Ajouter à l’écran d’accueil »)',
 
   'replace.replace': 'Remplacer',
   'replace.select': 'Choisir un remplaçant (actif, hors compétition)…',
@@ -2069,6 +2075,9 @@ const ar: Dict = {
   'install.ios2': 'اختر «إضافة للشاشة الرئيسية»',
   'install.ios3': 'افتح VIK من الشاشة الرئيسية',
   'install.later': 'لاحقاً',
+  'install.done': 'مثبّت — افتح VIK Clan من الشاشة الرئيسية.',
+  'install.android1': 'افتح قائمة ⋮ (أعلى يمين كروم)',
+  'install.android2': 'اضغط «تثبيت التطبيق» (أو «إضافة للشاشة الرئيسية»)',
 
   'replace.replace': 'استبدال',
   'replace.select': 'اختر بديلاً (نشط، خارج البطولة)…',

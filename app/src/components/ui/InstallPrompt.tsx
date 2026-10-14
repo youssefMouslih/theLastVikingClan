@@ -1,30 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Icon from './Icon';
 import { useLocale } from '../../i18n/LocaleContext';
-
-interface DeferredPrompt extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 
 const DISMISS_KEY = 'vik-install-dismissed';
 
-function isInstalled(): boolean {
-  if (window.matchMedia?.('(display-mode: standalone)').matches) return true;
-  return (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
-
-function isIOS(): boolean {
-  const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/i.test(ua)) return true;
-  return /Mac/i.test(ua) && navigator.maxTouchPoints > 1; // iPadOS desktop mode
-}
-
 // Install card: native prompt where supported (Android/desktop), guided
 // Share → Add to Home Screen steps on iOS (no programmatic install there).
+// A permanent entry point also lives in Settings (survives dismissal).
 export default function InstallPrompt() {
   const { t } = useLocale();
-  const [deferred, setDeferred] = useState<DeferredPrompt | null>(null);
+  const { canInstall, installed, ios, install } = useInstallPrompt();
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === '1';
@@ -32,28 +18,17 @@ export default function InstallPrompt() {
       return false;
     }
   });
-  const [done, setDone] = useState(() => isInstalled());
-  const ios = isIOS();
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as DeferredPrompt);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    const onChange = () => setDone(isInstalled());
-    window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change', onChange);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+  if (installed || dismissed || (!canInstall && !ios)) return null;
 
-  if (done || dismissed || (!deferred && !ios)) return null;
-
-  async function install() {
-    if (!deferred) return;
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    if (outcome === 'accepted') setDone(true);
-    setDeferred(null);
+  async function onInstall() {
+    setBusy(true);
+    try {
+      if (await install()) return;
+    } finally {
+      setBusy(false);
+    }
   }
 
   function later() {
@@ -75,9 +50,9 @@ export default function InstallPrompt() {
           <Icon name="x" className="h-4 w-4" />
         </button>
       </div>
-      {deferred ? (
-        <button type="button" onClick={install} className="btn-primary mt-3 w-full">
-          {t('install.button')}
+      {canInstall ? (
+        <button type="button" onClick={onInstall} disabled={busy} className="btn-primary mt-3 w-full">
+          {busy ? t('common.loading') : t('install.button')}
         </button>
       ) : (
         <ol className="mt-2 flex flex-col gap-1 text-sm">
