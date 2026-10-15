@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../ui/Avatar';
 import Icon from '../ui/Icon';
@@ -8,8 +8,10 @@ import { parseCountry } from '../../utils/countries';
 import { statusLabel, useLocale } from '../../i18n/LocaleContext';
 import { getClanSettings } from '../../services/clanService';
 import { getAvatarUrl, getBannerUrl } from '../../services/storageService';
+import HonourBadge from '../emblem/HonourBadge';
 import { getRecentMatches, type CareerStats } from '../../services/statisticsService';
-import { getTotalXP, levelFor } from '../../services/sagaService';
+import { listHonoursFor, type Honour } from '../../services/honourService';
+import { getCurrentReign } from '../../services/throneService';
 import { profilePoster, shareFile } from '../../utils/shareBattle';
 import type { Profile } from '../../types/database';
 
@@ -47,12 +49,30 @@ export default function PlayerCard({
     queryFn: () => getRecentMatches(member.id, 5),
     staleTime: 30_000,
   });
-  const xpQuery = useQuery({
-    queryKey: ['xp', member.id],
-    queryFn: () => getTotalXP(member.id),
+  const honoursQuery = useQuery({
+    queryKey: ['honours', member.id],
+    queryFn: () => listHonoursFor(member.id, 100).catch(() => []),
     staleTime: 60_000,
   });
-  const levelName = t(levelFor(xpQuery.data ?? 0).level.nameKey);
+  const throneQuery = useQuery({
+    queryKey: ['throne'],
+    queryFn: () => getCurrentReign().catch(() => null),
+    staleTime: 60_000,
+  });
+  const honours = honoursQuery.data ?? [];
+  // Repeat wins of the same award collapse into one tile with a ×N count
+  // (latest award shown; full history stays in the DB + admin list).
+  const grouped = useMemo(() => {
+    const map = new Map<string, { honour: Honour; count: number }>();
+    for (const h of honours) {
+      const key = `${h.type}::${h.name}`;
+      const g = map.get(key);
+      if (g) g.count += 1;
+      else map.set(key, { honour: h, count: 1 });
+    }
+    return [...map.values()];
+  }, [honours]);
+  const isHolder = throneQuery.data?.holder_id === member.id;
   const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
   const avatar = avatarQuery.data ?? null;
   const bannerImg = bannerQuery.data ?? null;
@@ -186,13 +206,33 @@ export default function PlayerCard({
           </div>
         )}
 
-        {/* Badge showcase */}
-        <div className="mt-3 flex flex-col items-center gap-1">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-brand-500/50 bg-gradient-to-b from-brand-400 to-brand-700 shadow-lg shadow-brand-500/40">
-            <Icon name="trophy" className="h-7 w-7 text-white" />
-          </span>
-          <span className="font-display text-xs uppercase tracking-[0.2em] text-brand-300">{levelName}</span>
-        </div>
+        {/* Clan rewards & throne crown */}
+        {(isHolder || grouped.length > 0) && (
+          <div className="mt-3 flex flex-col items-center gap-1.5">
+            {isHolder && (
+              <span className="flex items-center gap-1.5 rounded-full bg-brand-500/15 px-3 py-1 text-xs font-bold text-brand-300">
+                <Icon name="crown" className="h-4 w-4" /> {t('throne.holder')}
+              </span>
+            )}
+            {grouped.length > 0 && (
+              <div className="flex flex-wrap justify-center gap-3">
+                {grouped.map(({ honour: h, count }) => (
+                  <span key={`${h.type}::${h.name}`} className="flex w-24 flex-col items-center gap-1 text-center">
+                    <span className="relative">
+                      <HonourBadge honour={h} zoomable />
+                      {count > 1 && (
+                        <span className="absolute -bottom-1 -end-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
+                          ×{count}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[11px] font-semibold leading-tight">{h.name}</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Stats summary panel */}
         <div className="mt-2 rounded-xl bg-white/5 p-3">

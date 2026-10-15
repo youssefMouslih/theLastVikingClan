@@ -8,7 +8,8 @@ import type { MemberStatus, Profile, Role } from '../../types/database';
 import { useAuthStore } from '../../stores/authStore';
 
 const ALL_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN', 'OWNER'];
-const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT', 'REMOVED'];
+// No REMOVED — members can be suspended/left but never deleted from here.
+const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT'];
 
 // Owner-managed user permissions (§10): who may create leagues/cups (ADMIN),
 // moderate disputes (MODERATOR), or play (PLAYER). Owner-only guards inside.

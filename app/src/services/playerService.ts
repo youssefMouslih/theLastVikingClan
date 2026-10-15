@@ -67,9 +67,10 @@ export async function adminSetStatus(userId: string, status: MemberStatus) {
 }
 
 // Owner-managed permissions (§10 roles):
-// - OWNER/ADMIN can set PLAYER/MODERATOR roles and ACTIVE/INACTIVE/SUSPENDED status.
-// - Only OWNER can grant/revoke ADMIN or OWNER, touch an ADMIN/OWNER member,
-//   or REMOVE someone. Nobody can change their own role/status.
+// - OWNER/ADMIN can set PLAYER/MODERATOR roles and ACTIVE/INACTIVE/SUSPENDED/LEFT status.
+// - Only OWNER can grant/revoke ADMIN, or touch an ADMIN/OWNER member.
+// - Nobody can be REMOVED (deleted) — use SUSPENDED/LEFT instead.
+// - Nobody can change their own role/status.
 export async function manageMember(args: {
   target: Profile;
   role: Role;
@@ -83,10 +84,14 @@ export async function manageMember(args: {
   if (target.role === 'OWNER' && role !== 'OWNER') {
     throw new Error('The owner keeps their position — this role cannot be changed.');
   }
+  // Members are never deleted — not even by the owner.
+  if (status === 'REMOVED') {
+    throw new Error('Members cannot be removed — use Suspended or Left instead.');
+  }
   const sensitiveTarget = target.role === 'OWNER' || target.role === 'ADMIN';
   const sensitiveGrant = role === 'OWNER' || role === 'ADMIN';
-  if ((sensitiveTarget || sensitiveGrant || status === 'REMOVED') && actorRole !== 'OWNER') {
-    throw new Error('Only the owner can assign Admin/Owner roles or remove members.');
+  if ((sensitiveTarget || sensitiveGrant) && actorRole !== 'OWNER') {
+    throw new Error('Only the owner can assign Admin roles or manage admins.');
   }
   const { error } = await supabase
     .from('profiles')

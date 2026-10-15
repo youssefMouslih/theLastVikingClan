@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 // Awarding a title here feeds PlayerPage titles + clan records.
 export type HonourType = 'LEAGUE_CHAMPION' | 'CUP_CHAMPION' | 'TOURNAMENT_CHAMPION' | 'SEASON_MVP' | 'SPECIAL';
 
+export const HONOUR_TYPES: HonourType[] = ['LEAGUE_CHAMPION', 'CUP_CHAMPION', 'TOURNAMENT_CHAMPION', 'SEASON_MVP', 'SPECIAL'];
+
 export interface Honour {
   id: string;
   player_id: string;

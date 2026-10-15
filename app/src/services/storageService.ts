@@ -99,6 +99,31 @@ export async function getBannerUrl(filePath: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
+// Badge template per honour type. Bucket: clan-assets (private).
+// Path: badge-templates/{TYPE}.png — fixed path + upsert, so re-uploading
+// replaces the picture for every award of that type, past and future.
+export function badgeTemplatePath(type: string): string {
+  return `badge-templates/${type}.png`;
+}
+
+export async function uploadBadgeTemplate(type: string, file: File | Blob): Promise<string> {
+  if (file instanceof File && !ALLOWED.includes(file.type)) throw new Error('Badge must be JPG, PNG or WEBP.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Badge must be under 5 MB.');
+  const path = badgeTemplatePath(type);
+  const { error } = await supabase.storage.from('clan-assets').upload(path, file, {
+    contentType: 'image/png',
+    upsert: true,
+  });
+  if (error) throw new Error(`Badge upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getBadgeTemplateUrl(type: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('clan-assets').createSignedUrl(badgeTemplatePath(type), 7 * 24 * 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
 // Forged badge PNG. Bucket: clan-assets (private). Path: badges/{file}.
 export async function uploadBadgeImage(file: File | Blob, fileName: string): Promise<string> {
   const path = `badges/${fileName}`;
@@ -151,4 +176,4 @@ export async function purgeCompletedEvidence(competitionId: string): Promise<num
   return list.length;
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, deleteStoredFile, purgeCompletedEvidence, client: supabase };
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, deleteStoredFile, purgeCompletedEvidence, client: supabase };

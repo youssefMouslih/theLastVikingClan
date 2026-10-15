@@ -1,13 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import Emblem from '../emblem/Emblem';
+import HonourBadge from '../emblem/HonourBadge';
 import { useLocale } from '../../i18n/LocaleContext';
 import { generateBatch, generateOne, type BatchProgress } from '../../services/badgeForge';
 import { listCompetitions } from '../../services/competitionService';
-import { awardHonour, deleteHonour, listRecentHonours, type Honour, type HonourType } from '../../services/honourService';
+import { awardHonour, deleteHonour, listRecentHonours, HONOUR_TYPES, type HonourType } from '../../services/honourService';
 import { notify } from '../../services/notificationService';
 import { listActiveMembers } from '../../services/playerService';
-import { getBadgeImageUrl } from '../../services/storageService';
+import { uploadBadgeTemplate } from '../../services/storageService';
 import { useAuthStore } from '../../stores/authStore';
 
 // Manual honours in V1 (§118): admin awards titles + season MVP.
@@ -51,7 +51,7 @@ export default function HonoursTab() {
         </select>
         <div className="grid grid-cols-2 gap-2">
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as HonourType })} className="input text-sm">
-            <option>LEAGUE_CHAMPION</option><option>CUP_CHAMPION</option><option>TOURNAMENT_CHAMPION</option><option>SEASON_MVP</option><option>SPECIAL</option>
+            {HONOUR_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
           </select>
           <select value={form.competition_id} onChange={(e) => setForm({ ...form, competition_id: e.target.value })} className="input text-sm">
             <option value="">{t('hon.noComp')}</option>
@@ -64,6 +64,13 @@ export default function HonoursTab() {
           {busy ? t('hon.awarding') : t('hon.awardBtn')}
         </button>
       </form>
+      <div className="card mt-2 flex flex-col gap-2 p-3">
+        <h2 className="font-bold">{t('hon.tplTitle')}</h2>
+        <p className="text-xs opacity-60">{t('hon.tplHint')}</p>
+        {HONOUR_TYPES.map((tp) => (
+          <TplRow key={tp} type={tp} onMsg={setMsg} />
+        ))}
+      </div>
       <div className="card mt-2 flex flex-col gap-1 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-bold">{t('hon.forgeTitle')}</h2>
@@ -102,7 +109,7 @@ export default function HonoursTab() {
       <div className="mt-2 flex flex-col gap-1">
         {(honoursQuery.data ?? []).map((h) => (
           <div key={h.id} className="card flex items-center gap-2 p-2 text-sm">
-            <ForgeThumb honour={h} />
+            <HonourBadge honour={h} className="h-10 w-12" />
             <span className="flex-1">{h.name} — <b>{names[h.player_id] ?? '?'}</b> <span className="opacity-60">• {h.type}</span></span>
             <button
               type="button"
@@ -131,16 +138,39 @@ export default function HonoursTab() {
   );
 }
 
-function ForgeThumb({ honour }: { honour: Honour }) {
-  const imgQuery = useQuery({
-    queryKey: ['badge-url', honour.id, honour.image_url],
-    queryFn: () => getBadgeImageUrl(honour.image_url),
-    enabled: !!honour.image_url,
-    staleTime: 1000 * 60 * 60,
-  });
-  const img = imgQuery.data ?? null;
-  if (!img) {
-    return <Emblem type={honour.type} className="h-10 w-12" />;
-  }
-  return <img src={img} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />;
+// One template picture per badge type: the latest upload wins for every
+// award of that type, past and future.
+function TplRow({ type, onMsg }: { type: HonourType; onMsg: (m: string | null) => void }) {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <HonourBadge honour={{ id: `tpl-${type}`, type, image_url: null }} className="h-10 w-12" />
+      <span className="flex-1 text-xs font-semibold">{type}</span>
+      <label className="file-upload text-xs">
+        <span>{busy ? t('hon.tplUploading') : t('hon.tplChange')}</span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={busy}
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = '';
+            if (!f) return;
+            setBusy(true); onMsg(null);
+            try {
+              await uploadBadgeTemplate(type, f);
+              await queryClient.invalidateQueries({ queryKey: ['badge-tpl'] });
+              onMsg(t('hon.tplUpdated'));
+            } catch (err) {
+              onMsg(err instanceof Error ? err.message : 'Upload failed.');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      </label>
+    </div>
+  );
 }
