@@ -12,9 +12,11 @@ import { generateKnockout, roundNameForSize } from '../competition/knockoutEngin
 // Fake-data competition simulation (nothing touches the database).
 // LEAGUE: 16 players round-robin (table + matchmaking tabs).
 // CUP: 16-player single-elimination bracket (bracket + matches tabs).
-// Toggle PLAYER view (table/fixtures, submit your own result) vs ADMIN view
-// (confirm/reject with comment, DM either player, simulate, reset).
-// Every submitted result carries a simulated screenshot the admin can zoom.
+// Toggle PLAYER view (table/fixtures, submit your own result) vs MODERATOR
+// view (review queue: confirm/reject submitted with comment, zoom evidence)
+// vs ADMIN view (moderator powers + DM either player, simulate, draw,
+// reset, PNG shareables). Every submitted result carries a simulated
+// screenshot the reviewer can zoom.
 const TAGS = [
   'Pride', 'Shadow', 'Ryu', 'Ace', 'Ghost', 'Fenrir', 'Odin', 'Thor',
   'Loki', 'Freyja', 'Sigurd', 'Ragnar', 'Bjorn', 'Ivar', 'Astrid', 'Eirik',
@@ -24,7 +26,9 @@ const NAMES: Record<string, string> = Object.fromEntries(TAGS.map((t, i) => [IDS
 const ME = IDS[0]; // you play as VIK Pride
 
 type Status = 'CONFIRMED' | 'RESULT_SUBMITTED' | 'SCHEDULED' | 'REJECTED';
-interface Override { status: Status; sa: number; sb: number; comment?: string; shot?: string }
+// Point of view: player submits, moderator reviews, admin runs the room.
+type Pov = 'player' | 'moderator' | 'admin';
+interface Override { status: Status; sa: number; sb: number; comment?: string; shot?: string; forfeit?: boolean }
 
 // Deterministic RNG so reloads show the same simulation.
 function mulberry32(seed: number) {
@@ -141,7 +145,7 @@ const STATUS_STYLE: Record<Status, string> = {
 };
 
 interface RowHandlers {
-  role: 'player' | 'admin';
+  role: Pov;
   mine: boolean;
   meSide: 'a' | 'b' | null;
   openDm: (id: string) => void;
@@ -155,12 +159,15 @@ interface RowHandlers {
   zoom: (url: string) => void;
 }
 
-function FixtureRow({ aName, bName, score, showScore, img, st, comment, winner, h }: {
+function FixtureRow({ aName, bName, score, showScore, img, st, comment, forfeit, winner, h }: {
   aName: string; bName: string; score: string; showScore: boolean;
-  img: string | null; st: Status; comment?: string; winner: 'a' | 'b' | null; h: RowHandlers;
+  img: string | null; st: Status; comment?: string; forfeit?: boolean; winner: 'a' | 'b' | null; h: RowHandlers;
 }) {
   const colorA = winner ? (winner === 'a' ? 'font-bold text-green-400' : 'text-red-400') : '';
   const colorB = winner ? (winner === 'b' ? 'font-bold text-green-400' : 'text-red-400') : '';
+  // Reviewers (moderator + admin) confirm/reject submitted results and zoom
+  // evidence. DM-either-player stays admin-only; opponent-DM stays player-only.
+  const reviewer = h.role !== 'player';
   return (
     <li className="flex flex-col gap-1.5 rounded-xl bg-white/5 p-2.5 text-sm">
       <div className="flex items-center gap-1.5">
@@ -169,7 +176,7 @@ function FixtureRow({ aName, bName, score, showScore, img, st, comment, winner, 
             <WhatsAppIcon className="h-5 w-5" />
           </button>
         )}
-        {h.role !== 'admin' && h.meSide === 'b' && (
+        {h.role === 'player' && h.meSide === 'b' && (
           <OppMsgButton onOpen={() => h.openDm('opp')} />
         )}
         <span
@@ -188,7 +195,7 @@ function FixtureRow({ aName, bName, score, showScore, img, st, comment, winner, 
             <WhatsAppIcon className="h-5 w-5" />
           </button>
         )}
-        {h.role !== 'admin' && h.meSide === 'a' && (
+        {h.role === 'player' && h.meSide === 'a' && (
           <OppMsgButton onOpen={() => h.openDm('opp')} />
         )}
       </div>
@@ -201,17 +208,20 @@ function FixtureRow({ aName, bName, score, showScore, img, st, comment, winner, 
         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_STYLE[st]}`}>
           {st === 'CONFIRMED' ? 'CONFIRMED' : st === 'RESULT_SUBMITTED' ? 'SUBMITTED' : st === 'REJECTED' ? 'REJECTED' : 'SCHEDULED'}
         </span>
-        {h.role === 'admin' && (st === 'RESULT_SUBMITTED' || st === 'REJECTED') && (
-          <button onClick={h.confirmOne} className="btn-primary h-8 px-2 text-[11px]">Confirm</button>
+        {forfeit && (
+          <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-400">FORFEIT</span>
         )}
-        {h.role === 'admin' && st === 'RESULT_SUBMITTED' && (
+        {reviewer && (st === 'RESULT_SUBMITTED' || st === 'REJECTED') && (
+          <button onClick={h.confirmOne} className="btn-primary h-8 px-2 text-[11px]">{forfeit && st === 'RESULT_SUBMITTED' ? 'Accept forfeit' : 'Confirm'}</button>
+        )}
+        {reviewer && st === 'RESULT_SUBMITTED' && (
           <button onClick={h.startReject} className="btn-danger h-8 px-2 text-[11px]">Reject</button>
         )}
       </div>
       {st === 'REJECTED' && comment && (
         <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-400">Rejected: {comment}</p>
       )}
-      {h.role === 'admin' && h.rejecting && (
+      {reviewer && h.rejecting && (
         <div className="flex flex-col gap-1.5">
           <textarea
             value={h.rejectText} onChange={(ev) => h.setRejectText(ev.target.value)} rows={2} maxLength={240}
@@ -823,7 +833,7 @@ export default function SimPage() {
   const [revealed, setRevealed] = useState(0);
   const [spin, setSpin] = useState(0);
   const [comp, setComp] = useState<'league' | 'cup'>('league');
-  const [role, setRole] = useState<'player' | 'admin'>('player');
+  const [role, setRole] = useState<Pov>('player');
   const [tab, setTab] = useState<'table' | 'fixtures' | 'bracket' | 'matches'>('table');
   const [played, setPlayed] = useState(5);
   const [round, setRound] = useState(6);
@@ -832,6 +842,8 @@ export default function SimPage() {
   const [myA, setMyA] = useState('');
   const [myB, setMyB] = useState('');
   const [myShot, setMyShot] = useState<string | null>(null);
+  const [myForfeit, setMyForfeit] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
 
   const onShotFile = (f: File | undefined) => {
     if (!f) { setMyShot(null); return; }
@@ -853,15 +865,15 @@ export default function SimPage() {
   const keyOf = (f: SimFixture) => `${f.a}-${f.b}`;
 
   // ---- league state ----
-  const eff = useCallback((f: SimFixture): { st: Status; sa: number; sb: number; comment?: string; shot?: string } => {
+  const eff = useCallback((f: SimFixture): { st: Status; sa: number; sb: number; comment?: string; shot?: string; forfeit?: boolean } => {
     const k = keyOf(f);
     if (f.round <= played) {
       const o = overrides[k];
-      return o ? { st: 'CONFIRMED', sa: o.sa, sb: o.sb, shot: o.shot } : { st: 'CONFIRMED', sa: f.sa, sb: f.sb };
+      return o ? { st: 'CONFIRMED', sa: o.sa, sb: o.sb, shot: o.shot, forfeit: o.forfeit } : { st: 'CONFIRMED', sa: f.sa, sb: f.sb };
     }
     if (overrides[k]) {
       const o = overrides[k];
-      return { st: o.status, sa: o.sa, sb: o.sb, comment: o.comment, shot: o.shot };
+      return { st: o.status, sa: o.sa, sb: o.sb, comment: o.comment, shot: o.shot, forfeit: o.forfeit };
     }
     if (f.round === current && preSubmitted.get(f.round)?.has(k)) return { st: 'RESULT_SUBMITTED', sa: f.sa, sb: f.sb };
     return { st: 'SCHEDULED', sa: f.sa, sb: f.sb };
@@ -1010,17 +1022,17 @@ export default function SimPage() {
   }, [drawing]);
   const cupStarted = cupPlayed > 0 || Object.keys(overrides).some((k) => k.startsWith('cup-'));
 
-  const cupEff = useCallback((m: CupMatch, winners: Map<string, string>): { st: Status; sa: number; sb: number; comment?: string; shot?: string; a: string | null; b: string | null } => {
+  const cupEff = useCallback((m: CupMatch, winners: Map<string, string>): { st: Status; sa: number; sb: number; comment?: string; shot?: string; forfeit?: boolean; a: string | null; b: string | null } => {
     const [a, b] = cupSides(m, winners);
     const k = `cup-${m.id}`;
     if (!a || !b) return { st: 'SCHEDULED', sa: m.sa, sb: m.sb, a, b };
     if (m.round <= cupPlayed) {
       const o = overrides[k];
-      return o ? { st: 'CONFIRMED', sa: o.sa, sb: o.sb, shot: o.shot, a, b } : { st: 'CONFIRMED', sa: m.sa, sb: m.sb, a, b };
+      return o ? { st: 'CONFIRMED', sa: o.sa, sb: o.sb, shot: o.shot, forfeit: o.forfeit, a, b } : { st: 'CONFIRMED', sa: m.sa, sb: m.sb, a, b };
     }
     if (overrides[k]) {
       const o = overrides[k];
-      return { st: o.status, sa: o.sa, sb: o.sb, comment: o.comment, shot: o.shot, a, b };
+      return { st: o.status, sa: o.sa, sb: o.sb, comment: o.comment, shot: o.shot, forfeit: o.forfeit, a, b };
     }
     if (m.round === cupCurrent && m.slot === 0) return { st: 'RESULT_SUBMITTED', sa: m.sa, sb: m.sb, a, b };
     return { st: 'SCHEDULED', sa: m.sa, sb: m.sb, a, b };
@@ -1097,8 +1109,16 @@ export default function SimPage() {
   const myNextCupEff = myNextCup ? cupEff(myNextCup, cupWinners) : null;
 
   const submitMine = (target: SimFixture | CupMatch, isCup: boolean) => {
-    const sa = Math.max(0, Math.min(9, parseInt(myA, 10) || 0));
-    const sb = Math.max(0, Math.min(9, parseInt(myB, 10) || 0));
+    // Screenshot is obligatory — score or forfeit, no proof means no submit.
+    if (!myShot) {
+      setSubmitMsg('Screenshot required — attach match evidence first.');
+      return;
+    }
+    setSubmitMsg(null);
+    // Forfeit claim = walkover 3–0 for the claimant; a reviewer must accept it.
+    let sa = Math.max(0, Math.min(9, parseInt(myA, 10) || 0));
+    let sb = Math.max(0, Math.min(9, parseInt(myB, 10) || 0));
+    if (myForfeit) { sa = 3; sb = 0; }
     const k = isCup ? `cup-${(target as CupMatch).id}` : keyOf(target as SimFixture);
     let mineIsA: boolean;
     if (isCup) {
@@ -1107,12 +1127,12 @@ export default function SimPage() {
     } else {
       mineIsA = (target as SimFixture).a === ME;
     }
-    setOverrides((o) => ({ ...o, [k]: { status: 'RESULT_SUBMITTED', sa: mineIsA ? sa : sb, sb: mineIsA ? sb : sa, shot: myShot ?? undefined } }));
-    setMyA(''); setMyB(''); setMyShot(null);
+    setOverrides((o) => ({ ...o, [k]: { status: 'RESULT_SUBMITTED', sa: mineIsA ? sa : sb, sb: mineIsA ? sb : sa, shot: myShot ?? undefined, forfeit: myForfeit || undefined } }));
+    setMyA(''); setMyB(''); setMyShot(null); setMyForfeit(false);
   };
 
-  const confirmKey = (k: string, sa: number, sb: number, shot?: string) => {
-    setOverrides((o) => ({ ...o, [k]: { status: 'CONFIRMED', sa, sb, shot } }));
+  const confirmKey = (k: string, sa: number, sb: number, shot?: string, forfeit?: boolean) => {
+    setOverrides((o) => ({ ...o, [k]: { status: 'CONFIRMED', sa, sb, shot, forfeit } }));
   };
 
   const sendRejection = (k: string, sa: number, sb: number, shot?: string) => {
@@ -1158,7 +1178,7 @@ export default function SimPage() {
     setVideoOpen(false);
     setRecapRendering(false);
     celebratedRef.current = null;
-    setPlayed(5); setRound(6); setCupPlayed(0); setOverrides({}); setMyA(''); setMyB(''); setMyShot(null);
+    setPlayed(5); setRound(6); setCupPlayed(0); setOverrides({}); setMyA(''); setMyB(''); setMyShot(null); setMyForfeit(false); setSubmitMsg(null);
     setRejecting(null); setRejectText(''); setLightbox(null); setProfileId(null); setDmTo(null);
     setDraw(null); setDrawing(false); setRevealed(0);
   };
@@ -1222,28 +1242,33 @@ export default function SimPage() {
       }),
   } : null;
 
-  const myMatchCard = (target: SimFixture | CupMatch | undefined, effRes: { st: Status; sa: number; sb: number; comment?: string } | null, label: string, aId: string, bId: string, isCup: boolean) => {
+  const myMatchCard = (target: SimFixture | CupMatch | undefined, effRes: { st: Status; sa: number; sb: number; comment?: string; forfeit?: boolean } | null, label: string, aId: string, bId: string, isCup: boolean) => {
     if (!target || !effRes) return <p className="mt-1 text-sm opacity-70">Season complete — no fixtures left.</p>;
     const scoreForm = (
       <div className="mt-2 flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <label className="text-xs opacity-60">You
-            <input value={myA} onChange={(e) => setMyA(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={1} aria-label="Your score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
+          <label className={`text-xs opacity-60 ${myForfeit ? 'pointer-events-none opacity-30' : ''}`}>You
+            <input value={myA} disabled={myForfeit} onChange={(e) => setMyA(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={1} aria-label="Your score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
           </label>
           <span className="font-mono opacity-60">–</span>
-          <label className="text-xs opacity-60">Opp
-            <input value={myB} onChange={(e) => setMyB(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={1} aria-label="Opponent score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
+          <label className={`text-xs opacity-60 ${myForfeit ? 'pointer-events-none opacity-30' : ''}`}>Opp
+            <input value={myB} disabled={myForfeit} onChange={(e) => setMyB(e.target.value.replace(/\D/g, ''))} inputMode="numeric" maxLength={1} aria-label="Opponent score" className="input ml-1 h-11 w-12 text-center text-lg font-bold" />
           </label>
           <button onClick={() => submitMine(target, isCup)} className="btn-primary h-11 flex-1 text-sm">
             {effRes.st === 'REJECTED' ? 'Resubmit' : 'Submit result'}
           </button>
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-xs">
+          <input type="checkbox" checked={myForfeit} onChange={(e) => setMyForfeit(e.target.checked)} className="h-4 w-4 accent-orange-500" />
+          Opponent forfeited (no-show — walkover 3–0, needs reviewer accept)
+        </label>
         <label className="file-upload text-xs">
-          <span>{myShot ? 'Screenshot attached ✓' : 'Upload match screenshot'}</span>
+          <span>{myShot ? 'Screenshot attached ✓ (required)' : 'Upload match screenshot (required)'}</span>
           <input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Match screenshot" onChange={(e) => onShotFile(e.target.files?.[0])} />
           {myShot && <span className="file-name">attached</span>}
         </label>
         {myShot && <img src={myShot} alt="Your screenshot preview" className="h-24 w-40 rounded-lg border border-white/20 object-cover" />}
+        {submitMsg && <p className="rounded-lg bg-red-500/10 px-2 py-1 text-xs font-bold text-red-400">{submitMsg}</p>}
       </div>
     );
     return (
@@ -1256,14 +1281,16 @@ export default function SimPage() {
         {effRes.st === 'REJECTED' && (
           <div className="mt-2">
             <p className="rounded-xl bg-red-500/10 p-2 text-sm text-red-400">
-              Rejected by admin: {effRes.comment} — fix the score and resubmit below.
+              Rejected by reviewer: {effRes.comment} — fix the score and resubmit below.
             </p>
             {scoreForm}
           </div>
         )}
         {effRes.st === 'RESULT_SUBMITTED' && (
           <p className="mt-2 rounded-xl bg-amber-500/10 p-2 text-sm text-amber-400">
-            Result submitted ({effRes.sa}–{effRes.sb}) — waiting for opponent / admin confirmation. It won't count until CONFIRMED.
+            {effRes.forfeit
+              ? 'Forfeit claimed (3–0 walkover) — waiting for moderator/admin accept. It won\'t count until CONFIRMED.'
+              : `Result submitted (${effRes.sa}–${effRes.sb}) — waiting for opponent / reviewer confirmation. It won't count until CONFIRMED.`}
           </p>
         )}
       </div>
@@ -1271,7 +1298,7 @@ export default function SimPage() {
   };
 
   const rowHandlers = (
-    k: string, e: { st: Status; sa: number; sb: number; comment?: string; shot?: string },
+    k: string, e: { st: Status; sa: number; sb: number; comment?: string; shot?: string; forfeit?: boolean },
     aId: string | null, bId: string | null, label: string, mine: boolean,
   ): RowHandlers => ({
     role,
@@ -1281,7 +1308,7 @@ export default function SimPage() {
       const id = which === 'opp' ? (aId === ME ? bId : aId) : which === 'a' ? aId : bId;
       if (id) openDm(id, label, e.comment);
     },
-    confirmOne: () => confirmKey(k, e.sa, e.sb, e.shot),
+    confirmOne: () => confirmKey(k, e.sa, e.sb, e.shot, e.forfeit),
     startReject: () => { setRejecting(k); setRejectText(e.comment ?? ''); },
     rejecting: rejecting === k,
     rejectText,
@@ -1307,12 +1334,12 @@ export default function SimPage() {
           ))}
         </div>
         <div className="mt-2 flex gap-1 rounded-xl bg-white/5 p-1" role="tablist" aria-label="Point of view">
-          {(['player', 'admin'] as const).map((r) => (
+          {(['player', 'moderator', 'admin'] as const).map((r) => (
             <button
               key={r} role="tab" aria-selected={role === r} onClick={() => setRole(r)}
-              className={`h-10 flex-1 rounded-lg text-sm font-bold uppercase tracking-wider ${role === r ? 'bg-brand-500/25 text-brand-300' : 'opacity-60'}`}
+              className={`h-10 flex-1 rounded-lg text-xs font-bold uppercase tracking-wider sm:text-sm ${role === r ? 'bg-brand-500/25 text-brand-300' : 'opacity-60'}`}
             >
-              {r === 'player' ? 'Player view' : 'Admin view'}
+              {r === 'player' ? 'Player view' : r === 'moderator' ? 'Moderator view' : 'Admin view'}
             </button>
           ))}
         </div>
@@ -1321,7 +1348,7 @@ export default function SimPage() {
             <div className="mt-2 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-white/10 px-2 py-1">Matchday {current} of {rounds}</span>
               <span className="rounded-full bg-white/10 px-2 py-1">{confirmedCount} / {fixtures.length} confirmed</span>
-              {role === 'admin' && <span className="rounded-full bg-amber-500/15 px-2 py-1 text-amber-400">{pendingCount} awaiting confirmation</span>}
+              {role !== 'player' && <span className="rounded-full bg-amber-500/15 px-2 py-1 text-amber-400">{pendingCount} awaiting confirmation</span>}
             </div>
             {role === 'admin' && (
               <div className="mt-3 flex gap-2">
@@ -1355,7 +1382,7 @@ export default function SimPage() {
             <div className="mt-2 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-white/10 px-2 py-1">{roundNameForSize(16, cupCurrent)} · round {cupCurrent} of {cupRounds}</span>
               <span className="rounded-full bg-white/10 px-2 py-1">{cupConfirmed} / {cupMatches.length} confirmed</span>
-              {role === 'admin' && <span className="rounded-full bg-amber-500/15 px-2 py-1 text-amber-400">{cupPending} awaiting confirmation</span>}
+              {role !== 'player' && <span className="rounded-full bg-amber-500/15 px-2 py-1 text-amber-400">{cupPending} awaiting confirmation</span>}
               {videoUrl && !drawing && (
                 <button onClick={() => setVideoOpen(true)} className="rounded-full bg-brand-500/15 px-2 py-1 font-bold text-brand-300">🎬 Draw video</button>
               )}
@@ -1420,7 +1447,7 @@ export default function SimPage() {
       {comp === 'league' && tab === 'table' && (
         <section className="card mt-3" aria-label="Standings">
           <h2 className="card-title">League table · {confirmedCount} matches confirmed · tap a player for profile</h2>
-          {role === 'admin' && (
+          {role !== 'player' && (
             <button
               onClick={() => exportPng(() => tableImage('VIK LEAGUE', `Standings · after ${played} matchdays`, standings.map((r, i) => ({
                 pos: i + 1, name: NAMES[r.player_id] ?? r.player_id, p: r.played, w: r.wins, d: r.draws, l: r.losses,
@@ -1451,7 +1478,7 @@ export default function SimPage() {
           <p className="mt-1 text-xs opacity-60">
             Matchday {shown}{shown === current && played < rounds ? ' · playing now (deadline in 2 days)' : shown <= played ? ' · finished' : ' · upcoming'}
           </p>
-          {role === 'admin' && (
+          {role !== 'player' && (
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 onClick={() => exportPng(() => matchImage('VIK LEAGUE', `Matchday ${shown} · fixtures`, roundFixtures.map((f) => (
@@ -1483,7 +1510,7 @@ export default function SimPage() {
               return (
                 <FixtureRow key={k} aName={NAMES[f.a]} bName={NAMES[f.b]}
                   score={showScore ? `${e.sa}–${e.sb}` : 'vs'} showScore={showScore}
-                  img={e.shot ?? img} st={e.st} comment={e.comment}
+                  img={e.shot ?? img} st={e.st} comment={e.comment} forfeit={e.forfeit}
                   winner={showScore ? (e.sa > e.sb ? 'a' : e.sb > e.sa ? 'b' : null) : null} h={h} />
               );
             })}
@@ -1497,7 +1524,7 @@ export default function SimPage() {
             cupMatches={cupMatches} cupRounds={cupRounds} cupCurrent={cupCurrent} cupWinners={cupWinners}
             cupEff={cupEff} champion={champion} drawn={!!draw} onOpenMatches={() => setTab('matches')}
           />
-          {role === 'admin' && (
+          {role !== 'player' && (
             <button
               onClick={() => exportPng(() => bracketImage('VIK CUP', 'Knockout bracket', Array.from({ length: cupRounds }, (_, i) => i + 1).map((r) => ({
                 name: roundNameForSize(16, r),
@@ -1519,7 +1546,7 @@ export default function SimPage() {
       {comp === 'cup' && tab === 'matches' && (
         <section className="card mt-3" aria-label="Cup matches">
           <h2 className="card-title">Matches · evidence, confirm & message</h2>
-          {role === 'admin' && (
+          {role !== 'player' && (
             <div className="mt-2 flex flex-wrap gap-2">
               <button
                 onClick={() => exportPng(() => matchImage('VIK CUP', `${roundNameForSize(16, cupCurrent)} · fixtures`, cupMatches.filter((m) => m.round === cupCurrent).sort((x, y) => x.slot - y.slot).map((m) => {
@@ -1558,7 +1585,7 @@ export default function SimPage() {
                     <FixtureRow key={k}
                       aName={e.a ? NAMES[e.a] : 'TBD'} bName={e.b ? NAMES[e.b] : 'TBD'}
                       score={showScore ? `${e.sa}–${e.sb}` : 'vs'} showScore={showScore}
-                      img={e.shot ?? img} st={e.st} comment={e.comment}
+                      img={e.shot ?? img} st={e.st} comment={e.comment} forfeit={e.forfeit}
                       winner={showScore ? (e.sa > e.sb ? 'a' : e.sb > e.sa ? 'b' : null) : null} h={h} />
                   );
                 })}

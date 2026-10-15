@@ -6,6 +6,10 @@ export type HonourType = 'LEAGUE_CHAMPION' | 'CUP_CHAMPION' | 'TOURNAMENT_CHAMPI
 
 export const HONOUR_TYPES: HonourType[] = ['LEAGUE_CHAMPION', 'CUP_CHAMPION', 'TOURNAMENT_CHAMPION', 'SEASON_MVP', 'SPECIAL'];
 
+// Every slot with an uploadable badge picture: honour types + the throne.
+// The throne is not an awardable honour type — it only gets a picture slot.
+export const BADGE_TEMPLATE_SLOTS: string[] = [...HONOUR_TYPES, 'THRONE'];
+
 export interface Honour {
   id: string;
   player_id: string;

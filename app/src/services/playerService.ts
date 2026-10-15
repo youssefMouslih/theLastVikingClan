@@ -88,8 +88,12 @@ export async function manageMember(args: {
   if (status === 'REMOVED') {
     throw new Error('Members cannot be removed — use Suspended or Left instead.');
   }
+  // The owner role is never granted through the app — one permanent owner.
+  if (role === 'OWNER') {
+    throw new Error('The owner role cannot be granted.');
+  }
   const sensitiveTarget = target.role === 'OWNER' || target.role === 'ADMIN';
-  const sensitiveGrant = role === 'OWNER' || role === 'ADMIN';
+  const sensitiveGrant = role === 'ADMIN';
   if ((sensitiveTarget || sensitiveGrant) && actorRole !== 'OWNER') {
     throw new Error('Only the owner can assign Admin roles or manage admins.');
   }

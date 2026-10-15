@@ -32,7 +32,7 @@ import {
   updateCompetition,
   type CompetitionEdit,
 } from '../services/competitionService';
-import { generateKnockoutFixtures, generateLeagueFixtures, listCompetitionMatches, markOverdue } from '../services/matchService';
+import { generateKnockoutFixtures, generateLeagueFixtures, listCompetitionMatches, listRounds, markOverdue, startRound } from '../services/matchService';
 import { purgeCompletedEvidence } from '../services/storageService';
 import { getStandings } from '../services/standingsService';
 import { useAuthStore } from '../stores/authStore';
@@ -51,6 +51,7 @@ export default function CompetitionDetailPage() {
   const nav = useNavigate();
   const me = useAuthStore((s) => s.profile);
   const isAdmin = me?.role === 'OWNER' || me?.role === 'ADMIN';
+  const isStaff = !!me && ['OWNER', 'ADMIN', 'MODERATOR'].includes(me.role);
   const [tab, setTab] = useState<string>('Overview');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,6 +62,8 @@ export default function CompetitionDetailPage() {
   const compQuery = useQuery({ queryKey: ['competition', id], queryFn: () => getCompetition(id ?? '', true), enabled: !!id });
   const partsQuery = useQuery({ queryKey: ['participants', id], queryFn: () => listParticipants(id ?? ''), enabled: !!id });
   const matchesQuery = useQuery({ queryKey: ['matches', id], queryFn: () => listCompetitionMatches(id ?? ''), enabled: !!id });
+  const roundsQuery = useQuery({ queryKey: ['rounds', id], queryFn: () => listRounds(id ?? ''), enabled: !!id && (tab === 'Matches' || tab === 'Bracket') });
+  const rounds = roundsQuery.data ?? [];
   const standingsQuery = useQuery({
     queryKey: ['standings', id],
     queryFn: () => getStandings(id ?? ''),
@@ -117,6 +120,48 @@ export default function CompetitionDetailPage() {
       setBusy(false);
     }
   }
+
+  // Round gating strip: a round opens when the previous round is fully
+  // played, or when staff force-starts it early. Players see why a round
+  // is still locked; staff (moderator included) get a Start button.
+  const FINAL = new Set(['CONFIRMED', 'FORFEIT', 'CANCELLED']);
+  const roundOpen = (idx: number): boolean => {
+    const r = rounds[idx];
+    if (!r || r.status === 'ACTIVE') return true;
+    if (r.status !== 'SCHEDULED') return false;
+    for (let i = 0; i < idx; i++) {
+      if (matches.some((m) => m.round_id === rounds[i].id && !FINAL.has(m.status))) return false;
+    }
+    return true;
+  };
+  const roundsBar = rounds.length === 0 ? null : (
+    <div className="flex flex-col gap-1.5" aria-label="Rounds">
+      {rounds.map((r, i) => {
+        const done = r.status === 'COMPLETED';
+        const open = done || roundOpen(i);
+        return (
+          <div key={r.id} className="card flex items-center gap-2 p-2 text-sm">
+            <span className="flex-1 font-semibold">{r.name}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${done ? 'bg-zinc-500/15 text-zinc-400' : open ? 'bg-green-500/15 text-green-400' : 'bg-amber-500/15 text-amber-400'}`}>
+              {done ? t('round.done') : open ? t('round.live') : t('round.locked')}
+            </span>
+            {!done && !open && (
+              <span className="hidden text-[11px] opacity-60 sm:inline">{t('round.waitPrev')}</span>
+            )}
+            {isStaff && !done && r.status === 'SCHEDULED' && (
+              <button
+                disabled={busy}
+                onClick={() => run(() => startRound(r.id, me!.id, me!.role), t('round.started')).then(() => roundsQuery.refetch())}
+                className="btn-ghost h-9 px-3 text-xs"
+              >
+                {t('round.start')}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   function startEdit() {
     if (!comp) return;
@@ -377,6 +422,7 @@ export default function CompetitionDetailPage() {
         )}
         {tab === 'Matches' && (
           <div className="flex flex-col gap-2" aria-busy={matchesQuery.isLoading}>
+            {roundsBar}
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('detail.tabMatches')} hint={t('detail.noFixtures')} />}
             {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}
@@ -384,6 +430,7 @@ export default function CompetitionDetailPage() {
         )}
         {tab === 'Bracket' && (
           <div className="flex flex-col gap-2" aria-busy={matchesQuery.isLoading}>
+            {roundsBar}
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="trophy" className="h-8 w-8" />} title={t('detail.tabBracket')} hint={t('detail.noBracket')} />}
             {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}

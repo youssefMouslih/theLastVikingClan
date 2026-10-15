@@ -4,7 +4,7 @@ import HonourBadge from '../emblem/HonourBadge';
 import { useLocale } from '../../i18n/LocaleContext';
 import { generateBatch, generateOne, type BatchProgress } from '../../services/badgeForge';
 import { listCompetitions } from '../../services/competitionService';
-import { awardHonour, deleteHonour, listRecentHonours, HONOUR_TYPES, type HonourType } from '../../services/honourService';
+import { awardHonour, deleteHonour, listRecentHonours, HONOUR_TYPES, BADGE_TEMPLATE_SLOTS, type HonourType } from '../../services/honourService';
 import { notify } from '../../services/notificationService';
 import { listActiveMembers } from '../../services/playerService';
 import { uploadBadgeTemplate } from '../../services/storageService';
@@ -67,7 +67,7 @@ export default function HonoursTab() {
       <div className="card mt-2 flex flex-col gap-2 p-3">
         <h2 className="font-bold">{t('hon.tplTitle')}</h2>
         <p className="text-xs opacity-60">{t('hon.tplHint')}</p>
-        {HONOUR_TYPES.map((tp) => (
+        {BADGE_TEMPLATE_SLOTS.map((tp) => (
           <TplRow key={tp} type={tp} onMsg={setMsg} />
         ))}
       </div>
@@ -140,7 +140,7 @@ export default function HonoursTab() {
 
 // One template picture per badge type: the latest upload wins for every
 // award of that type, past and future.
-function TplRow({ type, onMsg }: { type: HonourType; onMsg: (m: string | null) => void }) {
+function TplRow({ type, onMsg }: { type: string; onMsg: (m: string | null) => void }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);

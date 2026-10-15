@@ -7,7 +7,7 @@ import { crownHolder, getCurrentReign, vacateThrone } from '../../services/thron
 import type { MemberStatus, Profile, Role } from '../../types/database';
 import { useAuthStore } from '../../stores/authStore';
 
-const ALL_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN', 'OWNER'];
+const EDITABLE_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN'];
 // No REMOVED — members can be suspended/left but never deleted from here.
 const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT'];
 
@@ -17,6 +17,7 @@ export default function MembersTab() {
   const { t } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [drafts, setDrafts] = useState<Record<string, { role: Role; status: MemberStatus }>>({});
+  const [filter, setFilter] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const query = useQuery({ queryKey: ['members'], queryFn: listMembers });
@@ -51,7 +52,16 @@ export default function MembersTab() {
   }
 
   if (query.isLoading) return <p className="text-sm">{t('common.loading')}</p>;
-  const rows = (query.data ?? []).filter((m) => m.id !== me?.id);
+  const q = filter.trim().toLowerCase();
+  const rows = (query.data ?? [])
+    .filter((m) => m.id !== me?.id)
+    .filter((m) =>
+      !q ||
+      (m.display_name ?? '').toLowerCase().includes(q) ||
+      m.username.toLowerCase().includes(q) ||
+      (m.efootball_name ?? '').toLowerCase().includes(q) ||
+      (m.known_name ?? '').toLowerCase().includes(q),
+    );
 
   return (
     <div className="mt-3 flex flex-col gap-2">
@@ -70,6 +80,13 @@ export default function MembersTab() {
         )}
       </div>
       <p className="card p-3 text-xs opacity-80">{t('members.hint')}</p>
+      <input
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        placeholder={t('members.search')}
+        aria-label={t('members.search')}
+        className="input text-sm"
+      />
       {msg && <p className="text-sm font-medium">{msg}</p>}
       {rows.map((m) => {
         const d = drafts[m.id] ?? { role: m.role, status: m.status };
@@ -77,11 +94,11 @@ export default function MembersTab() {
         const dirty = d.role !== m.role || d.status !== m.status;
         const isHolder = throneQuery.data?.holder_id === m.id;
         const isOwnerTarget = m.role === 'OWNER';
-        // Owner keeps their position no matter what — role locked for everyone.
-        // Only OWNER may grant ADMIN/OWNER (enforced server-side too).
-        // Admins get PLAYER/MODERATOR only — OWNER option hidden.
+        // OWNER is gone from the dropdown for everyone — the owner keeps
+        // their position no matter what (role locked + never grantable).
+        // Admins get PLAYER/MODERATOR only (enforced server-side too).
         const availableRoles: Role[] =
-          me?.role === 'OWNER' ? ALL_ROLES : (['PLAYER', 'MODERATOR'] as Role[]);
+          me?.role === 'OWNER' ? EDITABLE_ROLES : (['PLAYER', 'MODERATOR'] as Role[]);
         const roleOptions = availableRoles.includes(d.role)
           ? availableRoles
           : [d.role, ...availableRoles];

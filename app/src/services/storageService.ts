@@ -152,6 +152,21 @@ export async function deleteStoredFile(bucket: 'avatars' | 'match-evidence' | 'c
   }
 }
 
+// Delete match_evidence rows + storage files for the given matches.
+// Scores stay forever — only the pictures go.
+async function purgeEvidenceForMatchIds(matchIds: string[]): Promise<number> {
+  if (matchIds.length === 0) return 0;
+  const { data: rows } = await supabase.from('match_evidence').select('id,file_path').in('match_id', matchIds);
+  const list = (rows ?? []) as { id: string; file_path: string }[];
+  for (const r of list) {
+    await deleteStoredFile('match-evidence', r.file_path);
+  }
+  if (list.length > 0) {
+    await supabase.from('match_evidence').delete().in('id', list.map((r) => r.id));
+  }
+  return list.length;
+}
+
 // Free storage: delete evidence of matches that have been final
 // (CONFIRMED/FORFEIT/CANCELLED) for over 24h. Scores stay forever.
 export async function purgeCompletedEvidence(competitionId: string): Promise<number> {
@@ -164,16 +179,22 @@ export async function purgeCompletedEvidence(competitionId: string): Promise<num
     .lt('updated_at', cutoff);
   if (error) throw new Error(error.message);
   const ids = ((matches ?? []) as { id: string }[]).map((m) => m.id);
-  if (ids.length === 0) return 0;
-  const { data: rows } = await supabase.from('match_evidence').select('id,file_path').in('match_id', ids);
-  const list = (rows ?? []) as { id: string; file_path: string }[];
-  for (const r of list) {
-    await deleteStoredFile('match-evidence', r.file_path);
-  }
-  if (list.length > 0) {
-    await supabase.from('match_evidence').delete().in('id', list.map((r) => r.id));
-  }
-  return list.length;
+  return purgeEvidenceForMatchIds(ids);
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, deleteStoredFile, purgeCompletedEvidence, client: supabase };
+// Round purge: delete evidence of a finished round's matches (all final).
+// Called automatically when a league round ends — no 24h wait, the round's
+// pictures are done serving their purpose once every result is final.
+export async function purgeRoundEvidence(competitionId: string, roundId: string): Promise<number> {
+  const { data: matches, error } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('competition_id', competitionId)
+    .eq('round_id', roundId)
+    .in('status', ['CONFIRMED', 'FORFEIT', 'CANCELLED']);
+  if (error) throw new Error(error.message);
+  const ids = ((matches ?? []) as { id: string }[]).map((m) => m.id);
+  return purgeEvidenceForMatchIds(ids);
+}
+
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, deleteStoredFile, purgeCompletedEvidence, purgeRoundEvidence, client: supabase };

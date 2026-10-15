@@ -209,28 +209,27 @@ export default function PlayerCard({
         {/* Clan rewards & throne crown */}
         {(isHolder || grouped.length > 0) && (
           <div className="mt-3 flex flex-col items-center gap-1.5">
-            {isHolder && (
-              <span className="flex items-center gap-1.5 rounded-full bg-brand-500/15 px-3 py-1 text-xs font-bold text-brand-300">
-                <Icon name="crown" className="h-4 w-4" /> {t('throne.holder')}
-              </span>
-            )}
-            {grouped.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-3">
-                {grouped.map(({ honour: h, count }) => (
-                  <span key={`${h.type}::${h.name}`} className="flex w-24 flex-col items-center gap-1 text-center">
-                    <span className="relative">
-                      <HonourBadge honour={h} zoomable />
-                      {count > 1 && (
-                        <span className="absolute -bottom-1 -end-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
-                          ×{count}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-[11px] font-semibold leading-tight">{h.name}</span>
+            <div className="flex flex-wrap justify-center gap-3">
+              {isHolder && (
+                <span className="flex w-24 flex-col items-center gap-1 text-center">
+                  <HonourBadge honour={{ id: 'throne-holder', type: 'THRONE', image_url: null }} zoomable />
+                  <span className="text-[11px] font-semibold leading-tight text-brand-300">{t('throne.holder')}</span>
+                </span>
+              )}
+              {grouped.map(({ honour: h, count }) => (
+                <span key={`${h.type}::${h.name}`} className="flex w-24 flex-col items-center gap-1 text-center">
+                  <span className="relative">
+                    <HonourBadge honour={h} zoomable />
+                    {count > 1 && (
+                      <span className="absolute -bottom-1 -end-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
+                        ×{count}
+                      </span>
+                    )}
                   </span>
-                ))}
-              </div>
-            )}
+                  <span className="text-[11px] font-semibold leading-tight">{h.name}</span>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
