@@ -27,7 +27,18 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Role gate: typing the URL is not enough — wrong roles bounce to /home
+// even when signed in. (Pages keep their own checks too; RLS enforces data.)
+function RequireRole({ children, roles }: { children: React.ReactNode; roles: string[] }) {
+  const { profile, loading, initialized } = useAuthStore();
+  if (!initialized || loading) return <main className="p-4 text-sm">Loading standings…</main>;
+  if (!profile) return <Navigate to="/login" replace />;
+  if (!roles.includes(profile.role)) return <Navigate to="/home" replace />;
+  return <>{children}</>;
+}
+
 const guard = (el: React.ReactNode) => <RequireAuth>{el}</RequireAuth>;
+const staff = (el: React.ReactNode) => <RequireRole roles={['OWNER', 'ADMIN']}>{el}</RequireRole>;
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -43,11 +54,11 @@ export const router = createBrowserRouter([
   { path: '/notifications', element: guard(<NotificationsPage />) },
   { path: '/profile', element: guard(<ProfilePage />) },
   { path: '/settings', element: guard(<SettingsPage />) },
-  { path: '/admin', element: guard(<AdminPage />) },
+  { path: '/admin', element: staff(<AdminPage />) },
   { path: '/battles', element: guard(<BattlesPage />) },
   { path: '/saga', element: guard(<SagaPage />) },
-  { path: '/admin/disputes', element: guard(<AdminPage />) },
-  { path: '/admin/competitions', element: guard(<AdminPage />) },
+  { path: '/admin/disputes', element: staff(<AdminPage />) },
+  { path: '/admin/competitions', element: staff(<AdminPage />) },
   { path: '/join/:code', element: guard(<JoinPage />) },
   { path: '/sim', element: guard(<SimPage />) },
   // Unknown URLs fall back to Home (auth guard redirects to /login when signed out).

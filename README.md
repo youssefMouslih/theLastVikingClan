@@ -99,6 +99,7 @@ app/
 - Notifications + non-critical writes are fire-and-forget (never break core flows).
 - XP/claims/gifts idempotent (unique refs, period locks, balance checks) — safe to retry.
 - Never expose service-role keys; anon key is public; `.env` + `.vapid-private` gitignored.
+- Authorization is layered: RLS enforces data, router gates `/admin*` to OWNER/ADMIN (typing the URL bounces to Home), pages keep their own role checks, and sim POV tabs follow the signed-in role.
 
 ## Security note
 

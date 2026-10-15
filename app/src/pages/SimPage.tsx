@@ -8,6 +8,7 @@ import WhatsAppIcon from '../components/ui/WhatsAppIcon';
 import { generateRoundRobin } from '../competition/leagueEngine';
 import { calculateStandings } from '../competition/standingsEngine';
 import { generateKnockout, roundNameForSize } from '../competition/knockoutEngine';
+import { useAuthStore } from '../stores/authStore';
 
 // Fake-data competition simulation (nothing touches the database).
 // LEAGUE: 16 players round-robin (table + matchmaking tabs).
@@ -834,6 +835,18 @@ export default function SimPage() {
   const [spin, setSpin] = useState(0);
   const [comp, setComp] = useState<'league' | 'cup'>('league');
   const [role, setRole] = useState<Pov>('player');
+  // Sim POVs follow the signed-in role: players only ever see Player view —
+  // typing/clicking can't unlock reviewer powers.
+  const authProfile = useAuthStore((s) => s.profile);
+  const canModerate = !!authProfile && ['OWNER', 'ADMIN', 'MODERATOR'].includes(authProfile.role);
+  const canAdmin = !!authProfile && ['OWNER', 'ADMIN'].includes(authProfile.role);
+  const povs = useMemo(
+    () => (['player', ...(canModerate ? ['moderator'] as const : []), ...(canAdmin ? ['admin'] as const : [])] as Pov[]),
+    [canModerate, canAdmin],
+  );
+  useEffect(() => {
+    if (!povs.includes(role)) setRole('player');
+  }, [povs, role]);
   const [tab, setTab] = useState<'table' | 'fixtures' | 'bracket' | 'matches'>('table');
   const [played, setPlayed] = useState(5);
   const [round, setRound] = useState(6);
@@ -1334,7 +1347,7 @@ export default function SimPage() {
           ))}
         </div>
         <div className="mt-2 flex gap-1 rounded-xl bg-white/5 p-1" role="tablist" aria-label="Point of view">
-          {(['player', 'moderator', 'admin'] as const).map((r) => (
+          {povs.map((r) => (
             <button
               key={r} role="tab" aria-selected={role === r} onClick={() => setRole(r)}
               className={`h-10 flex-1 rounded-lg text-xs font-bold uppercase tracking-wider sm:text-sm ${role === r ? 'bg-brand-500/25 text-brand-300' : 'opacity-60'}`}

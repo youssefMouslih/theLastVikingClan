@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import CompetitionCard from '../components/competition/CompetitionCard';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
@@ -144,17 +144,6 @@ export default function CompetitionsPage() {
         </button>
       </form>
       {joinError && <p role="alert" className="mt-1 text-sm text-red-500">{joinError}</p>}
-
-      <Link to="/sim" className="card mt-3 flex items-center gap-3 border-brand-500/50 p-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500/15">
-          <span className="font-display text-lg text-brand-300">16</span>
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold text-brand-300">{t('comps.simTitle')}</span>
-          <span className="block truncate text-xs opacity-60">{t('comps.simDesc')}</span>
-        </span>
-        <span className="btn-primary h-10 shrink-0 px-4 text-sm">{t('comps.simCta')}</span>
-      </Link>
 
       <div className="mt-3 flex flex-col gap-2">
         {query.isLoading && <p className="text-sm">{t('comps.loading')}</p>}
