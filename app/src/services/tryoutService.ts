@@ -3,12 +3,13 @@ import type { TryoutRequest, TryoutStatus } from '../types/database';
 
 // Tryout requests: anyone (even logged out) may ask to join the clan.
 // Admins resolve them from the Admin → Tryouts tab.
-export async function submitTryout(input: { name: string; contact: string; email: string; note?: string | null }): Promise<void> {
+export async function submitTryout(input: { name: string; contact: string; email: string; note?: string | null; website?: string | null }): Promise<void> {
   const { error } = await supabase.from('tryout_requests').insert({
     name: input.name.trim().slice(0, 40),
     contact: input.contact.replace(/[^\d+]/g, '').slice(0, 20),
     email: input.email.trim().slice(0, 80),
     note: input.note?.trim().slice(0, 280) || null,
+    website_url: input.website?.slice(0, 100) || null,
     status: 'PENDING',
   });
   if (error) throw new Error(error.message);

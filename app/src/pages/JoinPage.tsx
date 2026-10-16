@@ -32,7 +32,7 @@ export default function JoinPage() {
     if (!comp || !me) return;
     setBusy(true); setMsg(null);
     try {
-      await joinCompetition(comp, me.id);
+      await joinCompetition(comp.join_code);
       nav(`/competitions/${comp.id}`);
     } catch (err) {
       setMsg(err instanceof Error ? err.message : 'Join failed.');

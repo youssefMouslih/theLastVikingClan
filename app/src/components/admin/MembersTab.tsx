@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
+import { supabase } from '../../lib/supabase';
 import { listMembers, manageMember } from '../../services/playerService';
 import { crownHolder, getCurrentReign, vacateThrone } from '../../services/throneService';
 import type { MemberStatus, Profile, Role } from '../../types/database';
@@ -20,6 +21,10 @@ export default function MembersTab() {
   const [filter, setFilter] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Ownership transfer (OWNER only): typed username confirmation + atomic swap.
+  const [transferId, setTransferId] = useState('');
+  const [transferConfirm, setTransferConfirm] = useState('');
+  const [transferBusy, setTransferBusy] = useState(false);
   const query = useQuery({ queryKey: ['members'], queryFn: listMembers });
   const throneQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
 
@@ -52,6 +57,30 @@ export default function MembersTab() {
   }
 
   if (query.isLoading) return <p className="text-sm">{t('common.loading')}</p>;
+  const admins = (query.data ?? []).filter((m) => m.role === 'ADMIN' && m.status === 'ACTIVE');
+  const transferTarget = admins.find((a) => a.id === transferId) ?? null;
+
+  async function transfer() {
+    if (!transferTarget || transferConfirm !== transferTarget.username) return;
+    if (!confirm(`${t('admin.transferBtn')} → ${transferTarget.username}?`)) return;
+    setTransferBusy(true); setMsg(null);
+    try {
+      const { error } = await supabase.rpc('transfer_ownership', {
+        p_new_owner: transferTarget.id,
+        p_confirmation: transferConfirm,
+      });
+      if (error) throw new Error(error.message);
+      setMsg(t('admin.transferred'));
+      setTransferId(''); setTransferConfirm('');
+      // My role just became ADMIN — reload identity then the roster.
+      await useAuthStore.getState().init();
+      await query.refetch();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : 'Failed.');
+    } finally {
+      setTransferBusy(false);
+    }
+  }
   const q = filter.trim().toLowerCase();
   const rows = (query.data ?? [])
     .filter((m) => m.id !== me?.id)
@@ -80,6 +109,41 @@ export default function MembersTab() {
         )}
       </div>
       <p className="card p-3 text-xs opacity-80">{t('members.hint')}</p>
+      {me?.role === 'OWNER' && (
+        <div className="card border-red-500/40 p-3 text-sm" aria-label={t('admin.transferTitle')}>
+          <h2 className="font-bold text-red-400">{t('admin.transferTitle')}</h2>
+          <p className="mt-0.5 text-xs opacity-70">{t('admin.transferDesc')}</p>
+          <label className="label mt-2">{t('admin.transferPh')}
+            <select
+              value={transferId}
+              onChange={(e) => { setTransferId(e.target.value); setTransferConfirm(''); }}
+              className="input text-sm"
+            >
+              <option value="">—</option>
+              {admins.map((a) => (
+                <option key={a.id} value={a.id}>{a.display_name ?? a.username} @{a.username}</option>
+              ))}
+            </select>
+          </label>
+          {transferTarget && (
+            <label className="label mt-2">{t('admin.transferConfirm', { name: transferTarget.username })}
+              <input
+                value={transferConfirm}
+                onChange={(e) => setTransferConfirm(e.target.value)}
+                className="input text-sm" dir="ltr" autoComplete="off"
+                placeholder={transferTarget.username}
+              />
+            </label>
+          )}
+          <button
+            disabled={transferBusy || !transferTarget || transferConfirm !== transferTarget.username}
+            onClick={transfer}
+            className="btn-danger mt-2 h-11 w-full text-sm"
+          >
+            {t('admin.transferBtn')}
+          </button>
+        </div>
+      )}
       <input
         value={filter}
         onChange={(e) => setFilter(e.target.value)}

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { ThroneReign } from '../types/database';
+import { notify } from './notificationService';
 
 const WITH_HOLDER = '*,holder:profiles!throne_reigns_holder_id_fkey(id,username,display_name,avatar_url)';
 
@@ -56,6 +57,9 @@ export async function vacateThrone(adminId: string): Promise<void> {
 
 // Called when a throne battle completes: holder win = defense+1,
 // challenger win = the throne changes hands.
+// @deprecated since 0034: RLS denies these direct writes for non-staff.
+// confirmBattleResult now calls the settle_throne_battle RPC instead.
+// Kept for staff-side compat only.
 export async function settleThroneBattle(args: {
   holderId: string;
   challengerId: string;
@@ -73,6 +77,30 @@ export async function settleThroneBattle(args: {
   if (endErr) throw new Error(endErr.message);
   const { error: newErr } = await supabase.from('throne_reigns').insert({ holder_id: args.challengerId, won_from: args.holderId });
   if (newErr) throw new Error(newErr.message);
+  // Pledges follow the throne, not the holder: other PENDING/ACCEPTED throne
+  // pledges vs the old champion move onto the new one. ACCEPTED ones drop back
+  // to PENDING so the new holder answers them. RESULT_SUBMITTED ones already
+  // carry a score earned against the old holder — leave them; they settle dead.
+  try {
+    const { data: stale } = await supabase
+      .from('challenges')
+      .select('id,challenger_id')
+      .eq('for_throne', true)
+      .eq('opponent_id', args.holderId)
+      .in('status', ['PENDING', 'ACCEPTED']);
+    const others = ((stale ?? []) as { id: string; challenger_id: string }[])
+      .filter((s) => s.challenger_id !== args.challengerId);
+    for (const s of others) {
+      await supabase
+        .from('challenges')
+        .update({ opponent_id: args.challengerId, status: 'PENDING', responded_at: null, updated_at: now })
+        .eq('id', s.id);
+      await notify(s.challenger_id, 'COMPETITION_INVITATION', 'Pledge redirected', 'The throne changed hands — your challenge now targets the new champion.', { type: 'battle', id: s.id });
+    }
+    if (others.length > 0) {
+      await notify(args.challengerId, 'COMPETITION_INVITATION', 'Throne pledges incoming', 'Redirected challenges await your answer as the new champion.');
+    }
+  } catch { /* retarget never breaks the transfer */ }
   return 'transfer';
 }
 

@@ -86,6 +86,8 @@ export default function CompetitionDetailPage() {
   for (const p of parts) avatars[p.player_id] = p.player?.avatar_url ?? null;
 
   // Automatic lifecycle (§26, §99): close registration / finish / flag overdue on view.
+  // Primary driver is the Auto-Jarl cron (0036, every 15 min); this stays as a
+  // harmless fallback for instant feedback + the manual check button below.
   const autoRan = useRef<string | null>(null);
   const [needsReview, setNeedsReview] = useState(false);
   useEffect(() => {
@@ -283,12 +285,12 @@ export default function CompetitionDetailPage() {
                 {t('detail.joinWaitlist', { count: parts.length, max: comp.max_players })}
               </button>
             ) : (
-              <button disabled={busy || state !== 'OPEN'} onClick={() => run(() => joinCompetition(comp, me!.id), t('detail.registered')).then(() => setTab('Players'))} className="btn-primary flex-1">
+              <button disabled={busy || state !== 'OPEN'} onClick={() => run(() => joinCompetition(comp.join_code), t('detail.registered')).then(() => setTab('Players'))} className="btn-primary flex-1">
                 {t('detail.join')}
               </button>
             )
           ) : (
-            <button disabled={busy} onClick={() => { if (confirm(t('detail.leaveConfirm'))) run(() => leaveCompetition(comp.id, me!.id), t('detail.left')); }} className="btn-ghost">
+            <button disabled={busy} onClick={() => { if (confirm(t('detail.leaveConfirm'))) run(() => leaveCompetition(comp.id), t('detail.left')); }} className="btn-ghost">
               {t('detail.leave')}
             </button>
           )}

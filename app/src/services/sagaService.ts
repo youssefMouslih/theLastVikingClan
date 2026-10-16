@@ -36,6 +36,9 @@ export function currentSeason(): string {
 }
 
 // Idempotent award: same (player, ref, reason) can never double-pay.
+// @deprecated since 0034: direct inserts are denied by RLS. Reads stay;
+// writes moved to secured RPCs (grant_match_rewards, grant_battle_rewards,
+// claim_quest, answer_gift, claim_onboarding_reward). Kept for compat only.
 export async function awardXP(playerId: string, amount: number, reason: string, refType: string, refId: string): Promise<void> {
   try {
     const { error } = await supabase.from('xp_ledger').insert({
@@ -132,6 +135,42 @@ interface UserEvents {
   rematchSince: number;
 }
 
+export interface RematchEvent {
+  challenger_id: string;
+  opponent_id: string | null;
+  type: string;
+  created_at: string;
+}
+
+// Weekly Blood-Debt: a rematch counts only against a member opponent NOT
+// faced in a rematch during the previous week (Monday-start, local time).
+// Pure mirror of the server rule in claim_quest (0038) so the quest board
+// shows honest progress; the server re-validates on claim.
+export function rivalQuestQualifies(events: RematchEvent[], me: string, nowMs: number = Date.now()): boolean {
+  const d = new Date(nowMs);
+  const day = (d.getDay() + 6) % 7; // Monday start
+  d.setHours(0, 0, 0, 0);
+  const week = d.getTime() - day * 86400000;
+  const prev = week - 7 * 86400000;
+  const other = (e: RematchEvent): string | null =>
+    e.challenger_id === me ? e.opponent_id : e.challenger_id;
+  const prevOpps = new Set<string>();
+  for (const e of events) {
+    if (e.type !== 'REMATCH' || e.opponent_id == null) continue;
+    const t = new Date(e.created_at).getTime();
+    if (t < prev || t >= week) continue;
+    const o = other(e);
+    if (o != null) prevOpps.add(o);
+  }
+  return events.some((e) => {
+    if (e.type !== 'REMATCH' || e.opponent_id == null) return false;
+    const t = new Date(e.created_at).getTime();
+    if (t < week) return false;
+    const o = other(e);
+    return o != null && !prevOpps.has(o);
+  });
+}
+
 async function getUserEvents(userId: string, since: number): Promise<UserEvents> {
   const [matches, challenges] = await Promise.all([
     supabase
@@ -139,7 +178,7 @@ async function getUserEvents(userId: string, since: number): Promise<UserEvents>
       .select('player_a_id,player_b_id,submitted_by,confirmed_by,confirmed_at')
       .or(`player_a_id.eq.${userId},player_b_id.eq.${userId}`)
       .in('status', ['CONFIRMED', 'FORFEIT']),
-    supabase.from('challenges').select('id,challenger_id,type,created_at').or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`),
+    supabase.from('challenges').select('id,challenger_id,opponent_id,type,created_at').or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`),
   ]);
   const verifiedSince: UserEvents['verifiedSince'] = [];
   let confirmedSince = 0;
@@ -151,12 +190,12 @@ async function getUserEvents(userId: string, since: number): Promise<UserEvents>
     }
   }
   let challengedSince = 0;
-  let rematchSince = 0;
-  for (const c of ((challenges.data ?? []) as { challenger_id: string; type: string; created_at: string }[])) {
+  const rows = ((challenges.data ?? []) as RematchEvent[]);
+  for (const c of rows) {
     if (new Date(c.created_at).getTime() < since) continue;
     if (c.challenger_id === userId) challengedSince++;
-    if (c.type === 'REMATCH') rematchSince++;
   }
+  const rematchSince = rivalQuestQualifies(rows, userId) ? 1 : 0;
   return { verifiedSince, challengedSince, confirmedSince, rematchSince };
 }
 
@@ -180,21 +219,17 @@ export async function questProgress(userId: string, quest: QuestDef): Promise<{ 
 }
 
 export async function claimQuest(userId: string, quest: QuestDef): Promise<void> {
-  const period = periodFor(quest.kind);
   const p = await questProgress(userId, quest);
   if (!p.complete) throw new Error('Quest not complete yet.');
   if (p.claimed) throw new Error('Already claimed.');
-  const { error } = await supabase.from('quest_claims').insert({ player_id: userId, quest_key: quest.key, period });
-  if (error) {
-    if (error.message.includes('duplicate')) throw new Error('Already claimed.');
-    throw new Error(error.message);
-  }
-  await awardXP(userId, quest.xp, `quest:${quest.key}`, 'quest', `${quest.key}:${period}`);
+  // Server re-validates progress + inserts claim + XP (0034 claim_quest RPC).
+  const { error } = await supabase.rpc('claim_quest', { p_quest_key: quest.key });
+  if (error) throw new Error(error.message);
 }
 
 export const sagaService = {
   LEVELS, levelFor, currentSeason, awardXP, getTotalXP, getSeasonBoard,
-  QUESTS, periodFor, questProgress, claimQuest,
+  QUESTS, periodFor, questProgress, claimQuest, rivalQuestQualifies,
   askGift, listIncomingGifts, listOutgoingGifts, answerGift,
   client: supabase,
 };
@@ -252,25 +287,7 @@ export async function listOutgoingGifts(requesterId: string): Promise<GiftReques
 
 export async function answerGift(req: GiftRequest, accept: boolean): Promise<void> {
   if (req.status !== 'PENDING') throw new Error('Already answered.');
-  if (!accept) {
-    const { error } = await supabase.from('gp_requests').update({ status: 'DECLINED', responded_at: new Date().toISOString() }).eq('id', req.id);
-    if (error) throw new Error(error.message);
-    await notify(req.requester_id, 'COMPETITION_FINISHED', 'Favor declined', 'They refused the Glory request.');
-    return;
-  }
-  const balance = await getTotalXP(req.giver_id).catch(() => 0);
-  if (balance < req.amount) throw new Error(`Not enough Glory (holds ${balance} GP).`);
-  const now = new Date().toISOString();
-  const season = currentSeason();
-  const { error: outErr } = await supabase.from('xp_ledger').insert({
-    player_id: req.giver_id, amount: -req.amount, reason: 'gift-sent', ref_type: 'gift', ref_id: req.id, season,
-  });
-  if (outErr) throw new Error(outErr.message);
-  const { error: inErr } = await supabase.from('xp_ledger').insert({
-    player_id: req.requester_id, amount: req.amount, reason: 'gift-received', ref_type: 'gift', ref_id: req.id, season,
-  });
-  if (inErr) throw new Error(inErr.message);
-  const { error } = await supabase.from('gp_requests').update({ status: 'ACCEPTED', responded_at: now }).eq('id', req.id);
+  // Server checks giver balance + moves the paired ledger rows (0034 answer_gift RPC).
+  const { error } = await supabase.rpc('answer_gift', { p_request_id: req.id, p_accept: accept });
   if (error) throw new Error(error.message);
-  await notify(req.requester_id, 'COMPETITION_FINISHED', `+${req.amount} Glory received`, 'Your brother answered your call.');
 }

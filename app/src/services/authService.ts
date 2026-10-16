@@ -70,4 +70,16 @@ export async function updatePassword(email: string, currentPassword: string, new
   if (error) throw new Error(mapAuthError(error.message));
 }
 
-export const authService = { signIn, signOut, resetPassword, updatePassword, signUpWithInvite, fetchProfile, client: supabase };
+// Forced rotation (tryout temp password) + recovery links: the session is
+// already valid, so no re-authentication — set + clear the flag together.
+export async function setForcedPassword(userId: string, newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(mapAuthError(error.message));
+  const { error: flagErr } = await supabase
+    .from('profiles')
+    .update({ must_change_password: false, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (flagErr) throw new Error(flagErr.message);
+}
+
+export const authService = { signIn, signOut, resetPassword, updatePassword, setForcedPassword, signUpWithInvite, fetchProfile, client: supabase };

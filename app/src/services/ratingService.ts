@@ -21,20 +21,29 @@ export async function ratePlayer(ratedId: string, raterId: string, input: Rating
   if (ratedId === raterId) throw new Error('You cannot rate yourself.');
   checkDims(input);
   const overall = Math.round(((input.tactical + input.fairplay + input.connection) / 3) * 10) / 10;
-  const { error } = await supabase.from('ratings').upsert(
-    {
-      rater_id: raterId,
-      rated_id: ratedId,
-      score: Math.round(overall),
-      tactical: input.tactical,
-      fairplay: input.fairplay,
-      connection: input.connection,
-      title_tag: input.title_tag?.trim() || null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'rater_id,rated_id' },
-  );
-  if (error) throw new Error(error.message);
+  try {
+    const { error } = await supabase.from('ratings').upsert(
+      {
+        rater_id: raterId,
+        rated_id: ratedId,
+        score: Math.round(overall),
+        tactical: input.tactical,
+        fairplay: input.fairplay,
+        connection: input.connection,
+        title_tag: input.title_tag?.trim() || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'rater_id,rated_id' },
+    );
+    if (error) throw error;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed.';
+    // 0039: no shared confirmed match/battle → RLS denies the write.
+    if (/row-level security|policy|permission/i.test(msg)) {
+      throw new Error('You can only rate warriors you have faced in a confirmed match or battle.');
+    }
+    throw new Error(msg);
+  }
 }
 
 export interface RatingSummary {

@@ -3,8 +3,6 @@ import { generateKnockout } from '../competition/knockoutEngine';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../types/database';
 import { notify } from './notificationService';
-import { awardXP } from './sagaService';
-import { checkStreakBadges, getPlayerCareer } from './statisticsService';
 import { purgeRoundEvidence, uploadMatchEvidence } from './storageService';
 
 // Round end: when every match of a round is final (CONFIRMED/FORFEIT/
@@ -193,33 +191,12 @@ export async function isRoundOpen(competitionId: string, roundId: string): Promi
   return { open: done, roundNumber: round.round_number };
 }
 
-// Called after any result goes final: close the round and open the next one.
-// Best-effort — never breaks the result flow.
-export async function maybeAdvanceRound(competitionId: string, roundId: string | null): Promise<void> {
-  if (!roundId) return;
-  try {
-    const { count: open } = await supabase
-      .from('matches')
-      .select('id', { count: 'exact', head: true })
-      .eq('competition_id', competitionId)
-      .eq('round_id', roundId)
-      .not('status', 'in', '(CONFIRMED,FORFEIT,CANCELLED)');
-    if ((open ?? 0) > 0) return;
-    await supabase.from('rounds').update({ status: 'COMPLETED' }).eq('id', roundId).neq('status', 'COMPLETED');
-    const { data: cur } = await supabase.from('rounds').select('round_number').eq('id', roundId).single();
-    const rn = (cur as { round_number: number } | null)?.round_number;
-    if (rn == null) return;
-    const { data: nxt } = await supabase
-      .from('rounds')
-      .select('id')
-      .eq('competition_id', competitionId)
-      .gt('round_number', rn)
-      .order('round_number', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    const nextId = (nxt as { id: string } | null)?.id;
-    if (nextId) await supabase.from('rounds').update({ status: 'ACTIVE' }).eq('id', nextId).eq('status', 'SCHEDULED');
-  } catch { /* rounds never break results */ }
+// Round advance now runs inside the 0035 server transaction
+// (confirm_match / admin_set_result / award_match_forfeit);
+// the client only gates submissions on round state. Kept as a deprecated
+// no-op for compat — do not call in new code.
+export async function maybeAdvanceRound(_competitionId: string, _roundId: string | null): Promise<void> {
+  return;
 }
 
 // Result submission (§37-38, §102). Evidence optional but recommended.
@@ -289,39 +266,20 @@ export async function claimForfeit(match: Match, userId: string) {
 }
 
 // Confirmation (§39-40). Must be the opponent, not the submitter.
+// Single server transaction (0035 confirm_match): validation, CONFIRMED +
+// winner, XP, First Blood, streaks, round advance, submitter notice.
+// Returns a purge flag; evidence deletion stays client-side. Tab-close safe:
+// the server commits everything even if the client disconnects mid-call.
 export async function confirmResult(match: Match, userId: string) {
   if (match.status !== 'RESULT_SUBMITTED') throw new Error('Nothing to confirm.');
   if (match.forfeit_claimed_by) throw new Error('Forfeit claim pending moderator review.');
   if (match.submitted_by === userId) throw new Error('The submitter cannot confirm their own result — opponent must confirm.');
   if (userId !== match.player_a_id && userId !== match.player_b_id) throw new Error('Only the opponent can confirm.');
-  const winner = match.score_a! > match.score_b! ? match.player_a_id : match.score_a! < match.score_b! ? match.player_b_id : null;
-  const { error } = await supabase
-    .from('matches')
-    .update({ status: 'CONFIRMED', confirmed_by: userId, confirmed_at: new Date().toISOString(), winner_id: winner, updated_at: new Date().toISOString() })
-    .eq('id', match.id);
+  const { data, error } = await supabase.rpc('confirm_match', { p_match_id: match.id });
   if (error) throw new Error(error.message);
-  if (match.submitted_by && match.submitted_by !== userId) {
-    await notify(match.submitted_by, 'RESULT_CONFIRMED', 'Result confirmed', `Your ${match.score_a}–${match.score_b} result was confirmed. Standings updated.`, { type: 'match', id: match.id });
+  if (data === true) {
+    await maybePurgeFinishedRound(match.competition_id, match.round_id).catch(() => {});
   }
-  // Saga: Glory for verified battles (winner 30 / draw 15 / loser 10).
-  try {
-    const aWon = match.score_a! > match.score_b!;
-    const draw = match.score_a === match.score_b;
-    await awardXP(match.player_a_id, aWon ? 30 : draw ? 15 : 10, aWon ? 'match-win' : draw ? 'match-draw' : 'match-played', 'match', match.id);
-    await awardXP(match.player_b_id, !aWon ? 30 : draw ? 15 : 10, !aWon ? 'match-win' : draw ? 'match-draw' : 'match-played', 'match', match.id);
-    for (const pid of [match.player_a_id, match.player_b_id]) {
-      const career = await getPlayerCareer(pid).catch(() => null);
-      if (career && career.played === 1) {
-        const { error } = await supabase.from('achievements').insert({ player_id: pid, competition_id: match.competition_id, type: 'FIRST_BLOOD', name: 'First Blood', description: 'Completed first verified clan match.' });
-        if (!error) await notify(pid, 'COMPETITION_FINISHED', 'Achievement: First Blood', 'You completed your first verified clan match.');
-      }
-      await checkStreakBadges(pid, match.competition_id);
-    }
-  } catch { /* XP never breaks results */ }
-  // League round ended with this confirmation → drop the round's pictures
-  // and open the next round.
-  void maybePurgeFinishedRound(match.competition_id, match.round_id);
-  void maybeAdvanceRound(match.competition_id, match.round_id);
 }
 
 export async function adminRejectResult(match: Match, adminId: string, comment: string): Promise<void> {
@@ -350,37 +308,30 @@ export async function disputeResult(matchId: string, userId: string, reason: str
   }
 }
 
-export async function adminSetResult(matchId: string, scoreA: number, scoreB: number, adminId: string, competitionId: string, playerA: string, playerB: string) {
-  const winner = scoreA > scoreB ? playerA : scoreA < scoreB ? playerB : null;
-  const { error } = await supabase
-    .from('matches')
-    .update({ score_a: scoreA, score_b: scoreB, status: 'CONFIRMED', confirmed_by: adminId, confirmed_at: new Date().toISOString(), winner_id: winner, updated_at: new Date().toISOString() })
-    .eq('id', matchId);
+export async function adminSetResult(matchId: string, scoreA: number, scoreB: number, reason?: string | null) {
+  if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0) {
+    throw new Error('Scores must be whole numbers >= 0.');
+  }
+  const { data, error } = await supabase.rpc('admin_set_result', {
+    p_match_id: matchId, p_score_a: scoreA, p_score_b: scoreB, p_reason: reason ?? null,
+  });
   if (error) throw new Error(error.message);
-  await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_CHANGED_MATCH_RESULT', entity_type: 'match', entity_id: matchId, new_data: { scoreA, scoreB }, reason: 'dispute resolution' });
-  const { data: rnd } = await supabase.from('matches').select('round_id').eq('id', matchId).single();
-  const rId = (rnd as { round_id: string | null } | null)?.round_id ?? null;
-  void maybePurgeFinishedRound(competitionId, rId);
-  void maybeAdvanceRound(competitionId, rId);
+  if (data === true) {
+    const m = await getMatch(matchId);
+    if (m) await maybePurgeFinishedRound(m.competition_id, m.round_id).catch(() => {});
+  }
 }
 
-export async function awardForfeit(matchId: string, winnerId: string, loserId: string, adminId: string) {
-  // Default forfeit score 3–0 (§45)
-  const isA = winnerId !== loserId;
-  void isA;
-  const { data: m } = await supabase.from('matches').select('player_a_id,player_b_id,competition_id,round_id').eq('id', matchId).single();
-  const mm = m as { player_a_id: string; player_b_id: string; competition_id: string; round_id: string | null } | null;
-  if (!mm) throw new Error('Match not found.');
-  const scoreA = mm.player_a_id === winnerId ? 3 : 0;
-  const scoreB = mm.player_b_id === winnerId ? 3 : 0;
-  const { error } = await supabase
-    .from('matches')
-    .update({ score_a: scoreA, score_b: scoreB, status: 'FORFEIT', winner_id: winnerId, forfeit_player_id: loserId, forfeit_claimed_by: null, confirmed_by: adminId, confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq('id', matchId);
+export async function awardForfeit(matchId: string, winnerId: string, reason?: string | null) {
+  // Default forfeit score 3–0 (§45), oriented server-side.
+  const { data, error } = await supabase.rpc('award_match_forfeit', {
+    p_match_id: matchId, p_winner_id: winnerId, p_reason: reason ?? null,
+  });
   if (error) throw new Error(error.message);
-  await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_AWARDED_FORFEIT', entity_type: 'match', entity_id: matchId, new_data: { winnerId, loserId } });
-  void maybePurgeFinishedRound(mm.competition_id, mm.round_id);
-  void maybeAdvanceRound(mm.competition_id, mm.round_id);
+  if (data === true) {
+    const m = await getMatch(matchId);
+    if (m) await maybePurgeFinishedRound(m.competition_id, m.round_id).catch(() => {});
+  }
 }
 
 export async function markOverdue(competitionId: string): Promise<number> {  const { data } = await supabase.from('matches').select('id,deadline,status').eq('competition_id', competitionId).in('status', ['SCHEDULED', 'RESULT_SUBMITTED']);

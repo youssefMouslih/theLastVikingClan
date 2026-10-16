@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocale } from '../../i18n/LocaleContext';
-import { awardXP } from '../../services/sagaService';
+import { supabase } from '../../lib/supabase';
 import { isKnownNameTaken, updateOwnProfile } from '../../services/playerService';
 import { useAuthStore } from '../../stores/authStore';
 import { useToast } from '../ui/Toast';
@@ -27,6 +27,9 @@ export default function OnboardingGate() {
   const [busy, setBusy] = useState(false);
 
   if (!needsOnboarding(me)) return null;
+  // Forced password rotation takes precedence (router already confines
+  // flagged users to /password, where this gate must not overlay).
+  if (me?.must_change_password) return null;
 
   async function claim(e: React.FormEvent) {
     e.preventDefault();
@@ -60,8 +63,9 @@ export default function OnboardingGate() {
         known_name: cleanTag,
         whatsapp: digits,
       });
-      // Idempotent: unique (player_id, ref_type, ref_id, reason) — safe to retry.
-      await awardXP(me!.id, ONBOARDING_REWARD_GP, 'onboarding-profile', 'onboarding', me!.id);
+      // Idempotent server-side +80 (0034 claim_onboarding_reward RPC) — safe to retry.
+      const { error: rpcErr } = await supabase.rpc('claim_onboarding_reward');
+      if (rpcErr) throw new Error(rpcErr.message);
       await init();
       toast(t('onboard.reward', { n: ONBOARDING_REWARD_GP }));
     } catch (err) {

@@ -300,7 +300,7 @@ export default function MatchPage() {
               </p>
               <button
                 disabled={busy}
-                onClick={() => run(() => awardForfeit(m.id, forfeitWinnerId, claimerId, me!.id), t('match.forfeitAccepted'))}
+                onClick={() => run(() => awardForfeit(m.id, forfeitWinnerId), t('match.forfeitAccepted'))}
                 className="btn-cta mt-2 h-10 w-full text-xs"
               >
                 {t('match.acceptForfeit')}
@@ -319,11 +319,11 @@ export default function MatchPage() {
           </div>
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
             {m.score_a != null && (
-              <button disabled={busy} onClick={() => run(() => adminSetResult(m.id, m.score_a!, m.score_b!, me!.id, m.competition_id, m.player_a_id, m.player_b_id), t('match.resultSet'))} className="btn-primary h-10 flex-1 px-3 text-xs">{t('match.confirmSubmitted')}</button>
+              <button disabled={busy} onClick={() => run(() => adminSetResult(m.id, m.score_a!, m.score_b!), t('match.resultSet'))} className="btn-primary h-10 flex-1 px-3 text-xs">{t('match.confirmSubmitted')}</button>
             )}
-            <button disabled={busy || scoreA === '' || scoreB === ''} onClick={() => run(() => adminSetResult(m.id, Number(scoreA), Number(scoreB), me!.id, m.competition_id, m.player_a_id, m.player_b_id), t('match.resultSet'))} className="btn-ghost h-10 px-3 text-xs">{t('match.setResult')}</button>
-            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_a_id, m.player_b_id, me!.id), t('match.forfeitMsgA'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitA')}</button>
-            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_b_id, m.player_a_id, me!.id), t('match.forfeitB'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitB')}</button>
+            <button disabled={busy || scoreA === '' || scoreB === ''} onClick={() => run(() => adminSetResult(m.id, Number(scoreA), Number(scoreB)), t('match.resultSet'))} className="btn-ghost h-10 px-3 text-xs">{t('match.setResult')}</button>
+            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_a_id), t('match.forfeitMsgA'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitA')}</button>
+            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_b_id), t('match.forfeitB'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitB')}</button>
           </div>
         </section>
       ) : isAdmin && (
@@ -334,9 +334,9 @@ export default function MatchPage() {
             <input type="number" min={0} placeholder={t('match.scoreB')} aria-label={t('match.scoreB')} value={scoreB} onChange={(e) => setScoreB(e.target.value)} className="input text-center" />
           </div>
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
-            <button disabled={busy} onClick={() => run(() => adminSetResult(m.id, Number(scoreA), Number(scoreB), me!.id, m.competition_id, m.player_a_id, m.player_b_id), t('match.resultSet'))} className="btn-ghost h-10 px-3 text-xs">{t('match.setResult')}</button>
-            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_a_id, m.player_b_id, me!.id), t('match.forfeitMsgA'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitA')}</button>
-            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_b_id, m.player_a_id, me!.id), t('match.forfeitB'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitB')}</button>
+            <button disabled={busy} onClick={() => run(() => adminSetResult(m.id, Number(scoreA), Number(scoreB)), t('match.resultSet'))} className="btn-ghost h-10 px-3 text-xs">{t('match.setResult')}</button>
+            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_a_id), t('match.forfeitMsgA'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitA')}</button>
+            <button disabled={busy} onClick={() => run(() => awardForfeit(m.id, m.player_b_id), t('match.forfeitB'))} className="btn-ghost h-10 px-3 text-xs">{t('match.forfeitB')}</button>
           </div>
         </section>
       )}

@@ -1,9 +1,8 @@
 import { supabase } from '../lib/supabase';
 import type { Challenge, ChallengeType } from '../types/database';
 import { notify } from './notificationService';
-import { awardXP, getTotalXP } from './sagaService';
+import { getTotalXP } from './sagaService';
 import { uploadBattleEvidence } from './storageService';
-import { settleThroneBattle } from './throneService';
 
 export interface IssueChallengeInput {
   opponent_id?: string | null;
@@ -200,23 +199,17 @@ export async function confirmBattleResult(ch: ChallengeRow, userId: string): Pro
     .eq('id', ch.id);
   if (error) throw new Error(error.message);
   if (ch.submitted_by) await notify(ch.submitted_by, 'RESULT_CONFIRMED', 'Battle recorded', 'The outcome stands in clan history.');
-  // Saga Glory for verified battles (+100 bounty for forced calls).
+  // Saga Glory via secured RPC (0034 grant_battle_rewards). Best-effort.
   try {
-    const aWon = ch.score_a! > ch.score_b!;
-    const draw = ch.score_a === ch.score_b;
-    const opp = ch.opponent_id;
-    await awardXP(ch.challenger_id, aWon ? 25 : draw ? 15 : 10, 'battle', 'battle', ch.id);
-    if (opp) await awardXP(opp, !aWon ? 25 : draw ? 15 : 10, 'battle', 'battle', ch.id);
-    if (ch.forced && !draw) {
-      const winner = aWon ? ch.challenger_id : opp!;
-      await awardXP(winner, 100, 'bounty', 'battle', ch.id);
-    }
+    const { error: rpcErr } = await supabase.rpc('grant_battle_rewards', { p_challenge_id: ch.id });
+    if (rpcErr) console.warn('rewards skipped:', rpcErr.message);
   } catch { /* XP never breaks results */ }
   // Throne: score_a = challenger goals, score_b = opponent goals by convention.
   if (ch.for_throne && ch.opponent_id && ch.score_a != null && ch.score_b != null) {
     try {
-      const winnerId = ch.score_a > ch.score_b ? ch.challenger_id : ch.score_b > ch.score_a ? ch.opponent_id : null;
-      const outcome = await settleThroneBattle({ holderId: ch.opponent_id, challengerId: ch.challenger_id, winnerId });
+      const { data, error } = await supabase.rpc('settle_throne_battle', { p_challenge_id: ch.id });
+      if (error) throw new Error(error.message);
+      const outcome = (data as 'defended' | 'transfer' | 'draw' | null) ?? null;
       if (outcome === 'transfer') {
         await notify(ch.challenger_id, 'COMPETITION_FINISHED', 'THE THRONE IS YOURS', 'The clan bows to its new champion.');
         await notify(ch.opponent_id, 'COMPETITION_FINISHED', 'The throne has fallen', 'A new champion reigns.');

@@ -1,4 +1,3 @@
-import { registrationState } from '../competition/deadlineEngine';
 import { generateJoinCode } from '../competition/joinCode';
 import { supabase } from '../lib/supabase';
 import type { Competition, CompetitionType } from '../types/database';
@@ -117,35 +116,25 @@ export async function listParticipants(competitionId: string): Promise<Participa
   return (data ?? []) as unknown as ParticipantRow[];
 }
 
-// Join flow (§22 validation 1-7 + §101). NOTE: V1 checks run client-side;
-// harden with an Edge Function for atomic capacity checks (§100) before public launch.
-export async function joinCompetition(comp: Competition, userId: string): Promise<void> {
-  // 2. must be ACTIVE clan member
-  const { data: profile } = await supabase.from('profiles').select('status').eq('id', userId).maybeSingle();
-  if (!profile || (profile as { status: string }).status !== 'ACTIVE') {
-    throw new Error('Only ACTIVE clan members can join competitions (Rule 2).');
-  }
-  // 4. registration open
-  const { count } = await supabase.from('competition_participants').select('id', { count: 'exact', head: true }).eq('competition_id', comp.id);
-  const state = registrationState(Date.now(), comp.registration_start, comp.registration_deadline, count ?? 0, comp.max_players);
-  if (!comp.join_enabled || comp.status !== 'REGISTRATION_OPEN' || state === 'CLOSED' || state === 'NOT_OPEN') {
-    throw new Error('Registration is closed for this competition.');
-  }
-  if (state === 'FULL') {
-    const err = new Error('This competition is full (16 / 16). You can join the waitlist.');
+// Join flow (§22 validation 1-7 + §101). All checks + capacity run inside the
+// join_competition RPC (0037) under a row lock: concurrent last-slot joins
+// serialize, exactly one wins. COMPETITION_FULL comes back as a return code
+// (not a throw) so the UI can offer the waitlist, as before.
+export async function joinCompetition(joinCode: string): Promise<void> {
+  const { data, error } = await supabase.rpc('join_competition', { p_code: joinCode });
+  if (error) throw new Error(error.message);
+  const res = data as { ok: boolean; code?: string; registered?: number; max?: number } | null;
+  if (res && res.ok === false && res.code === 'COMPETITION_FULL') {
+    const err = new Error(`This competition is full (${res.registered ?? '?'} / ${res.max ?? '?'}). You can join the waitlist.`);
     (err as Error & { code?: string }).code = 'COMPETITION_FULL';
     throw err;
   }
-  // 6. insert (unique constraint backs Rule 3)
-  const { error } = await supabase.from('competition_participants').insert({ competition_id: comp.id, player_id: userId });
-  if (error) {
-    if (error.message.includes('duplicate')) throw new Error('You are already registered for this competition.');
-    throw new Error(error.message);
-  }
 }
 
-export async function leaveCompetition(competitionId: string, userId: string) {
-  const { error } = await supabase.from('competition_participants').delete().eq('competition_id', competitionId).eq('player_id', userId);
+export async function leaveCompetition(competitionId: string) {
+  // Members may leave only before start (enforced server-side); after that
+  // an admin replaces the player so fixtures stay intact.
+  const { error } = await supabase.rpc('leave_competition', { p_competition_id: competitionId });
   if (error) throw new Error(error.message);
 }
 

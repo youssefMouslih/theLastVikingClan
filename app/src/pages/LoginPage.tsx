@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { resetPassword, signIn, signUpWithInvite } from '../services/authService';
 import { getClanSettings } from '../services/clanService';
 import { submitTryout } from '../services/tryoutService';
+import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 
 export default function LoginPage() {
@@ -15,10 +16,24 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
-  const [mode, setMode] = useState<'login' | 'reset' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'reset' | 'signup' | 'update'>('login');
+  const [newPw, setNewPw] = useState('');
+  const [newPw2, setNewPw2] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Recovery links land here (?code= is exchanged automatically): the
+  // PASSWORD_RECOVERY event switches to the set-new-password screen instead
+  // of leaving the user on a plain login form.
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setError(null); setInfo(null);
+        setMode('update');
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
   // Admin-controlled platform access: null = still loading, default open.
   const [regOpen, setRegOpen] = useState<boolean | null>(null);
   useEffect(() => {
@@ -33,6 +48,8 @@ export default function LoginPage() {
   const [tContact, setTContact] = useState('');
   const [tEmail, setTEmail] = useState('');
   const [tNote, setTNote] = useState('');
+  // Honeypot: invisible to humans. Bots fill it → fake success, no row.
+  const [tWeb, setTWeb] = useState('');
   const [tBusy, setTBusy] = useState(false);
   const [tSent, setTSent] = useState(false);
   const [tErr, setTErr] = useState<string | null>(null);
@@ -41,11 +58,17 @@ export default function LoginPage() {
     e.preventDefault();
     setTErr(null); setTBusy(true);
     try {
+      if (tWeb.trim() !== '') {
+        // Bot trap sprung: pretend it worked, store nothing.
+        setTSent(true);
+        setTName(''); setTContact(''); setTEmail(''); setTNote(''); setTWeb('');
+        return;
+      }
       const digits = tContact.replace(/[^\d+]/g, '');
       if (tName.trim().length < 2) throw new Error(t('auth.usernameShort'));
       if (digits.replace(/\D/g, '').length < 7) throw new Error(t('tryout.failed'));
       if (!/.+@.+\..+/.test(tEmail.trim())) throw new Error(t('tryout.failed'));
-      await submitTryout({ name: tName.trim(), contact: digits, email: tEmail.trim(), note: tNote.trim() || null });
+      await submitTryout({ name: tName.trim(), contact: digits, email: tEmail.trim(), note: tNote.trim() || null, website: null });
       setTSent(true);
       setTName(''); setTContact(''); setTEmail(''); setTNote('');
     } catch (err) {
@@ -91,6 +114,30 @@ export default function LoginPage() {
     }
   }
 
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null); setInfo(null);
+    if (newPw.length < 6) {
+      setError(t('auth.tooShort'));
+      return;
+    }
+    if (newPw !== newPw2) {
+      setError(t('auth.mismatch'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error: upErr } = await supabase.auth.updateUser({ password: newPw });
+      if (upErr) throw new Error(upErr.message);
+      await useAuthStore.getState().init();
+      nav('/home', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleReset(e: React.FormEvent) {
     e.preventDefault();
     setError(null); setInfo(null); setBusy(true);
@@ -118,7 +165,38 @@ export default function LoginPage() {
         )}
       </div>
 
-      {mode === 'login' ? (
+      {mode === 'update' ? (
+        <form onSubmit={handleUpdate} className="flex flex-col gap-3">
+          <div className="text-center">
+            <p className="font-display text-xl tracking-wide">{t('auth.recoveryTitle')}</p>
+            <p className="mt-1 text-sm opacity-70">{t('auth.recoveryDesc')}</p>
+          </div>
+          <label className="label">
+            {t('auth.newPassword')}
+            <input
+              className="input h-12 text-base"
+              type="password" required minLength={6} autoComplete="new-password"
+              value={newPw} onChange={(e) => setNewPw(e.target.value)}
+            />
+          </label>
+          <label className="label">
+            {t('auth.confirmPassword')}
+            <input
+              className="input h-12 text-base"
+              type="password" required minLength={6} autoComplete="new-password"
+              value={newPw2} onChange={(e) => setNewPw2(e.target.value)}
+            />
+          </label>
+          {error && <p role="alert" className="text-sm font-medium text-red-500">{error}</p>}
+          {info && <p className="text-sm text-green-500">{info}</p>}
+          <button type="submit" disabled={busy} className="btn-cta h-12 text-base">
+            {busy ? t('auth.sending') : t('auth.setPassword')}
+          </button>
+          <button type="button" onClick={() => setMode('login')} className="h-11 text-sm underline">
+            {t('auth.backToLogin')}
+          </button>
+        </form>
+      ) : mode === 'login' ? (
         <form onSubmit={handleLogin} className="flex flex-col gap-3">
           <label className="label">
             {t('auth.email')}
@@ -231,6 +309,13 @@ export default function LoginPage() {
               <label className="label">{t('tryout.note')}
                 <textarea className="input h-auto py-2 text-base" rows={2} maxLength={280} value={tNote} onChange={(e) => setTNote(e.target.value)} />
               </label>
+              {/* Honeypot: hidden from humans AND assistive tech; bots fill it. */}
+              <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
+                <input
+                  type="text" tabIndex={-1} autoComplete="off" value={tWeb}
+                  onChange={(e) => setTWeb(e.target.value.slice(0, 100))}
+                />
+              </div>
               {tErr && <p role="alert" className="text-sm font-medium text-red-500">{tErr}</p>}
               <div className="flex gap-2">
                 <button type="submit" disabled={tBusy} className="btn-primary h-11 flex-1 text-sm">

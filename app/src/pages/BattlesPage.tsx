@@ -225,6 +225,9 @@ export default function BattlesPage() {
         {ch.score_a != null && (
           <p className="font-display mt-1 text-center text-xl">{ch.score_a}–{ch.score_b}</p>
         )}
+        {ch.xp_capped && (
+          <p className="mt-1 text-center text-[11px] opacity-70">{t('battle.xpCapped')}</p>
+        )}
         {ch.status === 'RESULT_SUBMITTED' && ch.evidence_path && (
           <p className="mt-1 text-center"><BattleEvidence path={ch.evidence_path} /></p>
         )}

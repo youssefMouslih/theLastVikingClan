@@ -110,6 +110,8 @@ Deno.serve(async (req: Request) => {
     email: tryout.email,
     role: 'PLAYER',
     status: 'ACTIVE',
+    // Forced rotation: the app blocks entry until this temp password is replaced.
+    must_change_password: true,
   });
   if (pErr) {
     // Roll back the orphaned auth user so a retry starts clean.

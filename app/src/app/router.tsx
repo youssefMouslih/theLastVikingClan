@@ -12,6 +12,7 @@ import GalleryPage from '../pages/GalleryPage';
 import HomePage from '../pages/HomePage';
 import JoinPage from '../pages/JoinPage';
 import LoginPage from '../pages/LoginPage';
+import ForcePasswordPage from '../pages/ForcePasswordPage';
 import MatchPage from '../pages/MatchPage';
 import NotificationsPage from '../pages/NotificationsPage';
 import PlayerPage from '../pages/PlayerPage';
@@ -24,6 +25,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   const { profile, loading, initialized } = useAuthStore();
   if (!initialized || loading) return <main className="p-4 text-sm">Loading standings…</main>;
   if (!profile) return <Navigate to="/login" replace />;
+  // Forced password rotation comes before everything (except itself).
+  if (profile.must_change_password && window.location.pathname !== '/password') {
+    return <Navigate to="/password" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -33,6 +38,9 @@ function RequireRole({ children, roles }: { children: React.ReactNode; roles: st
   const { profile, loading, initialized } = useAuthStore();
   if (!initialized || loading) return <main className="p-4 text-sm">Loading standings…</main>;
   if (!profile) return <Navigate to="/login" replace />;
+  if (profile.must_change_password && window.location.pathname !== '/password') {
+    return <Navigate to="/password" replace />;
+  }
   if (!roles.includes(profile.role)) return <Navigate to="/home" replace />;
   return <>{children}</>;
 }
@@ -42,6 +50,7 @@ const staff = (el: React.ReactNode) => <RequireRole roles={['OWNER', 'ADMIN']}>{
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/password', element: guard(<ForcePasswordPage />) },
   { path: '/home', element: guard(<HomePage />) },
   { path: '/', element: guard(<HomePage />) },
   { path: '/competitions', element: guard(<CompetitionsPage />) },

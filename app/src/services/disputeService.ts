@@ -56,17 +56,17 @@ export async function resolveDispute(
     await supabase.from('disputes').update({ status: 'REJECTED', resolved_by: adminId, resolution: note ?? 'Rejected', resolved_at: new Date().toISOString() }).eq('id', dispute.id);
   } else if (action === 'confirm_submitted') {
     if (m.score_a == null || m.score_b == null) throw new Error('No submitted score to confirm.');
-    await adminSetResult(m.id, m.score_a, m.score_b, adminId, m.competition_id, m.player_a_id, m.player_b_id);
+    await adminSetResult(m.id, m.score_a, m.score_b, note ?? null);
     await supabase.from('disputes').update({ status: 'RESOLVED', resolved_by: adminId, resolution: note ?? `Confirmed ${m.score_a}–${m.score_b}`, resolved_at: new Date().toISOString() }).eq('id', dispute.id);
   } else if (action === 'set_result') {
     if (scoreA == null || scoreB == null) throw new Error('Scores required.');
-    await adminSetResult(m.id, scoreA, scoreB, adminId, m.competition_id, m.player_a_id, m.player_b_id);
+    await adminSetResult(m.id, scoreA, scoreB, note ?? null);
     await supabase.from('disputes').update({ status: 'RESOLVED', resolved_by: adminId, resolution: note ?? `Set to ${scoreA}–${scoreB}`, resolved_at: new Date().toISOString() }).eq('id', dispute.id);
   } else if (action === 'forfeit_a') {
-    await awardForfeit(m.id, m.player_a_id, m.player_b_id, adminId);
+    await awardForfeit(m.id, m.player_a_id, note ?? null);
     await supabase.from('disputes').update({ status: 'RESOLVED', resolved_by: adminId, resolution: note ?? 'Forfeit to A 3–0', resolved_at: new Date().toISOString() }).eq('id', dispute.id);
   } else {
-    await awardForfeit(m.id, m.player_b_id, m.player_a_id, adminId);
+    await awardForfeit(m.id, m.player_b_id, note ?? null);
     await supabase.from('disputes').update({ status: 'RESOLVED', resolved_by: adminId, resolution: note ?? 'Forfeit to B 3–0', resolved_at: new Date().toISOString() }).eq('id', dispute.id);
   }
   await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_RESOLVED_DISPUTE', entity_type: 'dispute', entity_id: dispute.id, new_data: { action, scoreA, scoreB }, reason: note ?? null });

@@ -46,6 +46,8 @@ export interface Profile {
   fav_player_rating: number | null;
   fav_player_position: string | null;
   oath_accepted_at: string | null;
+  // Forced rotation after tryout provisioning (Edge sets true).
+  must_change_password: boolean;
   banner_color: string | null;
   banner_image: string | null;
   instagram: string | null;
@@ -70,6 +72,12 @@ export interface ClanSettings {
   timezone: string; // e.g. Africa/Casablanca
   quest_names: 'classic' | 'norse';
   registration_open: boolean;
+  // Auto-Jarl background automation (0036): master switch, silent-result
+  // auto-confirm window, overdue grace, overdue forfeit rule.
+  auto_jarl_enabled: boolean;
+  auto_confirm_hours: number;
+  overdue_grace_hours: number;
+  forfeit_mode: 'auto' | 'manual';
   created_at: string;
   updated_at: string;
 }
@@ -177,6 +185,8 @@ export interface Challenge {
   is_open: boolean;
   evidence_path: string | null;
   expires_at: string | null;
+  // Set server-side when a daily XP cap bit (0038 farm caps).
+  xp_capped: boolean | null;
   created_at: string;
   responded_at: string | null;
   updated_at: string;
