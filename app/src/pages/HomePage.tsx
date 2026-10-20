@@ -15,6 +15,7 @@ import { listMyUpcoming, recentConfirmedResults } from '../services/matchService
 import { listIncoming } from '../services/challengeService';
 import { listIncomingGifts } from '../services/sagaService';
 import TesterTasks from '../components/tryouts/TesterTasks';
+import LeagueEntryCard from '../components/league4v4/LeagueEntryCard';
 import { listNotifications } from '../services/notificationService';
 import { listActiveMembers } from '../services/playerService';
 import { getCurrentReign, getReignHistory } from '../services/throneService';
@@ -79,6 +80,8 @@ export default function HomePage() {
       )}
 
       <TesterTasks />
+
+      <LeagueEntryCard compact />
 
       <section aria-label={t('home.nextMatch')} className="hero hero-glow mt-4">
         <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider opacity-70"><Icon name="swords" className="h-4 w-4" /> {t('home.nextMatch')}</h2>

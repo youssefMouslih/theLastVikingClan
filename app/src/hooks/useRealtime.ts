@@ -35,6 +35,24 @@ export function useRealtime(userId: string | undefined) {
         qc.invalidateQueries({ queryKey: ['disputes-open'] });
         qc.invalidateQueries({ queryKey: ['disputes-count'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_seasons' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_teams' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_team_members' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_team_invites' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_matchdays' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_fixtures' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);

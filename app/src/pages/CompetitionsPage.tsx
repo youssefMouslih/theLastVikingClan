@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import CompetitionCard from '../components/competition/CompetitionCard';
+import LeagueEntryCard from '../components/league4v4/LeagueEntryCard';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import { useLocale } from '../i18n/LocaleContext';
@@ -80,6 +81,7 @@ export default function CompetitionsPage() {
   return (
     <main className="page">
       <AppBar title={t('comps.title')} />
+      <LeagueEntryCard />
       {canCreate && (
         <div className="mt-2 flex justify-end">
           <button onClick={() => setShowForm((s) => !s)} className="btn-primary h-10 px-4 text-sm">{t('comps.new')}</button>

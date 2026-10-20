@@ -11,6 +11,13 @@ import CompetitionsPage from '../pages/CompetitionsPage';
 import GalleryPage from '../pages/GalleryPage';
 import HomePage from '../pages/HomePage';
 import JoinPage from '../pages/JoinPage';
+import League4v4HubPage from '../pages/League4v4HubPage';
+import LeagueAdminPage from '../pages/LeagueAdminPage';
+import LeagueCreateTeamPage from '../pages/LeagueCreateTeamPage';
+import LeagueFixturesPage from '../pages/LeagueFixturesPage';
+import LeagueMyTeamPage from '../pages/LeagueMyTeamPage';
+import LeagueTeamDetailPage from '../pages/LeagueTeamDetailPage';
+import LeagueTeamsPage from '../pages/LeagueTeamsPage';
 import LoginPage from '../pages/LoginPage';
 import ForcePasswordPage from '../pages/ForcePasswordPage';
 import MatchPage from '../pages/MatchPage';
@@ -55,6 +62,13 @@ export const router = createBrowserRouter([
   { path: '/', element: guard(<HomePage />) },
   { path: '/competitions', element: guard(<CompetitionsPage />) },
   { path: '/competitions/:id', element: guard(<CompetitionDetailPage />) },
+  { path: '/4vs4', element: guard(<League4v4HubPage />) },
+  { path: '/4vs4/teams', element: guard(<LeagueTeamsPage />) },
+  { path: '/4vs4/teams/create', element: guard(<LeagueCreateTeamPage />) },
+  { path: '/4vs4/teams/:id', element: guard(<LeagueTeamDetailPage />) },
+  { path: '/4vs4/my-team', element: guard(<LeagueMyTeamPage />) },
+  { path: '/4vs4/fixtures', element: guard(<LeagueFixturesPage />) },
+  { path: '/4vs4/admin', element: staff(<LeagueAdminPage />) },
   { path: '/matches/:id', element: guard(<MatchPage />) },
   { path: '/players/:id', element: guard(<PlayerPage />) },
   { path: '/clan', element: guard(<ClanPage />) },

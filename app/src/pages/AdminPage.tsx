@@ -79,6 +79,9 @@ export default function AdminPage() {
         <Link to="/competitions" className="card flex items-center gap-2 p-3 font-semibold"><Icon name="trophy" className="h-5 w-5 text-brand-400" /> {t('admin.tabCompetitions')}</Link>
         <Link to="/clan" className="card flex items-center gap-2 p-3 font-semibold"><Icon name="users" className="h-5 w-5 text-brand-400" /> {t('nav.clan')}</Link>
       </div>
+      <Link to="/4vs4/admin" className="card mt-2 flex items-center gap-2 p-3 text-sm font-semibold">
+        <Icon name="shield" className="h-5 w-5 text-brand-400" /> {t('league4.admin')}
+      </Link>
 
       <nav aria-label="Admin tabs" className="mt-3 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
         {TABS.map((tb) => (

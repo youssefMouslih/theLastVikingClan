@@ -1,0 +1,223 @@
+4VS4 LEAGUE - PROCESS AND HANDOFF REFERENCE
+==========================================
+
+Last updated: 2026-10-20
+Repository: C:\Users\user\Documents\clan\theLastVikingClan
+Branch: feature/4vs4-league
+Full plan: docs/4vs4-implementation-plan.md
+
+PURPOSE
+-------
+This file preserves the work completed in the current implementation process,
+the decisions made, the validation evidence, the unresolved risks, and the next
+steps. Keep it updated at the end of every phase.
+
+PHASE PROTOCOL
+--------------
+- Implement one phase at a time.
+- Report: Phase / Status / Implemented / Files changed / DB changes / Tests /
+  Security / Existing impact / Remaining issues / Next phase.
+- Stop for approval after each phase report.
+- Never claim browser, SQL runtime, or deployment verification unless it was
+  actually performed.
+- Do not commit unless explicitly requested.
+- Do not modify the existing War Council squads implementation:
+  app/supabase/migrations/0013_squads.sql
+  app/src/services/squadService.ts
+  app/src/components/battle/SquadsTab.tsx
+
+CURRENT STATUS
+--------------
+Phase 0: complete and approved.
+Phase 1: schema implemented; SQL runtime verification pending.
+Phase 2: authoritative RPCs implemented; SQL runtime verification pending.
+Phase 3: UI implemented; local validation passed; browser exit test pending.
+Phase 4: not started. Awaiting approval.
+
+No commits have been made. All Phase 1-3 work is in the working tree on
+feature/4vs4-league.
+
+WHAT WAS DONE
+-------------
+Phase 0 - Inspection and plan
+- Inspected the existing React/Vite/Supabase PWA, schema, auth, competition
+  engines, UI conventions, migrations, and test/deploy setup.
+- Created docs/4vs4-implementation-plan.md with architecture, schema, RLS
+  matrix, RPC list, routes, phased delivery, and risks.
+- Confirmed the existing War Council squads must not be reused for this league.
+
+Phase 1 - Database foundation
+- Added app/supabase/migrations/0040_league4v4_schema.sql:
+  - 16 league tables, constraints, indexes, guard triggers.
+  - SELECT-only RLS; authoritative writes remain RPC-only.
+  - Realtime publication entries.
+  - Hidden-lineup/report helper functions.
+- Added app/supabase/tests/0040_league4v4_tests.sql.
+- Added league TypeScript row and RPC types.
+- No UI yet.
+
+Phase 2 - Server functions
+- Added app/supabase/migrations/0041_league4v4_functions.sql:
+  - 43/43 functions parsed.
+  - 69/69 privilege statements.
+  - All 23 mutating RPCs covered by catalog/source tests.
+  - Season lifecycle, team creation/update, invites, approval, roster changes,
+    fixture generation, lineups/reveal, duels, substitution, reports,
+    confirmation, disputes, penalties, audit, and standings.
+- Added app/supabase/tests/0041_league4v4_tests.sql and manual checklist.
+- Added RPC input/result and notification types.
+- No UI yet.
+- Important server rules:
+  - Roster size is 6-8 active players.
+  - Team approval requires 6-8 active players.
+  - Season transitions are DRAFT -> REGISTRATION -> ACTIVE -> COMPLETED ->
+    ARCHIVED.
+  - Activation requires approved teams within min/max and complete fixtures.
+  - Completion requires every fixture final.
+  - After registration, roster changes are restricted to staff replacement RPCs
+    outside active matchday windows.
+
+Phase 3 - Season, squads, invitations, fixtures UI
+- Routes:
+  - /4vs4 (hub)
+  - /4vs4/teams
+  - /4vs4/teams/create
+  - /4vs4/teams/:id
+  - /4vs4/my-team
+  - /4vs4/fixtures
+  - /4vs4/admin (OWNER/ADMIN via staff guard)
+- Services:
+  - app/src/services/leagueKeys.ts
+  - app/src/services/leagueSeasonService.ts
+  - app/src/services/leagueTeamService.ts
+  - app/src/services/leagueFixtureService.ts
+  - app/src/services/leagueAdminService.ts
+- Components:
+  - app/src/components/league4v4/LeagueEntryCard.tsx
+  - app/src/components/league4v4/LeagueTeamCard.tsx
+  - app/src/components/league4v4/LeagueFixtureCard.tsx
+  - app/src/components/league4v4/LeagueRoster.tsx
+- Pages:
+  - app/src/pages/League4v4HubPage.tsx
+  - app/src/pages/LeagueTeamsPage.tsx
+  - app/src/pages/LeagueTeamDetailPage.tsx
+  - app/src/pages/LeagueCreateTeamPage.tsx
+  - app/src/pages/LeagueMyTeamPage.tsx
+  - app/src/pages/LeagueFixturesPage.tsx
+  - app/src/pages/LeagueAdminPage.tsx
+- Entry points:
+  - Compact league card on Home after TesterTasks.
+  - Full league card on Competitions page.
+  - Admin link on AdminPage.
+  - No sixth bottom-navigation tab.
+- Realtime:
+  - app/src/hooks/useRealtime.ts invalidates ["league"] for league_seasons,
+    league_teams, league_team_members, league_team_invites, league_matchdays,
+    and league_fixtures.
+- i18n:
+  - EN/FR/AR league4 keys and league-specific status labels.
+  - Flat dictionaries; Dict = typeof en enforces key parity.
+- UX and safety decisions:
+  - Team directory shows approved teams only.
+  - Admin activation is disabled until approved-team count is within min/max and
+    scheduled matchdays/fixtures match the expected schedule.
+  - Admin completion is disabled until all fixtures are final.
+  - Captain can leave only when sole member; otherwise transfer-captain hint.
+  - Fixture cards handle completed, forfeited, and cancelled states.
+  - No client-authoritative league writes.
+
+KEY FILES AND CONTRACTS
+-----------------------
+- Query keys: root ["league", ...] through leagueKeys.
+- Services call Supabase RPCs directly; the Supabase client is untyped.
+- Result fields are normalized defensively in services.
+- Key RPC names:
+  league_create_season, league_update_season, league_set_season_status,
+  league_create_team, league_update_team, league_invite_member,
+  league_answer_invite, league_leave_team, league_remove_member,
+  league_transfer_captain, league_approve_team, league_generate_fixtures.
+- league_invite_member returns uuid in SQL; the service wrapper returns void.
+- FULL_SETUP.sql remains bundled through 0041. No Phase 3 DB changes.
+- Existing stack: React 19, React Router 8.4, TanStack Query 5, Zustand 5,
+  Supabase JS 2.117.2, Vite 8, Vitest 3, Tailwind v4.
+
+VALIDATION EVIDENCE
+-------------------
+Executed in app/ on 2026-10-20:
+- npm run check
+  - oxlint: 0 errors, 22 baseline warnings (pre-existing warnings only).
+  - tsc -b: clean.
+  - vitest run: 7 files, 42/42 tests passed.
+- npm run build
+  - Passed.
+  - Existing warning: main bundle 1,110.43 kB, above 500 kB.
+  - PWA service worker generated successfully.
+- git diff --check: clean.
+- No new Vitest tests were added for Phase 3 pages.
+- No browser test, SQL runtime test, RLS test, or Supabase deployment was done.
+
+KNOWN ISSUES AND BLOCKERS
+-------------------------
+1. Browser exit test for Phase 3 is not verified.
+   - Requires a live Supabase backend with migrations 0040-0041 applied.
+   - Requires enough accounts to satisfy 6 active players per approved team.
+   - The plan's "two accounts" wording conflicts with that minimum; use
+     seeded/pre-existing members or additional test accounts.
+2. SQL runtime, RLS, and RPC behavior are unverified locally.
+   - psql is not installed.
+   - Docker daemon is not running.
+   - Whole-FULL_SETUP.sql parsing crashes the WASM parser; parse migrations and
+     tests separately.
+3. Deployment status of migrations 0034-0039 remains unconfirmed.
+4. Main bundle exceeds 500 kB; code splitting remains an existing concern.
+5. Phase 4-8 functionality is not implemented yet.
+
+IMMEDIATE NEXT STEPS
+--------------------
+1. Deploy or confirm migrations 0034-0041 against Supabase/staging.
+2. Run the Phase 3 browser acceptance flow with staff and enough player accounts:
+   - Create season (DRAFT).
+   - Open registration.
+   - Create squads and invite players.
+   - Approve squads with 6-8 active players.
+   - Generate fixtures.
+   - Activate season.
+   - Verify hub, teams, team detail, my team, and fixtures in EN/FR/AR and RTL.
+   - Verify completion is blocked until all fixtures are final.
+3. Record evidence and any defects in this file.
+4. Obtain approval, then implement Phase 4.
+
+NEXT PHASE - PHASE 4
+--------------------
+Scope:
+- Lineup editor with 4 starters and 2-4 substitutes.
+- Hidden lineup states and simultaneous reveal.
+- Duel cards and matchup display.
+- Start duel and atomic substitution before a duel starts.
+- Realtime and visibility tests.
+
+Exit criteria:
+- Hidden lineups cannot be read by opponents.
+- Reveal creates exactly four duels.
+- Substitution is atomic and locks after the duel starts.
+
+Later phases:
+- Phase 5: results, evidence, confirmations, disputes, fixture finalization.
+- Phase 6: standings, penalties, statistics.
+- Phase 7: 0042 deadline cron, notifications, deep links, realtime bindings.
+- Phase 8: integration, security/RLS regression, EN/FR/AR/RTL polish,
+  accessibility/mobile, docs, final check, deployment readiness.
+
+COMMANDS
+--------
+cd app
+npm run dev
+npm run check
+npm run build
+npm test -- --run
+npm run lint
+npm run typecheck
+
+STOP POINT
+----------
+Phase 3 is awaiting explicit approval. Do not start Phase 4 until approved.

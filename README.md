@@ -37,7 +37,7 @@ Live loop: **next match → deadline → play → submit + screenshot → oppone
 
 ## Tech
 
-- **App** (`app/`): React 19 + TypeScript + Vite, Tailwind v4, React Router (auth-guarded + `*` fallback to Home), TanStack Query (keep-previous-data, throttled focus refetch), Zustand, Supabase JS, vite-plugin-pwa (injectManifest custom SW), Vitest (34 tests). Quality gate: `npm run check` = `oxlint` + `tsc -b` + `vitest run`.
+- **App** (`app/`): React 19 + TypeScript + Vite, Tailwind v4, React Router (auth-guarded + `*` fallback to Home), TanStack Query (keep-previous-data, throttled focus refetch), Zustand, Supabase JS, vite-plugin-pwa (injectManifest custom SW), Vitest (42 tests). Quality gate: `npm run check` = `oxlint` + `tsc -b` + `vitest run`.
 - **Backend**: Supabase Postgres + Auth + Storage + Realtime + Edge Functions `send-push` (push) and `accept-tryout` (tryout → account provisioning, OWNER/ADMIN-only, CORS-enabled). No custom server otherwise.
 - **Design**: Valhalla Gold + Runic Steel, dark-first with light/dark/system setting; Cinzel display + Chakra Petch body; SVG icon set; safe-area + standalone PWA; motion system (entrances, live countdowns, count-ups, skeletons, nav glow); sticky action bars; reduced-motion respected.
 - **i18n**: `src/i18n/dictionaries.ts` (en/fr/ar, identical key sets enforced by `Dict = typeof en`), RTL via `document.dir`, locale dates. Bottom nav: Hall · Arena · League · Code · Profile. Top bar: emblem, live GP + coin, raven bell.
@@ -49,11 +49,11 @@ cd app
 cp .env.example .env   # VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (+ VITE_VAPID_PUBLIC_KEY)
 npm install
 npm run dev      # http://127.0.0.1:5173
-npm run check    # lint + typecheck + vitest (34) — run before every PR/build
+npm run check    # lint + typecheck + vitest (42) — run before every PR/build
 npm run build    # tsc -b + vite + PWA precache
 ```
 
-Database: **fresh installs** run **`app/supabase/FULL_SETUP.sql` once** in SQL editor (now bundles `0001`–`0032`, idempotent — incl. tryout_requests + verdict + email columns). **Existing DBs** created from an older bundle: run only the missing `supabase/migrations/00NN_*.sql` files in numeric order instead (`0023` unique warrior tags, `0024` badge image column, `0025` forfeit claims, `0026` quest names, `0027` registration open, `0028` clan-asset policies, `0029`–`0032` tryout system, `0033` round control for moderators). Then: private buckets `avatars`, `clan-assets`, `match-evidence`; first user via Auth (auto-confirm) + `profiles` row `OWNER`/`ACTIVE`; **Confirm sign up** email OFF while testing.
+Database: **fresh installs** run **`app/supabase/FULL_SETUP.sql` once** in SQL editor (now bundles `0001`–`0041`, idempotent — incl. tryouts, existing fixes, and the 4vs4 League schema + RPCs). **Existing DBs** created from an older bundle: run only the missing `supabase/migrations/00NN_*.sql` files in numeric order instead (`0023` unique warrior tags, `0024` badge image column, `0025` forfeit claims, `0026` quest names, `0027` registration open, `0028` clan-asset policies, `0029`–`0032` tryout system, `0033` round control for moderators, `0034`–`0039` existing fixes, `0040`–`0041` 4vs4 League schema + RPCs). Then: private buckets `avatars`, `clan-assets`, `match-evidence`; first user via Auth (auto-confirm) + `profiles` row `OWNER`/`ACTIVE`; **Confirm sign up** email OFF while testing.
 
 Setup health: Admin → **Setup health → Run check** (`src/services/setupCheck.ts`) verifies `.env`, private buckets, `OWNER`/`ACTIVE` bootstrap, and VAPID key with fix hints — no more manual guessing.
 
@@ -77,16 +77,16 @@ app/
   src/
     app/           router (auth guard + * fallback), providers (Query + auth init + realtime binder + throttled focus refetch)
     competition/   pure engines + tests (league/knockout/standings/deadline/replacement/joinCode)
-    components/    ui (Icon/Avatar/WhatsAppIcon/AppBar/BottomNav/StatusBadge/CopyButton/CoinImg/InstallPrompt/Motion/UpdateBanner/OfflineBanner), battle, competition, match, player, clan, admin
-    pages/         Home, Login, Competitions, CompetitionDetail, Match, Join, Clan, Player, Profile, Settings, Code, Battles, Saga, Gallery (Saga Book), Admin (+Setup health card), Notifications, Sim (16-player league/cup demo, fake data, Player/Moderator/Admin POV)
-    services/      auth/player/clan/competition/match/standings/dispute/replacement/statistics/rating/announcement/notification/honour/throne/challenge/squad/saga/storage/push/setupCheck/badgeForge (+badgeForge.test), tryoutService (tryout queue + acceptWithAccount)
+    components/    ui (Icon/Avatar/WhatsAppIcon/AppBar/BottomNav/StatusBadge/CopyButton/CoinImg/InstallPrompt/Motion/UpdateBanner/OfflineBanner), battle, competition, match, player, clan, admin, league4v4 (entry/team/fixture/roster cards)
+    pages/         Home, Login, Competitions, CompetitionDetail, Match, Join, Clan, Player, Profile, Settings, Code, Battles, Saga, Gallery (Saga Book), Admin (+Setup health card), Notifications, Sim (16-player league/cup demo, fake data, Player/Moderator/Admin POV), 4vs4 League (hub, teams, team detail, create squad, my team, fixtures, admin)
+    services/      auth/player/clan/competition/match/standings/dispute/replacement/statistics/rating/announcement/notification/honour/throne/challenge/squad/saga/storage/push/setupCheck/badgeForge (+badgeForge.test), tryoutService (tryout queue + acceptWithAccount), leagueSeason/leagueTeam/leagueFixture/leagueAdmin + leagueKeys
     components/    onboarding/OnboardingGate (+80 GP gate), emblem/Emblem (vintage badge art), tryouts/TesterTasks, admin/TryoutsTab + AccessTab
     public/emblems/  9 vintage emblem SVGs (clan + 8 honour types)
     stores/        authStore (zustand)   hooks/ useOath, useRealtime, usePersistentTab
     i18n/          dictionaries + LocaleContext (t(), fmtDate(), statusLabel())
     sw.ts          custom service worker (precache + offline nav + push + tap-to-open)
     utils/         shareBattle (canvas posters), sfx (page-turn flick, book-open swords, rune click), theme.tsx, countries.ts
-  supabase/migrations/  0001–0033 (= FULL_SETUP.sql bundle; keep in sync — new migration → append to bundle; 0029–0032 = tryout system, 0033 = round staff policy)
+  supabase/migrations/  0001–0041 (= FULL_SETUP.sql bundle; keep in sync — new migration → append to bundle; 0029–0032 = tryout system, 0033 = round staff policy, 0040–0041 = 4vs4 League schema + RPCs)
   supabase/functions/accept-tryout/  tryout → account provisioning (OWNER/ADMIN-only, CORS-enabled)
   supabase/functions/send-push/  Web Push sender
 ```
