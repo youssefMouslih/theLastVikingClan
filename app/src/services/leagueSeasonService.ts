@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { LeagueSeason, LeagueSeasonStatus, LeagueStandingRow } from '../types/league4v4';
+import type { LeagueSeason, LeagueSeasonStatus } from '../types/league4v4';
 
 const STATUS_PRIORITY: Record<LeagueSeasonStatus, number> = {
   ACTIVE: 0,
@@ -35,10 +35,4 @@ export function pickCurrentLeagueSeason(seasons: LeagueSeason[]): LeagueSeason |
     if (byStatus !== 0) return byStatus;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   })[0];
-}
-
-export async function getLeagueStandings(seasonId: string): Promise<LeagueStandingRow[]> {
-  const { data, error } = await supabase.rpc('league_standings', { p_season_id: seasonId });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as LeagueStandingRow[];
 }

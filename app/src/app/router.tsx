@@ -14,7 +14,12 @@ import JoinPage from '../pages/JoinPage';
 import League4v4HubPage from '../pages/League4v4HubPage';
 import LeagueAdminPage from '../pages/LeagueAdminPage';
 import LeagueCreateTeamPage from '../pages/LeagueCreateTeamPage';
+import LeagueDisputesPage from '../pages/LeagueDisputesPage';
+import LeagueDuelRedirectPage from '../pages/LeagueDuelRedirectPage';
 import LeagueFixturesPage from '../pages/LeagueFixturesPage';
+import LeagueMatchPage from '../pages/LeagueMatchPage';
+import LeagueStandingsPage from '../pages/LeagueStandingsPage';
+import LeagueStatsPage from '../pages/LeagueStatsPage';
 import LeagueMyTeamPage from '../pages/LeagueMyTeamPage';
 import LeagueTeamDetailPage from '../pages/LeagueTeamDetailPage';
 import LeagueTeamsPage from '../pages/LeagueTeamsPage';
@@ -54,6 +59,7 @@ function RequireRole({ children, roles }: { children: React.ReactNode; roles: st
 
 const guard = (el: React.ReactNode) => <RequireAuth>{el}</RequireAuth>;
 const staff = (el: React.ReactNode) => <RequireRole roles={['OWNER', 'ADMIN']}>{el}</RequireRole>;
+const disputeStaff = (el: React.ReactNode) => <RequireRole roles={['OWNER', 'ADMIN', 'MODERATOR']}>{el}</RequireRole>;
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -68,6 +74,11 @@ export const router = createBrowserRouter([
   { path: '/4vs4/teams/:id', element: guard(<LeagueTeamDetailPage />) },
   { path: '/4vs4/my-team', element: guard(<LeagueMyTeamPage />) },
   { path: '/4vs4/fixtures', element: guard(<LeagueFixturesPage />) },
+  { path: '/4vs4/standings', element: guard(<LeagueStandingsPage />) },
+  { path: '/4vs4/stats', element: guard(<LeagueStatsPage />) },
+  { path: '/4vs4/match/:fixtureId', element: guard(<LeagueMatchPage />) },
+  { path: '/4vs4/duel/:duelId', element: guard(<LeagueDuelRedirectPage />) },
+  { path: '/4vs4/disputes', element: disputeStaff(<LeagueDisputesPage />) },
   { path: '/4vs4/admin', element: staff(<LeagueAdminPage />) },
   { path: '/matches/:id', element: guard(<MatchPage />) },
   { path: '/players/:id', element: guard(<PlayerPage />) },

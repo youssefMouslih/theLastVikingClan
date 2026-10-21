@@ -1,12 +1,27 @@
 # 4vs4 League - Implementation Plan
 
-> Status: Phase 3 season/squad/invitation/fixture/admin UI implemented; local lint/typecheck/tests/build passed; browser exit test and SQL runtime pending; awaiting approval before Phase 4.
-> Branch: `feature/4vs4-league`, created from `features` at `6c1a769`.
+> Status: Phase 8 implementation closed; local checks and Part A catalog checks passed; Part B runtime checks deferred by the user; frontend deploy awaits explicit approval.
+> Branch: `feature/4vs4-league-phase3`, based on `main` at `0762579`.
 > Phase 0 produced this plan. Phase 1 added migration `0040`, its SQL catalog tests,
 > and TypeScript row types. Phase 2 added migration `0041`, its catalog/manual tests,
 > RPC input/result types, and notification types. Phase 3 added league services, UI
 > pages/components, routes, Home/Competitions/Admin entry points, realtime
-> invalidation, and EN/FR/AR translations. No DB changes in Phase 3.
+> invalidation, and EN/FR/AR translations. Phase 4 added the match page, lineup
+> editor/view, four duel cards, start/substitution actions, hidden-lineup and
+> reveal states, realtime invalidations, pure lineup helpers with Vitest coverage,
+> and an adversarial SQL checklist. Phase 5 added result and dispute services,
+> result/report/evidence/dispute components, match-page result wiring, a
+> staff dispute queue, pure result helpers with Vitest coverage, and an
+> adversarial SQL checklist. Phase 6 added standings/statistics pages,
+> penalty and tiebreak admin panels, shared season/table components, pure
+> standings helpers with Vitest coverage, and an adversarial SQL checklist.
+> Phase 7 added migration `0042`, the every-10-minute `league_run_deadlines`
+> cron, reminder markers, automatic forfeits/cancellations, notification deep
+> links, realtime bindings, the Home league action card and an adversarial SQL
+> checklist. Phase 8 added migration `0043` hardening indexes and trigger-grant
+> revokes, an automated RLS/grant/realtime catalog test with a two-account
+> adversarial checklist, a locale-parity Vitest guard and deployment docs.
+> Phase 4 through Phase 8 changes are uncommitted on the branch.
 
 ## 1. Goal
 
@@ -207,7 +222,7 @@ changed by explicit approval.
 | D9 | Evidence storage | Reuse the existing private `match-evidence` bucket under `league/{season_id}/{fixture_id}/{duel_id}/...`; do not create a second evidence bucket. |
 | D10 | Navigation | Add a prominent 4vs4 League card on `/competitions` and Home; no sixth bottom tab. |
 | D11 | Admin access | OWNER/ADMIN manage seasons, teams, fixtures, penalties. OWNER/ADMIN/MODERATOR resolve league disputes. |
-| D12 | Migration layout | `0040_league4v4_schema.sql`, `0041_league4v4_functions.sql`, `0042_league4v4_deadlines.sql`; append each to FULL_SETUP as it is completed. |
+| D12 | Migration layout | `0040_league4v4_schema.sql`, `0041_league4v4_functions.sql`, `0042_league4v4_deadlines.sql`, `0043_league4v4_hardening.sql`; append each to FULL_SETUP as it is completed. |
 | D13 | Optional logos | Support optional squad logo uploads via a private `league-assets` bucket in a later phase. Fall back to initials/emblem. If this adds deployment friction, defer logos. |
 | D14 | Season concurrency | Allow multiple seasons in DRAFT; only one ACTIVE season at a time (enforced by a partial unique index or RPC check). |
 
@@ -658,6 +673,9 @@ Planned migrations:
      grants/revokes.
 3. `0042_league4v4_deadlines.sql`
    - `league_run_deadlines()`, pg_cron schedule, deadline notifications.
+4. `0043_league4v4_hardening.sql`
+   - deadline/schedule performance indexes and trigger-helper grant revokes;
+     no policy or RPC changes.
 
 Each migration is additive and idempotent where practical (`if not exists`,
 `create or replace`, guarded drops). Append the exact file content to
@@ -749,24 +767,53 @@ before the previous phase is approved.
 
 ### Phase 6 - Standings, penalties, statistics
 
-- Standings page, tiebreak/penalty admin, player/team stats.
+- Implemented locally: `/4vs4/standings`, `/4vs4/stats`, penalty/tiebreak admin
+  panels, shared standings table and season picker, pure standings helpers and
+  Vitest coverage, EN/FR/AR labels, and a SQL catalog/adversarial checklist.
 - Exit: standings match hand-computed results for 4/8 teams, including 2-2,
-  penalties, head-to-head, and admin tiebreak.
+  penalties, head-to-head, and admin tiebreak. Browser/SQL verification pending.
 
 ### Phase 7 - Deadlines, notifications, realtime
 
-- `0042` cron, deadline transitions, missing-lineup forfeits, notifications,
-  deep links, realtime bindings, Home action card.
+- Implemented locally: `0042` adds the internal `league_run_deadlines()` runner
+  and a `vik-league-deadlines` pg_cron job every 10 minutes. It opens due
+  matchdays, sends one 24h lineup reminder per squad/matchday, reveals complete
+  lineups, awards a 4-0 forfeit when one squad missed the deadline, cancels a
+  fixture when both missed it, and completes a matchday when every fixture is
+  final. State changes are conditional on status transitions and reminder
+  markers are unique, so duplicate runs are no-ops; the runner never guesses a
+  duel result.
+- Added notification types, `notificationPath` deep links (fixture -> match,
+  duel -> redirect to match, team/season/matchday -> league screens), a duel
+  redirect route, realtime bindings for invites, byes, substitutions,
+  penalties and tiebreak orders, and a Home/Competitions league action card for
+  lineup, start, report and confirm actions.
 - Exit: deadline simulation works; notifications link correctly; duplicate
-  cron runs are idempotent.
+  cron runs are idempotent. Local Vitest covers the action and deep-link
+  helpers; SQL/browser/realtime verification pending.
 
 ### Phase 8 - Integration, security, regression, deployment readiness
 
-- Link from Competitions/Home; full EN/FR/AR and RTL pass; accessibility and
-  mobile polish.
-- Full RLS/adversarial review; performance indexes; existing feature regression.
-- Update README/setup docs; final `npm run check`; deployment checklist.
-- Exit: user-approved diff, test evidence, and a separate deploy approval.
+- Implemented locally:
+  - Home/Competitions entry points and action card were already wired; no
+    sixth bottom tab.
+  - `0043_league4v4_hardening.sql` adds indexes for cron matchday/fixture
+    scans, schedule byes and standings/stats season filters, and revokes the
+    default PUBLIC EXECUTE on internal trigger helpers. No RLS, table or RPC
+    changes; the Phase 8 review found no policy gaps.
+  - `app/supabase/tests/0043_league4v4_phase8_tests.sql` asserts RLS on every
+    league table, SELECT-only policies, guarded definer functions, anon and
+    internal-function denials, the 14 published realtime tables and the new
+    indexes; Part B is a two-account adversarial/regression/deployment
+    checklist (hidden lineups, direct writes, RPC denials, existing features,
+    EN/FR/AR/RTL, accessibility, performance).
+  - `dictionaries.test.ts` guards locale parity, non-empty translations and
+    Arabic RTL; README documents the `0001`-`0043` range, pg_cron prerequisite
+    and SQL-editor-only runner.
+- Part A catalog checks passed in the deployed project. On 2026-10-20 the user
+  chose to defer Part B runtime checks and close the implementation phase;
+  they remain documented for later, and a separate production deploy approval
+  is still required.
 
 ## 14. Risks and Open Decisions
 

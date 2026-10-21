@@ -6,6 +6,8 @@ import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { EmptyState, LoadingRegion } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
+import LeaguePenaltyPanel from '../components/league4v4/LeaguePenaltyPanel';
+import LeagueTiebreakPanel from '../components/league4v4/LeagueTiebreakPanel';
 import { statusLabel, useLocale } from '../i18n/LocaleContext';
 import {
   approveLeagueTeam,
@@ -268,6 +270,9 @@ export default function LeagueAdminPage() {
                   {selected.status === 'COMPLETED' && <button type="button" disabled={!!busy} onClick={() => changeStatus('ARCHIVED')} className="btn-ghost h-10 px-4 text-sm">{t('league4.archiveSeason')}</button>}
                   <Link to="/4vs4/teams" className="btn-ghost h-10 px-4 text-sm">{t('league4.teams')}</Link>
                   <Link to="/4vs4/fixtures" className="btn-ghost h-10 px-4 text-sm">{t('league4.fixtures')}</Link>
+                  <Link to="/4vs4/standings" className="btn-ghost h-10 px-4 text-sm">{t('league4.standings')}</Link>
+                  <Link to="/4vs4/stats" className="btn-ghost h-10 px-4 text-sm">{t('league4.stats')}</Link>
+                  <Link to="/4vs4/disputes" className="btn-ghost h-10 px-4 text-sm">{t('league4.disputes')}</Link>
                 </div>
                 {selected.status === 'REGISTRATION' && !scheduleReady && <p className="mt-2 text-xs opacity-60">{t('league4.activateRequirements')}</p>}
                 {selected.status === 'ACTIVE' && !allFixturesFinal && <p className="mt-2 text-xs opacity-60">{t('league4.completeRequirements')}</p>}
@@ -336,6 +341,21 @@ export default function LeagueAdminPage() {
                   </button>
                 )}
               </section>
+
+              <LeaguePenaltyPanel
+                key={`penalties-${selected.id}`}
+                seasonId={selected.id}
+                seasonStatus={selected.status}
+                teams={approvedTeams}
+                matchdays={scheduleQuery.data?.matchdays ?? []}
+              />
+
+              <LeagueTiebreakPanel
+                key={`tiebreak-${selected.id}`}
+                seasonId={selected.id}
+                seasonStatus={selected.status}
+                teams={approvedTeams}
+              />
 
               <section className="card mt-3">
                 <h2 className="card-title flex items-center gap-1"><Icon name="shield" className="h-4 w-4 text-brand-400" /> {t('league4.teamApprovals')}</h2>

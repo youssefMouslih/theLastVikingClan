@@ -1,0 +1,205 @@
+{
+  "at": "2026-10-20T22:40:10.725Z",
+  "failures": 6,
+  "total": 48,
+  "results": [
+    {
+      "name": "A1 onboarding reward is gated before name/tag/phone",
+      "ok": true
+    },
+    {
+      "name": "A2 own profile gate fields save and onboarding pays +80 once",
+      "ok": true
+    },
+    {
+      "name": "A3 duplicate warrior tag is rejected",
+      "ok": true
+    },
+    {
+      "name": "A4 player cannot escalate their own role via direct profile update",
+      "ok": true
+    },
+    {
+      "name": "A5 onboard remaining QA players",
+      "ok": true
+    },
+    {
+      "name": "A6 oath is required before joining a competition",
+      "ok": true
+    },
+    {
+      "name": "A7 oath timestamp saves on own profile",
+      "ok": true
+    },
+    {
+      "name": "A8 profile details (efootball, bio, socials, banner colour) persist",
+      "ok": true
+    },
+    {
+      "name": "A9 avatar upload, signed URL, and cross-user write guard",
+      "ok": true
+    },
+    {
+      "name": "A10 unknown direct profile status updates stay server-controlled",
+      "ok": true
+    },
+    {
+      "name": "B1 admin can edit clan settings; player cannot",
+      "ok": true
+    },
+    {
+      "name": "B2 announcement create/read/delete with player write denial",
+      "ok": true
+    },
+    {
+      "name": "B3 honour award/read/delete and player denial",
+      "ok": true
+    },
+    {
+      "name": "B4 admin member role management and direct OWNER escalation guard",
+      "ok": false,
+      "error": "SECURITY: ADMIN can grant OWNER directly (client guard only)"
+    },
+    {
+      "name": "B5 admin can suspend/restore a member",
+      "ok": true
+    },
+    {
+      "name": "C1 admin creates competition; player cannot create",
+      "ok": true
+    },
+    {
+      "name": "C2 four players join; full competition returns COMPETITION_FULL; waitlist positions server-assigned",
+      "ok": true
+    },
+    {
+      "name": "C3 member can leave before start; freed slot can be joined",
+      "ok": true
+    },
+    {
+      "name": "C4 league fixture generation creates 3 rounds / 6 matches and activates competition",
+      "ok": true
+    },
+    {
+      "name": "C5 player replacement transfers only future scheduled fixtures",
+      "ok": true
+    },
+    {
+      "name": "C6 result submit + opponent confirm + XP",
+      "ok": true
+    },
+    {
+      "name": "C7 round 1 completion auto-opens round 2",
+      "ok": true
+    },
+    {
+      "name": "C8 dispute → staff resolution with corrected score",
+      "ok": true
+    },
+    {
+      "name": "C9 forfeit claim → staff 3–0 walkover",
+      "ok": true
+    },
+    {
+      "name": "C10 staff sends a submitted result back, then resubmission + confirm works",
+      "ok": true
+    },
+    {
+      "name": "C11 final fixture, all rounds complete, competition FINISHED",
+      "ok": true
+    },
+    {
+      "name": "C12 knockout 4-player bracket generation",
+      "ok": true
+    },
+    {
+      "name": "C13 soft delete hides from players, restore brings it back",
+      "ok": true
+    },
+    {
+      "name": "C14 two-person deletion request flag can be set and rejected",
+      "ok": true
+    },
+    {
+      "name": "D1 friendly battle full flow + XP rewards + self-confirm denied",
+      "ok": true
+    },
+    {
+      "name": "D2 decline path records DECLINED",
+      "ok": true
+    },
+    {
+      "name": "D3 open mat: create, list, accept by first taker, finish",
+      "ok": false,
+      "error": "BUG: first taker cannot accept an open mat: RLS blocked the update (0 rows)"
+    },
+    {
+      "name": "D4 expired open call is swept to CANCELLED by any viewer",
+      "ok": true
+    },
+    {
+      "name": "D5 forced HEAD call requires 100 GP, cannot be declined, transfers bounty",
+      "ok": true
+    },
+    {
+      "name": "D6 peer rating requires a shared completed match/battle and upserts",
+      "ok": true
+    },
+    {
+      "name": "D7 gifts move Glory, enforce balance and decline path",
+      "ok": true
+    },
+    {
+      "name": "D8 quest progress + claim (first-blood, squire, caller) is idempotent",
+      "ok": true
+    },
+    {
+      "name": "D9 season board includes QA players and total XP reads",
+      "ok": true
+    },
+    {
+      "name": "D10 throne crown → challenge → transfer → defense → pledge redirect, then restore",
+      "ok": false,
+      "error": "BUG: throne settlement cannot redirect pending pledges: Battle update not allowed."
+    },
+    {
+      "name": "E1 squad create without invites works (leader auto-member)",
+      "ok": true
+    },
+    {
+      "name": "E2 leader invite another member",
+      "ok": false,
+      "error": "BUG: squad leader cannot invite members (RLS): new row violates row-level security policy for table \"squad_members\""
+    },
+    {
+      "name": "E3 request-to-join works but leader cannot accept it",
+      "ok": false,
+      "error": "BUG: squad leader cannot answer a join request (RLS trigger): 0 rows"
+    },
+    {
+      "name": "E4 leader disbands squad",
+      "ok": true
+    },
+    {
+      "name": "F1 public tryout submission, admin listing, honeypot/duplicate guards",
+      "ok": false,
+      "error": "BUG: public tryout insert denied for anon: new row violates row-level security policy for table \"tryout_requests\""
+    },
+    {
+      "name": "F2 tester assignment, tester verdict, tester cannot resolve, admin resolves",
+      "ok": true
+    },
+    {
+      "name": "G1 notifications are private, mark-one and mark-all work",
+      "ok": true
+    },
+    {
+      "name": "G2 career, head-to-head, recent matches and clan totals aggregate QA data",
+      "ok": true
+    },
+    {
+      "name": "G3 read-only pages data: throne, announcements, members, competitions, XP board",
+      "ok": true
+    }
+  ]
+}

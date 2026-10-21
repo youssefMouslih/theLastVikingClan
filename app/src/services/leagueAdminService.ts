@@ -1,5 +1,20 @@
 import { supabase } from '../lib/supabase';
-import type { LeagueCreateSeasonInput, LeagueSeasonSettings, LeagueSeasonStatus } from '../types/league4v4';
+import { loadLeagueProfiles } from './leagueTeamService';
+import type {
+  LeagueCreateSeasonInput,
+  LeagueDispute,
+  LeagueDisputeResolutionInput,
+  LeagueDisputeWithContext,
+  LeagueDuel,
+  LeagueDuelReport,
+  LeagueDuelReportWithPlayer,
+  LeagueDuelWithPlayers,
+  LeagueFixture,
+  LeagueSeason,
+  LeagueSeasonSettings,
+  LeagueSeasonStatus,
+  LeagueTeamRef,
+} from '../types/league4v4';
 
 export async function createLeagueSeason(input: LeagueCreateSeasonInput): Promise<string> {
   const { data, error } = await supabase.rpc('league_create_season', {
@@ -61,6 +76,105 @@ export async function generateLeagueFixtures(seasonId: string, reset = false): P
   const { error } = await supabase.rpc('league_generate_fixtures', {
     p_season_id: seasonId,
     p_reset: reset,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function listOpenLeagueDisputes(): Promise<LeagueDisputeWithContext[]> {
+  const disputesResult = await supabase
+    .from('league_disputes')
+    .select('*')
+    .in('status', ['OPEN', 'UNDER_REVIEW'])
+    .order('created_at', { ascending: true });
+  if (disputesResult.error) throw new Error(disputesResult.error.message);
+  const disputes = (disputesResult.data ?? []) as LeagueDispute[];
+  if (disputes.length === 0) return [];
+
+  const duelIds = [...new Set(disputes.map((dispute) => dispute.duel_id))];
+  const duelsResult = await supabase.from('league_duels').select('*').in('id', duelIds);
+  if (duelsResult.error) throw new Error(duelsResult.error.message);
+  const duels = (duelsResult.data ?? []) as LeagueDuel[];
+
+  const fixtureIds = [...new Set(duels.map((duel) => duel.fixture_id))];
+  const seasonIdsFromDuels = new Set<string>();
+  const [fixturesResult, reportsResult] = await Promise.all([
+    supabase.from('league_fixtures').select('*').in('id', fixtureIds),
+    supabase.from('league_duel_reports').select('*').in('duel_id', duelIds),
+  ]);
+  if (fixturesResult.error) throw new Error(fixturesResult.error.message);
+  if (reportsResult.error) throw new Error(reportsResult.error.message);
+  const fixtures = (fixturesResult.data ?? []) as LeagueFixture[];
+  const reports = (reportsResult.data ?? []) as LeagueDuelReport[];
+  fixtures.forEach((fixture) => seasonIdsFromDuels.add(fixture.season_id));
+
+  const teamIds = [...new Set(duels.flatMap((duel) => [duel.home_team_id, duel.away_team_id]))];
+  const [seasonsResult, teamsResult] = await Promise.all([
+    supabase
+      .from('league_seasons')
+      .select('id,name,status')
+      .in('id', [...seasonIdsFromDuels]),
+    supabase.from('league_teams').select('id,name,status').in('id', teamIds),
+  ]);
+  if (seasonsResult.error) throw new Error(seasonsResult.error.message);
+  if (teamsResult.error) throw new Error(teamsResult.error.message);
+  const seasons = (seasonsResult.data ?? []) as Pick<LeagueSeason, 'id' | 'name' | 'status'>[];
+  const teams = (teamsResult.data ?? []) as LeagueTeamRef[];
+
+  const profiles = await loadLeagueProfiles([
+    ...duels.flatMap((duel) => [duel.home_player_id, duel.away_player_id]),
+    ...reports.map((report) => report.player_id),
+    ...disputes.map((dispute) => dispute.opened_by),
+  ]);
+
+  const fixtureById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
+  const seasonById = new Map(seasons.map((season) => [season.id, season]));
+  const teamById = new Map(teams.map((team) => [team.id, team]));
+  const reportsByDuel = new Map<string, LeagueDuelReportWithPlayer[]>();
+  for (const report of reports) {
+    const enriched = { ...report, player: profiles.get(report.player_id) ?? null };
+    const list = reportsByDuel.get(report.duel_id) ?? [];
+    list.push(enriched);
+    reportsByDuel.set(report.duel_id, list);
+  }
+
+  const duelById = new Map<string, LeagueDuelWithPlayers>(
+    duels.map((duel) => [
+      duel.id,
+      {
+        ...duel,
+        home_player: profiles.get(duel.home_player_id) ?? null,
+        away_player: profiles.get(duel.away_player_id) ?? null,
+      },
+    ]),
+  );
+
+  return disputes.map((dispute) => {
+    const duel = duelById.get(dispute.duel_id) ?? null;
+    const fixture = duel ? fixtureById.get(duel.fixture_id) ?? null : null;
+    return {
+      ...dispute,
+      opened_by_player: profiles.get(dispute.opened_by) ?? null,
+      duel,
+      fixture,
+      season: fixture ? seasonById.get(fixture.season_id) ?? null : null,
+      home: duel ? teamById.get(duel.home_team_id) ?? null : null,
+      away: duel ? teamById.get(duel.away_team_id) ?? null : null,
+      reports: reportsByDuel.get(dispute.duel_id) ?? [],
+    };
+  });
+}
+
+export async function resolveLeagueDispute(
+  disputeId: string,
+  input: LeagueDisputeResolutionInput,
+): Promise<void> {
+  const { error } = await supabase.rpc('league_resolve_dispute', {
+    p_dispute_id: disputeId,
+    p_winner_team_id: input.winner_team_id,
+    p_home_score: input.forfeit ? null : input.home_score,
+    p_away_score: input.forfeit ? null : input.away_score,
+    p_resolution: input.resolution.trim(),
+    p_forfeit: input.forfeit ?? false,
   });
   if (error) throw new Error(error.message);
 }

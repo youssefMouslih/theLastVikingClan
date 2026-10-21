@@ -141,6 +141,12 @@ const PATHS: Record<string, React.ReactNode> = {
     </>
   ),
   bookmark: <path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z" />,
+  lock: (
+    <>
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" />
+    </>
+  ),
   volume: (
     <>
       <path d="M4 10v4h3l4 3.5v-11L7 10Z" />

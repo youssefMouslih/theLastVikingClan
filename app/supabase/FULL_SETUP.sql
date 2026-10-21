@@ -1,4 +1,4 @@
--- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0026).
+-- VIK Clan FULL database setup: entire schema in ONE run (0001 through 0043).
 -- Paste the whole file into Supabase SQL editor and Run.
 -- Safe to re-run: every statement is IF NOT EXISTS / DROP IF EXISTS / OR REPLACE.
 -- If you already ran an older FULL_SETUP.sql, just run the newer 00NN_*.sql
@@ -7383,3 +7383,713 @@ grant execute on function public.league_resolve_dispute(uuid, uuid, int, int, te
 grant execute on function public.league_standings(uuid) to authenticated;
 grant execute on function public.league_player_stats(uuid) to authenticated;
 grant execute on function public.league_team_stats(uuid) to authenticated;
+
+-- VIK Clan migration 0042: 4vs4 League deadlines, reminders and automation.
+-- Run AFTER 0041. Idempotent: IF NOT EXISTS / OR REPLACE / unschedule-guarded.
+--
+-- league_run_deadlines() runs every 10 minutes (pg_cron) and, idempotently:
+--  1. opens SCHEDULED matchdays whose opens_at has passed;
+--  2. sends one 24h lineup reminder per squad/matchday that has not submitted;
+--  3. closes matchdays whose deadline has passed, revealing complete lineups;
+--  4. awards a 4-0 forfeit when exactly one squad missed the lineup deadline;
+--  5. cancels a fixture when both squads missed the lineup deadline;
+--  6. completes a matchday when every fixture is already final.
+-- It never guesses a disputed or unreported duel score. Deadline state changes
+-- and notification side effects are conditional on status transitions, so
+-- duplicate cron runs are no-ops.
+-- Needs: pg_cron extension (Supabase: enable under Database > Extensions if
+-- CREATE EXTENSION is blocked).
+
+create extension if not exists pg_cron;
+
+-- ============================================================================
+-- 1. Deadline reminder markers
+-- ============================================================================
+
+create table if not exists public.league_deadline_reminders (
+  id uuid primary key default gen_random_uuid(),
+  season_id uuid not null,
+  matchday_id uuid not null,
+  team_id uuid not null,
+  kind text not null check (kind in ('LINEUP_DUE')),
+  sent_at timestamptz not null default now(),
+  unique (matchday_id, team_id, kind),
+  foreign key (matchday_id, season_id)
+    references public.league_matchdays(id, season_id) on delete cascade,
+  foreign key (team_id, season_id)
+    references public.league_teams(id, season_id) on delete cascade
+);
+
+create index if not exists league_deadline_reminders_matchday_idx
+  on public.league_deadline_reminders (matchday_id, team_id);
+
+alter table public.league_deadline_reminders enable row level security;
+revoke all on table public.league_deadline_reminders from public, anon, authenticated;
+
+-- ============================================================================
+-- 2. Deadline runner
+-- ============================================================================
+
+create or replace function public.league_run_deadlines()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_now timestamptz := clock_timestamp();
+  v_opened int := 0;
+  v_reminded int := 0;
+  v_revealed int := 0;
+  v_forfeited int := 0;
+  v_cancelled int := 0;
+  v_closed int := 0;
+  v_skipped int := 0;
+  v_candidate record;
+  v_md public.league_matchdays%rowtype;
+  v_fixture_row record;
+  v_fixture public.league_fixtures%rowtype;
+  v_team record;
+  v_home_has boolean;
+  v_away_has boolean;
+  v_winner uuid;
+  v_loser uuid;
+  v_note text;
+  v_new_status text;
+  v_reminder_id uuid;
+begin
+  -- --------------------------------------------------------------------------
+  -- 2a. Open due matchdays and flip their fixtures to LINEUPS_PENDING.
+  -- Lock season before matchday to match league_lock_matchday()'s lock order.
+  -- --------------------------------------------------------------------------
+  for v_candidate in
+    select m.id, m.season_id
+    from public.league_matchdays m
+    join public.league_seasons s on s.id = m.season_id
+    where s.status = 'ACTIVE'
+      and m.status = 'SCHEDULED'
+      and m.opens_at <= v_now
+      and m.deadline > v_now
+    order by m.opens_at, m.number
+  loop
+    perform public.league_lock_season(v_candidate.season_id);
+
+    select * into v_md
+    from public.league_matchdays m
+    where m.id = v_candidate.id
+    for update;
+
+    if v_md.id is null then
+      continue;
+    end if;
+
+    -- Re-check after waiting for the lock: another run may have opened it or
+    -- an admin may have extended/moved the window.
+    if v_md.status <> 'SCHEDULED'
+       or v_md.opens_at > v_now
+       or v_md.deadline <= v_now
+       or not exists (
+         select 1 from public.league_seasons s
+         where s.id = v_md.season_id and s.status = 'ACTIVE'
+       ) then
+      continue;
+    end if;
+
+    update public.league_matchdays
+      set status = 'OPEN'
+    where id = v_md.id
+      and status = 'SCHEDULED';
+
+    update public.league_fixtures
+      set status = 'LINEUPS_PENDING'
+    where matchday_id = v_md.id
+      and status = 'SCHEDULED';
+
+    for v_team in
+      select distinct x.team_id
+      from (
+        select f.home_team_id as team_id
+        from public.league_fixtures f
+        join public.league_teams t on t.id = f.home_team_id and t.status = 'APPROVED'
+        where f.matchday_id = v_md.id
+        union
+        select f.away_team_id
+        from public.league_fixtures f
+        join public.league_teams t on t.id = f.away_team_id and t.status = 'APPROVED'
+        where f.matchday_id = v_md.id
+      ) x
+    loop
+      perform public.league_notify_team(
+        v_team.team_id,
+        'LEAGUE_MATCHDAY_OPEN',
+        'League matchday open',
+        'Matchday ' || v_md.number || ' is open. Submit your lineup before '
+          || to_char(v_md.deadline at time zone 'UTC', 'YYYY-MM-DD HH24:MI') || ' UTC.',
+        'league_matchday', v_md.id);
+    end loop;
+
+    perform public.league_audit(
+      v_md.season_id, 'MATCHDAY_OPENED', 'league_matchday', v_md.id,
+      jsonb_build_object('status', v_md.status),
+      jsonb_build_object('status', 'OPEN'),
+      null);
+
+    v_opened := v_opened + 1;
+  end loop;
+
+  -- --------------------------------------------------------------------------
+  -- 2b. One reminder per squad/matchday inside the final 24 hours. The unique
+  -- marker is inserted before notifying, so repeat runs and an extended
+  -- deadline cannot duplicate the same reminder.
+  -- --------------------------------------------------------------------------
+  for v_md in
+    select m.*
+    from public.league_matchdays m
+    join public.league_seasons s on s.id = m.season_id
+    where s.status = 'ACTIVE'
+      and m.status = 'OPEN'
+      and m.deadline > v_now
+      and m.deadline <= v_now + interval '24 hours'
+    order by m.deadline, m.number
+  loop
+    for v_team in
+      select distinct x.team_id, x.fixture_id
+      from (
+        select f.home_team_id as team_id, f.id as fixture_id
+        from public.league_fixtures f
+        join public.league_teams t on t.id = f.home_team_id and t.status = 'APPROVED'
+        where f.matchday_id = v_md.id
+          and f.status in ('SCHEDULED','LINEUPS_PENDING')
+        union
+        select f.away_team_id, f.id
+        from public.league_fixtures f
+        join public.league_teams t on t.id = f.away_team_id and t.status = 'APPROVED'
+        where f.matchday_id = v_md.id
+          and f.status in ('SCHEDULED','LINEUPS_PENDING')
+      ) x
+    loop
+      if exists (
+        select 1
+        from public.league_lineups l
+        join public.league_fixtures f on f.id = l.fixture_id
+        where f.matchday_id = v_md.id
+          and l.team_id = v_team.team_id
+          and l.status in ('SUBMITTED','REVEALED','LOCKED')
+      ) then
+        continue;
+      end if;
+
+      v_reminder_id := null;
+      insert into public.league_deadline_reminders
+        (season_id, matchday_id, team_id, kind)
+      values
+        (v_md.season_id, v_md.id, v_team.team_id, 'LINEUP_DUE')
+      on conflict (matchday_id, team_id, kind) do nothing
+      returning id into v_reminder_id;
+
+      if v_reminder_id is not null then
+        perform public.league_notify_team(
+          v_team.team_id,
+          'LEAGUE_LINEUP_REMINDER',
+          'League lineup due soon',
+          'Matchday ' || v_md.number || ' closes '
+            || to_char(v_md.deadline at time zone 'UTC', 'YYYY-MM-DD HH24:MI') || ' UTC. '
+            || 'Submit your lineup before the deadline to avoid a forfeit.',
+          'league_fixture', v_team.fixture_id);
+        v_reminded := v_reminded + 1;
+      end if;
+    end loop;
+  end loop;
+
+  -- --------------------------------------------------------------------------
+  -- 2c. Close expired matchdays. Reveal complete fixtures first; then settle
+  -- fixtures that still have no lineup from one or both squads.
+  -- --------------------------------------------------------------------------
+  for v_candidate in
+    select m.id, m.season_id
+    from public.league_matchdays m
+    join public.league_seasons s on s.id = m.season_id
+    where s.status = 'ACTIVE'
+      and m.status in ('SCHEDULED','OPEN')
+      and m.deadline <= v_now
+    order by m.deadline, m.number
+  loop
+    perform public.league_lock_season(v_candidate.season_id);
+
+    select * into v_md
+    from public.league_matchdays m
+    where m.id = v_candidate.id
+    for update;
+
+    if v_md.id is null then
+      continue;
+    end if;
+
+    if v_md.status not in ('SCHEDULED','OPEN')
+       or v_md.deadline > v_now
+       or not exists (
+         select 1 from public.league_seasons s
+         where s.id = v_md.season_id and s.status = 'ACTIVE'
+       ) then
+      continue;
+    end if;
+
+    for v_fixture_row in
+      select f.id
+      from public.league_fixtures f
+      where f.matchday_id = v_md.id
+        and f.status in ('SCHEDULED','LINEUPS_PENDING')
+      order by f.created_at, f.id
+    loop
+      v_fixture := public.league_lock_fixture(v_fixture_row.id);
+
+      if v_fixture.status not in ('SCHEDULED','LINEUPS_PENDING') then
+        continue;
+      end if;
+
+      if public.league_maybe_reveal_fixture(v_fixture.id) then
+        v_revealed := v_revealed + 1;
+        continue;
+      end if;
+
+      select
+        exists (
+          select 1
+          from public.league_lineups l
+          where l.fixture_id = v_fixture.id
+            and l.team_id = v_fixture.home_team_id
+            and l.status in ('SUBMITTED','REVEALED','LOCKED')
+        ),
+        exists (
+          select 1
+          from public.league_lineups l
+          where l.fixture_id = v_fixture.id
+            and l.team_id = v_fixture.away_team_id
+            and l.status in ('SUBMITTED','REVEALED','LOCKED')
+        )
+        into v_home_has, v_away_has;
+
+      if v_home_has and v_away_has then
+        -- Both lineups exist but reveal did not complete (defensive): leave the
+        -- fixture for staff rather than inventing a result.
+        v_skipped := v_skipped + 1;
+        continue;
+      end if;
+
+      if v_home_has or v_away_has then
+        v_winner := case when v_home_has then v_fixture.home_team_id else v_fixture.away_team_id end;
+        v_loser := case when v_home_has then v_fixture.away_team_id else v_fixture.home_team_id end;
+        if v_home_has then
+          v_note := 'Automatic forfeit: the away squad did not submit a lineup by the deadline.';
+        else
+          v_note := 'Automatic forfeit: the home squad did not submit a lineup by the deadline.';
+        end if;
+
+        update public.league_fixtures
+          set status = 'FORFEITED',
+              home_duel_wins = case when v_winner = v_fixture.home_team_id then 4 else 0 end,
+              away_duel_wins = case when v_winner = v_fixture.away_team_id then 4 else 0 end,
+              home_points = case when v_winner = v_fixture.home_team_id then 3 else 0 end,
+              away_points = case when v_winner = v_fixture.away_team_id then 3 else 0 end,
+              completed_at = v_now,
+              admin_note = v_note
+        where id = v_fixture.id;
+
+        update public.league_lineups
+          set status = 'LOCKED'
+        where fixture_id = v_fixture.id
+          and status in ('DRAFT','SUBMITTED');
+
+        perform public.league_notify_team(
+          v_winner,
+          'LEAGUE_FIXTURE_FORFEITED',
+          'League fixture forfeit win',
+          'Your squad was awarded a 4-0 forfeit win because the opponent missed the lineup deadline.',
+          'league_fixture', v_fixture.id);
+        perform public.league_notify_team(
+          v_loser,
+          'LEAGUE_FIXTURE_FORFEITED',
+          'League fixture forfeited',
+          'Your squad forfeited 0-4 because no lineup was submitted before the deadline.',
+          'league_fixture', v_fixture.id);
+
+        perform public.league_audit(
+          v_md.season_id, 'FIXTURE_FORFEITED', 'league_fixture', v_fixture.id,
+          jsonb_build_object('status', v_fixture.status),
+          jsonb_build_object(
+            'status', 'FORFEITED',
+            'winner_team_id', v_winner,
+            'home_duel_wins', case when v_winner = v_fixture.home_team_id then 4 else 0 end,
+            'away_duel_wins', case when v_winner = v_fixture.away_team_id then 4 else 0 end),
+          v_note);
+
+        v_forfeited := v_forfeited + 1;
+      else
+        update public.league_fixtures
+          set status = 'CANCELLED',
+              home_duel_wins = 0,
+              away_duel_wins = 0,
+              home_points = 0,
+              away_points = 0,
+              completed_at = v_now,
+              admin_note = 'Automatic cancellation: both squads missed the lineup deadline.'
+        where id = v_fixture.id;
+
+        update public.league_lineups
+          set status = 'LOCKED'
+        where fixture_id = v_fixture.id
+          and status in ('DRAFT','SUBMITTED');
+
+        perform public.league_notify_team(
+          v_fixture.home_team_id,
+          'LEAGUE_FIXTURE_CANCELLED',
+          'League fixture cancelled',
+          'The fixture was cancelled because neither squad submitted a lineup before the deadline.',
+          'league_fixture', v_fixture.id);
+        perform public.league_notify_team(
+          v_fixture.away_team_id,
+          'LEAGUE_FIXTURE_CANCELLED',
+          'League fixture cancelled',
+          'The fixture was cancelled because neither squad submitted a lineup before the deadline.',
+          'league_fixture', v_fixture.id);
+
+        perform public.league_audit(
+          v_md.season_id, 'FIXTURE_CANCELLED', 'league_fixture', v_fixture.id,
+          jsonb_build_object('status', v_fixture.status),
+          jsonb_build_object('status', 'CANCELLED', 'reason', 'both_lineups_missing'),
+          'Automatic cancellation: both squads missed the lineup deadline.');
+
+        v_cancelled := v_cancelled + 1;
+      end if;
+    end loop;
+
+    update public.league_matchdays m
+      set status = case
+        when exists (
+          select 1 from public.league_fixtures f
+          where f.matchday_id = m.id
+            and f.status not in ('COMPLETED','FORFEITED','CANCELLED')
+        ) then 'CLOSED'
+        else 'COMPLETED'
+      end
+    where m.id = v_md.id
+    returning m.status into v_new_status;
+
+    for v_team in
+      select distinct x.team_id
+      from (
+        select f.home_team_id as team_id
+        from public.league_fixtures f
+        join public.league_teams t on t.id = f.home_team_id and t.status = 'APPROVED'
+        where f.matchday_id = v_md.id
+        union
+        select f.away_team_id
+        from public.league_fixtures f
+        join public.league_teams t on t.id = f.away_team_id and t.status = 'APPROVED'
+        where f.matchday_id = v_md.id
+      ) x
+    loop
+      perform public.league_notify_team(
+        v_team.team_id,
+        'LEAGUE_MATCHDAY_CLOSED',
+        'League matchday closed',
+        'Matchday ' || v_md.number || ' is ' || lower(v_new_status)
+          || '. Missing lineups were settled automatically; open disputes remain with staff.',
+        'league_matchday', v_md.id);
+    end loop;
+
+    perform public.league_audit(
+      v_md.season_id, 'MATCHDAY_CLOSED', 'league_matchday', v_md.id,
+      jsonb_build_object('status', v_md.status),
+      jsonb_build_object('status', v_new_status),
+      null);
+
+    v_closed := v_closed + 1;
+  end loop;
+
+  return jsonb_build_object(
+    'opened_matchdays', v_opened,
+    'reminders', v_reminded,
+    'revealed_fixtures', v_revealed,
+    'forfeited_fixtures', v_forfeited,
+    'cancelled_fixtures', v_cancelled,
+    'closed_matchdays', v_closed,
+    'skipped_fixtures', v_skipped);
+end;
+$$;
+
+revoke all on function public.league_run_deadlines() from public, anon, authenticated;
+
+-- ============================================================================
+-- 3. Realtime tables added after 0040
+-- ============================================================================
+
+do $$ begin alter publication supabase_realtime add table public.league_team_invites; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.league_byes; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.league_substitutions; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.league_tiebreak_orders; exception when duplicate_object then null; end $$;
+
+-- ============================================================================
+-- 4. Every-10-minutes schedule (idempotent re-register)
+-- ============================================================================
+
+do $$ begin
+  perform cron.unschedule('vik-league-deadlines');
+exception when others then null; end $$;
+select cron.schedule(
+  'vik-league-deadlines',
+  '*/10 * * * *',
+  'select public.league_run_deadlines();'
+);
+
+-- VIK Clan migration 0043: 4vs4 League hardening (Phase 8).
+-- Run AFTER 0042. Additive indexes and least-privilege trigger grants.
+--
+-- No table, policy or RPC changes. The deadline cron scans matchdays by
+-- status/deadline and fixtures by matchday/status; the schedule lists byes by
+-- season; standings/stats filter fixtures by season/status.
+
+-- 0040 trigger helpers kept PostgreSQL's default PUBLIC EXECUTE. Direct calls
+-- fail, but clients have no reason to hold EXECUTE at all.
+revoke all on function public.league_touch_updated_at() from public, anon, authenticated;
+revoke all on function public.league_guard_team() from public, anon, authenticated;
+revoke all on function public.league_guard_member() from public, anon, authenticated;
+revoke all on function public.league_guard_invite() from public, anon, authenticated;
+revoke all on function public.league_guard_fixture() from public, anon, authenticated;
+revoke all on function public.league_guard_lineup() from public, anon, authenticated;
+revoke all on function public.league_guard_lineup_player() from public, anon, authenticated;
+revoke all on function public.league_guard_duel() from public, anon, authenticated;
+revoke all on function public.league_guard_substitution() from public, anon, authenticated;
+revoke all on function public.league_guard_duel_report() from public, anon, authenticated;
+revoke all on function public.league_guard_dispute() from public, anon, authenticated;
+
+-- Cron: open and close scans on league_matchdays.
+create index if not exists league_matchdays_status_opens_idx
+  on public.league_matchdays (status, opens_at);
+
+create index if not exists league_matchdays_status_deadline_idx
+  on public.league_matchdays (status, deadline);
+
+-- Cron: pending fixtures per matchday, and standings/stats by final status.
+create index if not exists league_fixtures_matchday_status_idx
+  on public.league_fixtures (matchday_id, status);
+
+create index if not exists league_fixtures_season_status_idx
+  on public.league_fixtures (season_id, status);
+
+-- Schedule page: byes are read by season.
+create index if not exists league_byes_season_idx
+  on public.league_byes (season_id, matchday_id);
+
+-- VIK Clan migration 0044: non-4vs4 QA fixes.
+-- (Body identical to app/supabase/migrations/0044_non4_qa_fixes.sql.)
+
+create or replace function public.guard_profile_update()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  caller_owner boolean := false;
+  owner_transfer boolean := coalesce(current_setting('vik.owner_transfer', true), '') = '1';
+begin
+  if me is not null then
+    select exists(select 1 from public.profiles where id = me and role = 'OWNER')
+      into caller_owner;
+  end if;
+  if owner_transfer then
+    return NEW;
+  end if;
+  if (NEW.role is distinct from OLD.role or NEW.status is distinct from OLD.status)
+    and me = OLD.id then
+    raise exception 'You cannot change your own role or status.';
+  end if;
+  if NEW.role = 'OWNER' or OLD.role = 'OWNER' then
+    raise exception 'Ownership changes must use transfer_ownership.';
+  end if;
+  if (NEW.role = 'ADMIN' or OLD.role = 'ADMIN') and not caller_owner then
+    raise exception 'Only the OWNER can manage admin roles.';
+  end if;
+  if public.is_clan_role(array['OWNER','ADMIN']) then
+    return NEW;
+  end if;
+  if (NEW.role is distinct from OLD.role
+      or NEW.status is distinct from OLD.status
+      or NEW.username is distinct from OLD.username
+      or NEW.email is distinct from OLD.email) then
+    raise exception 'Only staff can change role, status, username or email.';
+  end if;
+  return NEW;
+end $$;
+
+create or replace function public.transfer_ownership(p_new_owner uuid, p_confirmation text)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  tgt record;
+  r record;
+begin
+  if me is null or not public.is_clan_role(array['OWNER']) then
+    raise exception 'Only the owner can transfer ownership.';
+  end if;
+  if p_new_owner is null or p_new_owner = me then
+    raise exception 'You are already the owner.';
+  end if;
+  for r in select id from public.profiles
+      where id = me or id = p_new_owner order by id for update loop
+    null;
+  end loop;
+  select * into tgt from public.profiles where id = p_new_owner;
+  if tgt is null then raise exception 'Member not found.'; end if;
+  if tgt.role != 'ADMIN' or tgt.status != 'ACTIVE' then
+    raise exception 'The new owner must be an ACTIVE ADMIN.';
+  end if;
+  if p_confirmation is distinct from tgt.username then
+    raise exception 'Confirmation does not match — type the new owner''s username exactly.';
+  end if;
+  perform set_config('vik.owner_transfer', '1', true);
+  update public.profiles set role = 'OWNER', updated_at = now() where id = tgt.id;
+  update public.profiles set role = 'ADMIN', updated_at = now() where id = me;
+  insert into public.audit_logs (actor_id, action, entity_type, entity_id, old_data, new_data, reason)
+    values (me, 'ADMIN_TRANSFERRED_OWNERSHIP', 'player', tgt.id,
+      jsonb_build_object('role', 'ADMIN'), jsonb_build_object('role', 'OWNER'),
+      'Ownership transferred to ' || tgt.username);
+  insert into public.notifications (user_id, type, title, message)
+    values (tgt.id, 'COMPETITION_FINISHED', 'You hold the throne',
+      'Ownership of the clan was transferred to you.');
+end $$;
+revoke all on function public.transfer_ownership(uuid, text) from public;
+grant execute on function public.transfer_ownership(uuid, text) to authenticated;
+
+drop policy if exists "open calls first taker" on public.challenges;
+create policy "open calls first taker" on public.challenges
+  for update to authenticated
+  using (is_open = true and status = 'PENDING' and opponent_id is null
+    and expires_at is not null and expires_at > now())
+  with check (status = 'ACCEPTED' and is_open = false and opponent_id = auth.uid());
+
+create or replace function public.guard_challenge_update()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  is_part boolean := (OLD.challenger_id = me or OLD.opponent_id = me);
+begin
+  if public.is_clan_role(array['OWNER','ADMIN','MODERATOR']) then
+    return NEW;
+  end if;
+  if (NEW.challenger_id is distinct from OLD.challenger_id
+      or NEW.type is distinct from OLD.type
+      or NEW.forced is distinct from OLD.forced
+      or NEW.for_throne is distinct from OLD.for_throne
+      or NEW.opponent_label is distinct from OLD.opponent_label
+      or NEW.conditions is distinct from OLD.conditions
+      or NEW.stakes is distinct from OLD.stakes) then
+    raise exception 'Only staff can change challenge terms.';
+  end if;
+  if OLD.is_open = true and OLD.status = 'PENDING' and OLD.opponent_id is null
+    and NEW.status = 'ACCEPTED' and NEW.opponent_id = me and NEW.is_open = false
+    and OLD.challenger_id is distinct from me then
+    return NEW;
+  end if;
+  if OLD.is_open = true and OLD.status = 'PENDING'
+    and OLD.expires_at is not null and OLD.expires_at < now()
+    and NEW.status = 'CANCELLED' then
+    return NEW;
+  end if;
+  if OLD.for_throne = true
+    and OLD.status in ('PENDING','ACCEPTED')
+    and OLD.opponent_id = me
+    and NEW.status = 'PENDING'
+    and NEW.opponent_id is distinct from OLD.opponent_id
+    and NEW.responded_at is null
+    and NEW.is_open is not distinct from OLD.is_open
+    and NEW.expires_at is not distinct from OLD.expires_at
+    and NEW.score_a is not distinct from OLD.score_a
+    and NEW.score_b is not distinct from OLD.score_b
+    and NEW.submitted_by is not distinct from OLD.submitted_by
+    and NEW.evidence_path is not distinct from OLD.evidence_path
+    and NEW.xp_capped is not distinct from OLD.xp_capped
+    and exists (select 1 from public.throne_reigns tr
+                where tr.ended_at is null and tr.holder_id = NEW.opponent_id) then
+    return NEW;
+  end if;
+  if not is_part then
+    raise exception 'Only participants can update this battle.';
+  end if;
+  if OLD.status = 'PENDING' and OLD.opponent_id = me
+    and NEW.status in ('ACCEPTED','DECLINED')
+    and (NEW.status = 'ACCEPTED' or OLD.forced = false) then
+    return NEW;
+  end if;
+  if OLD.status = 'ACCEPTED' and NEW.status = 'RESULT_SUBMITTED'
+    and OLD.submitted_by is null and NEW.submitted_by = me
+    and NEW.score_a is not null and NEW.score_b is not null
+    and NEW.score_a >= 0 and NEW.score_b >= 0 then
+    return NEW;
+  end if;
+  if OLD.status = 'RESULT_SUBMITTED' and NEW.status = 'COMPLETED'
+    and OLD.submitted_by is not null and OLD.submitted_by is distinct from me
+    and NEW.score_a is not distinct from OLD.score_a
+    and NEW.score_b is not distinct from OLD.score_b
+    and NEW.submitted_by is not distinct from OLD.submitted_by then
+    return NEW;
+  end if;
+  if OLD.status in ('PENDING','ACCEPTED') and NEW.status = 'CANCELLED'
+    and (OLD.challenger_id = me or OLD.type = 'FRIENDLY') then
+    return NEW;
+  end if;
+  if OLD.challenger_id = me and OLD.is_open = true and OLD.status = 'PENDING'
+    and NEW.status = 'PENDING' and NEW.expires_at > OLD.expires_at then
+    return NEW;
+  end if;
+  raise exception 'Battle update not allowed.';
+end $$;
+
+drop policy if exists "leaders invite squad members" on public.squad_members;
+create policy "leaders invite squad members" on public.squad_members
+  for insert to authenticated
+  with check (
+    status = 'PENDING' and role = 'MEMBER'
+    and player_id is distinct from auth.uid()
+    and exists (select 1 from public.squads s
+      where s.id = squad_id and s.leader_id = auth.uid() and s.status <> 'DISBANDED')
+  );
+
+drop policy if exists "leaders answer squad invites" on public.squad_members;
+create policy "leaders answer squad invites" on public.squad_members
+  for update to authenticated
+  using (exists (select 1 from public.squads s
+    where s.id = squad_id and s.leader_id = auth.uid() and s.status <> 'DISBANDED'))
+  with check (exists (select 1 from public.squads s
+    where s.id = squad_id and s.leader_id = auth.uid() and s.status <> 'DISBANDED'));
+
+create or replace function public.guard_squad_member_update()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  is_leader boolean := false;
+begin
+  if public.is_clan_role(array['OWNER','ADMIN','MODERATOR']) then
+    return NEW;
+  end if;
+  if NEW.id is distinct from OLD.id
+    or NEW.player_id is distinct from OLD.player_id
+    or NEW.role is distinct from OLD.role
+    or NEW.squad_id is distinct from OLD.squad_id
+    or NEW.created_at is distinct from OLD.created_at then
+    raise exception 'Only staff can move warriors between squads or ranks.';
+  end if;
+  select exists(select 1 from public.squads s
+    where s.id = OLD.squad_id and s.leader_id = me and s.status <> 'DISBANDED')
+    into is_leader;
+  if OLD.status = 'PENDING' and NEW.status in ('ACCEPTED','DECLINED')
+    and (OLD.player_id = me or is_leader) then
+    return NEW;
+  end if;
+  raise exception 'Squad update not allowed.';
+end $$;
+
+drop policy if exists "anon submit tryout" on public.tryout_requests;
+create policy "anon submit tryout"
+  on public.tryout_requests for insert to anon, authenticated
+  with check (status = 'PENDING' and char_length(name) > 0 and char_length(contact) > 0
+    and (website_url is null or website_url = ''));
+grant insert on public.tryout_requests to anon, authenticated;

@@ -2,8 +2,8 @@
 ==========================================
 
 Last updated: 2026-10-20
-Repository: C:\Users\user\Documents\clan\theLastVikingClan
-Branch: feature/4vs4-league
+Repository: /Users/useraccount/Documents/the last viking
+Branch: feature/4vs4-league-phase3
 Full plan: docs/4vs4-implementation-plan.md
 
 PURPOSE
@@ -32,10 +32,16 @@ Phase 0: complete and approved.
 Phase 1: schema implemented; SQL runtime verification pending.
 Phase 2: authoritative RPCs implemented; SQL runtime verification pending.
 Phase 3: UI implemented; local validation passed; browser exit test pending.
-Phase 4: not started. Awaiting approval.
+Phase 4: UI implemented; local validation passed; SQL/browser exit tests pending.
+Phase 5: UI implemented; local validation passed; SQL/browser exit tests pending.
+Phase 6: UI implemented; local validation passed; SQL/browser exit tests pending.
+Phase 7: deadlines/notifications/realtime implemented; local validation passed;
+SQL/browser exit tests pending.
+Phase 8: implementation closed; local validation and Part A catalog checks
+passed; Part B runtime checks deferred by the user; frontend deploy pending.
 
-No commits have been made. All Phase 1-3 work is in the working tree on
-feature/4vs4-league.
+Phase 1-3 are contained in commit 15b080b. Phase 4 through Phase 8 changes are
+uncommitted in the working tree on feature/4vs4-league-phase3.
 
 WHAT WAS DONE
 -------------
@@ -126,55 +132,400 @@ Phase 3 - Season, squads, invitations, fixtures UI
   - Fixture cards handle completed, forfeited, and cancelled states.
   - No client-authoritative league writes.
 
+Phase 4 - Lineups, reveal, duels, substitutions UI
+- Route:
+  - /4vs4/match/:fixtureId (fixture, both lineups, four duels, substitutions).
+  - Every LeagueFixtureCard now links to its match page.
+- Services:
+  - app/src/services/leagueDuelService.ts:
+    getLeagueFixtureDetail, listLeagueLineups, listLeagueDuels,
+    listLeagueSubstitutions, submitLeagueLineup, startLeagueDuel,
+    substituteLeaguePlayer.
+  - app/src/services/leagueKeys.ts: fixture, lineups, duels, substitutions keys.
+  - app/src/services/leagueTeamService.ts: exports loadLeagueProfiles for reuse.
+- Pure competition helpers and tests:
+  - app/src/competition/league4v4/lineup.ts:
+    validateLineup, buildLineupEntries, initialLineupSelections,
+    opponentLineupVisible, lineupLockReason, canStartDuel,
+    canRequestSubstitution, eligibleSubstitutes.
+  - app/src/competition/league4v4/lineup.test.ts: 15 Vitest cases covering
+    lineup shape, duplicate slots/players, saved-lineup mapping, reveal
+    visibility, lock reasons, start rules and substitution eligibility.
+- Components:
+  - app/src/components/league4v4/LeagueLineupEditor.tsx:
+    four starter selects, 2-4 substitute rows, duplicate-safe selectors,
+    client validation, edit-before-reveal support.
+  - app/src/components/league4v4/LeagueLineupView.tsx:
+    hidden state, starter/bench rows, player links.
+  - app/src/components/league4v4/LeagueDuelCard.tsx:
+    slot pairing, both players, status, score/winner, start action,
+    substitution picker (eligible bench only), substitution history.
+  - app/src/components/ui/Icon.tsx: added lock icon.
+- Page:
+  - app/src/pages/LeagueMatchPage.tsx:
+    fixture header/countdown, own lineup, opponent lineup (hidden before
+    reveal), staff preview of hidden lineups, four duels, substitution and
+    start actions, loading/error/not-found states.
+- Types:
+  - app/src/types/league4v4.ts: LeagueFixtureDetail,
+    LeagueLineupWithPlayer(s), LeagueDuelWithPlayers,
+    LeagueSubstitutionWithPlayers.
+- Realtime:
+  - useRealtime invalidates ["league"] for league_lineups and league_duels.
+- i18n:
+  - EN/FR/AR keys for lineups, duels, substitutions, reveal/lock states and
+    new status labels (SUBMITTED, STARTED, REVEALED, LOCKED).
+- Server interaction:
+  - Lineup submission, reveal, duel creation and substitution remain entirely
+    RPC/RLS-authoritative; the UI only mirrors the server visibility matrix.
+  - The captain submits; substitutes must be bench players not assigned to
+    any duel and not already used as a substitute in that fixture.
+  - Starting is limited to the two assigned players; substitutions disappear
+    after start and after one substitution per squad per duel.
+- Tests:
+  - app/supabase/tests/0041_league4v4_phase4_tests.sql: automated catalog
+    assertions plus a two-account adversarial checklist (hidden lineups,
+    reveal = exactly four duels, start/substitution locks, realtime, direct
+    write denial). NOT executed locally.
+
+Phase 5 - Results, evidence, confirmations, disputes, resolution UI
+- Routes:
+  - /4vs4/match/:fixtureId now also shows reports, result forms, confirmation,
+    manual disputes, under-review notices and resolved-dispute notes.
+  - /4vs4/disputes (OWNER/ADMIN/MODERATOR via dedicated guard) is the staff
+    dispute queue; linked from the league admin page.
+- Services:
+  - app/src/services/leagueDuelService.ts: listLeagueDuelReports,
+    listLeagueFixtureDisputes, submitLeagueDuelResult, confirmLeagueDuelResult,
+    disputeLeagueDuel.
+  - app/src/services/leagueAdminService.ts: listOpenLeagueDisputes (joins
+    duels, fixtures, seasons, teams, reports and profiles) and
+    resolveLeagueDispute.
+  - app/src/services/storageService.ts: uploadLeagueEvidence (JPEG/PNG/WebP,
+    under 5 MB, exact league/{season}/{fixture}/{duel}/{player}-file path);
+    signed evidence URLs reuse getEvidenceSignedUrl.
+  - app/src/services/leagueKeys.ts: reports, fixtureDisputes, openDisputes.
+- Pure competition helpers and tests:
+  - app/src/competition/league4v4/result.ts: validateResultInput,
+    canReportDuelResult, canEditOwnReport, canConfirmOpponentResult,
+    canOpenDuelDispute, reportsMirror, normalizedReportScore,
+    isOpenDisputeStatus.
+  - app/src/competition/league4v4/result.test.ts: 11 Vitest cases covering
+    score/decider/evidence/note validation, report permissions, opponent
+    confirmation, captain disputes, mirrored reports and score normalization.
+- Components:
+  - app/src/components/league4v4/LeagueEvidence.tsx: signed URL preview,
+    unavailable state, existing Lightbox.
+  - app/src/components/league4v4/LeagueReportCard.tsx: normalized home/away
+    score, reporter, submitted/confirmed/disputed status, note, evidence.
+  - app/src/components/league4v4/LeagueResultForm.tsx: own-side score,
+    decider, optional note, validated screenshot upload, replace-evidence
+    mode when updating an existing report.
+  - app/src/components/league4v4/LeagueDisputeForm.tsx: 3-1000 char reason and
+    optional screenshot, local validation.
+  - app/src/components/league4v4/LeagueDuelResultPanel.tsx: reports,
+    opponent-confirmation card, result form, dispute form, open/under-review
+    and resolved states. Assigned players only report/confirm; assigned
+    players and participating captains can dispute.
+  - app/src/components/league4v4/LeagueDisputeCard.tsx: staff queue card with
+    reason, evidence, reports, both players, winner select, scores, forfeit,
+    resolution note and client-side winner/score consistency checks.
+  - app/src/components/league4v4/LeagueDuelCard.tsx: now accepts children so
+    the result panel renders inside each duel.
+- Page wiring:
+  - app/src/pages/LeagueMatchPage.tsx: reports and fixture disputes queries,
+    result/confirm/dispute handlers, evidence upload/cleanup, query
+    invalidation, success/error messages.
+  - app/src/pages/LeagueDisputesPage.tsx: open-dispute queue, resolve action,
+    invalidation and empty/error states.
+- Types:
+  - app/src/types/league4v4.ts: LeagueDuelReportWithPlayer,
+    LeagueDisputeWithOpener, LeagueDisputeWithContext.
+- Realtime:
+  - useRealtime invalidates ["league"] for league_duel_reports and
+    league_disputes.
+- i18n:
+  - EN/FR/AR keys for evidence, report forms, confirmation, disputes,
+    resolution, forfeit, validation messages and queue states.
+- Server interaction:
+  - league_submit_duel_result requires an ACTIVE season, revealed/in-progress
+    fixture, STARTED/AWAITING_RESULTS duel, decisive 0-99 scores, a valid
+    decider and owned evidence. Mirrored reports auto-confirm; mismatches
+    auto-open one dispute and freeze reports.
+  - league_confirm_duel_result is opponent-only, one tap, and finalizes the
+    duel. A player cannot confirm their own report or confirm under dispute.
+  - league_dispute_duel accepts a participant or approved captain, requires a
+    3-1000 char reason, freezes submitted reports and notifies staff.
+  - league_resolve_dispute requires OWNER/ADMIN/MODERATOR, open dispute,
+    ACTIVE season, a valid winner, decisive scores unless forfeit, updates or
+    rejects reports, updates fixture counters and auto-finalizes the fixture.
+  - Evidence paths are league/{season}/{fixture}/{duel}/{player}-file in the
+    private match-evidence bucket; the server checks path, object owner, size
+    (max 5 MB) and JPEG/PNG/WebP MIME.
+- Tests:
+  - app/supabase/tests/0041_league4v4_phase5_tests.sql: automated catalog
+    assertions for evidence validation, submission mirror/mismatch, one-tap
+    confirmation, manual disputes, staff resolution, RLS, realtime, grants and
+    constraints; plus a two-account adversarial checklist. NOT executed
+    locally.
+
+Phase 6 - Standings, penalties, tiebreak admin and statistics
+- Routes:
+  - /4vs4/standings (authenticated) renders the full table, penalty-adjusted
+    points, tiebreak rules and an admin-order notice.
+  - /4vs4/stats (authenticated) renders player and squad statistics tabs.
+  - Hub links to both pages; the top-five block links to the full table; the
+    admin hero links to both views.
+- Services:
+  - app/src/services/leagueStandingsService.ts: getLeagueStandings moved from
+    leagueSeasonService; listLeaguePenalties; listLeagueTiebreakOrder;
+    applyLeaguePenalty; saveLeagueTiebreakOrder.
+  - app/src/services/leagueStatsService.ts: getLeaguePlayerStats and
+    getLeagueTeamStats; player win_rate is normalized to a number.
+  - app/src/services/leagueKeys.ts: playerStats, teamStats, penalties and
+    tiebreak keys under the shared ["league"] root.
+- Pure competition helpers and tests:
+  - app/src/competition/league4v4/standings.ts: validatePenaltyInput,
+    validTiebreakReason, moveTeam, resolveTiebreakOrder, formatDiff.
+  - app/src/competition/league4v4/standings.test.ts: 11 Vitest cases covering
+    penalty validation, tiebreak reasons, reordering, saved-order cleanup and
+    diff formatting.
+- Components:
+  - app/src/components/league4v4/LeagueSeasonSelect.tsx: shared season picker.
+  - app/src/components/league4v4/LeagueStandingsTable.tsx: P/W/D/L/DW/DL/DD/PTS
+    table with penalty adjustment under the net points and team links.
+  - app/src/components/league4v4/LeaguePenaltyPanel.tsx: admin squad, points,
+    optional matchday and reason form; current penalty history; validates
+    3-1000 char reasons and non-zero whole points in -100..100; archived
+    seasons and empty squad lists are blocked in the UI.
+  - app/src/components/league4v4/LeagueTiebreakPanel.tsx: approved-squad order
+    with up/down controls, full-order reason, saved date, active/completed
+    season gate and immediate refetch after save.
+- Pages:
+  - app/src/pages/LeagueStandingsPage.tsx: season picker, empty/loading states,
+    table, tiebreak rules, penalties note and admin order notice.
+  - app/src/pages/LeagueStatsPage.tsx: season picker, Players/Squads tabs,
+    player table (P/W/L, GF/GA/GD, win rate) and squad table (P/W/D/L,
+    DW/DL/DD, GF/GA, points), with links to player and squad pages.
+  - app/src/pages/LeagueAdminPage.tsx: penalty and tiebreak panels inserted
+    after the schedule section, keyed by season so drafts reset on switch.
+- Server interaction:
+  - league_standings returns standing_position, team_id, team_name, played,
+    wins, draws, losses, duels_won, duels_lost, duel_diff, fixture_points,
+    penalty_points and points. It orders by points, duel difference, duels
+    won, head-to-head points, admin tiebreak position, then name.
+  - league_apply_penalty requires staff, a non-archived season, a non-zero
+    whole adjustment in -100..100, a 3-1000 char reason, a squad in the season
+    and an optional matchday in the season; it notifies the squad and audits
+    PENALTY_APPLIED.
+  - league_set_tiebreak_order requires staff, ACTIVE/COMPLETED season, a
+    3-1000 char reason and the complete approved-squad order with no nulls or
+    duplicates; it replaces the order and audits TIEBREAK_ORDER_SET.
+  - league_player_stats aggregates CONFIRMED/FORFEITED duels by player and
+    squad, including goals and rounded win rate.
+  - league_team_stats aggregates final fixtures and duels, includes goal
+    totals and penalty-adjusted points.
+- Tests:
+  - app/supabase/tests/0041_league4v4_phase6_tests.sql: automated catalog
+    assertions for standings, penalty RPC, tiebreak RPC, squad/player stats,
+    RLS, grants, indexes, constraints, audit and realtime; plus a manual
+    hand-computed 4-team/8-team checklist. NOT executed locally.
+
+Phase 7 - Deadlines, notifications, realtime
+- Server migration:
+  - app/supabase/migrations/0042_league4v4_deadlines.sql adds
+    league_deadline_reminders (unique per matchday/team/kind, internal-only RLS)
+    and the SECURITY DEFINER league_run_deadlines() runner. It runs every 10
+    minutes via a `vik-league-deadlines` pg_cron job.
+  - Open: SCHEDULED matchdays past opens_at become OPEN and their fixtures
+    become LINEUPS_PENDING; approved squads get LEAGUE_MATCHDAY_OPEN.
+  - Reminder: inside the final 24h, squads without a submitted lineup get one
+    LEAGUE_LINEUP_REMINDER per matchday; the unique marker makes duplicate runs
+    a no-op and survives deadline extensions.
+  - Close: expired matchdays reveal complete lineups via
+    league_maybe_reveal_fixture; a fixture with exactly one lineup becomes
+    FORFEITED 4-0/0-4 with 3-0/0-3 points; both missing becomes CANCELLED 0-0;
+    present lineups are LOCKED; squads are notified and the transitions are
+    audited (MATCHDAY_OPENED, MATCHDAY_CLOSED, FIXTURE_FORFEITED,
+    FIXTURE_CANCELLED).
+  - The runner never invents duel rows or scores, and duplicate runs report
+    zero transitions. It locks season before matchday before fixture to match
+    league_lock_* ordering.
+- Client:
+  - app/src/competition/league4v4/action.ts: leagueNextAction derives the next
+    lineup/start/report/confirm step from fixture, matchday, lineups, duels and
+    reports; action.test.ts adds 6 Vitest cases.
+  - app/src/competition/notificationLinks.ts + test: maps match, competition,
+    battle, tryout and every league entity to a deep link; league_duel routes
+    through /4vs4/duel/:duelId, which redirects to the fixture match page.
+  - app/src/components/league4v4/LeagueEntryCard.tsx: Home/Competitions card
+    now shows the next fixture countdown and a one-tap league action when a
+    lineup, duel start, result report or opponent confirmation is waiting.
+  - app/src/pages/NotificationsPage.tsx uses notificationPath and adds a
+    "View league" link for league notifications.
+  - app/src/hooks/useRealtime.ts adds invalidations for substitutions,
+    penalties, tiebreak orders, byes and team invites.
+  - app/src/services/notificationService.ts adds LEAGUE_MATCHDAY_OPEN,
+    LEAGUE_MATCHDAY_CLOSED, LEAGUE_LINEUP_REMINDER, LEAGUE_FIXTURE_FORFEITED
+    and LEAGUE_FIXTURE_CANCELLED types.
+  - app/src/pages/LeagueMatchPage.tsx shows an automatic forfeit/cancellation
+    hint on final fixtures.
+  - EN/FR/AR labels added for the action card, hints and league notification
+    link.
+- Tests:
+  - app/supabase/tests/0042_league4v4_phase7_tests.sql: automated catalog
+    assertions for the runner, reminder uniqueness/RLS, cron registration,
+    privileges and realtime publication, plus a manual deadline-simulation
+    checklist. NOT executed locally.
+
+Phase 8 - Hardening, integration, regression, deployment readiness
+- Server migration:
+  - app/supabase/migrations/0043_league4v4_hardening.sql adds five additive
+    indexes: matchday status/opens and status/deadline, fixture
+    matchday/status and season/status, and byes season/matchday. It also
+    revokes the default PUBLIC/anon/authenticated EXECUTE on the 10 guard
+    trigger helpers and league_touch_updated_at; no table, RLS, policy or RPC
+    changes.
+  - Static RLS/adversarial review found no policy gap: every league table has
+    RLS, client policies are SELECT-only, hidden-lineup helpers gate before
+    reveal, and all mutations remain behind authorized definer RPCs.
+- Tests:
+  - app/supabase/tests/0043_league4v4_phase8_tests.sql Part A asserts the five
+    indexes, RLS on every league table, SELECT-only policies, guarded definer
+    search paths, no anon EXECUTE, no authenticated EXECUTE on the runner,
+    trigger helpers or internal functions, zero reminder policies and 14
+    published realtime tables.
+  - Part B is the two-account regression/deployment checklist: hidden lineups
+    via PostgREST before/after reveal, direct-write denials on every league
+    table, RPC deny paths, evidence paths, existing feature regression,
+    EN/FR/AR/RTL/accessibility/mobile, EXPLAIN sanity and the deploy sequence.
+  - Part A was run by the user in the Supabase SQL editor on 2026-10-20 and
+    returned "Success. No rows returned" (a DO block only succeeds when no
+    assertion raises), so all A1-A8 catalog checks passed.
+  - On 2026-10-20 the user elected to defer Part B runtime checks and close
+    the implementation phase. Part B remains the outstanding QA gate.
+  - app/src/i18n/dictionaries.test.ts asserts EN/FR/AR key parity, non-empty
+    values and Arabic RTL (3 tests).
+- Client/integration:
+  - Home and Competitions already mount LeagueEntryCard; no sixth bottom tab.
+  - No new client behavior was needed for Phase 8 beyond the locale guard.
+- Docs:
+  - README updates the range to 0001-0043, notes pg_cron and the
+    SQL-editor-only runner, and removes the stale test-count comment.
+  - Plan and this file record Phase 8 scope, evidence and the deploy gate.
+
 KEY FILES AND CONTRACTS
 -----------------------
-- Query keys: root ["league", ...] through leagueKeys.
+- Query keys: root ["league", ...] through leagueKeys; Phase 4 adds fixture,
+  lineups, duels and substitutions keys; Phase 5 adds reports, fixtureDisputes
+  and openDisputes keys; Phase 6 adds playerStats, teamStats, penalties and
+  tiebreak keys; Phase 7 adds the per-fixture/team/player action key.
 - Services call Supabase RPCs directly; the Supabase client is untyped.
 - Result fields are normalized defensively in services.
 - Key RPC names:
   league_create_season, league_update_season, league_set_season_status,
   league_create_team, league_update_team, league_invite_member,
   league_answer_invite, league_leave_team, league_remove_member,
-  league_transfer_captain, league_approve_team, league_generate_fixtures.
+  league_transfer_captain, league_approve_team, league_generate_fixtures,
+  league_submit_lineup, league_start_duel, league_substitute_player,
+  league_submit_duel_result, league_confirm_duel_result, league_dispute_duel,
+  league_resolve_dispute, league_standings, league_player_stats,
+  league_team_stats, league_apply_penalty, league_set_tiebreak_order,
+  league_run_deadlines.
 - league_invite_member returns uuid in SQL; the service wrapper returns void.
-- FULL_SETUP.sql remains bundled through 0041. No Phase 3 DB changes.
+- FULL_SETUP.sql is now bundled through 0043. Phase 5 added no DB change; Phase
+  6 reuses the 0040/0041 standings, penalty, tiebreak and statistics
+  tables/RPCs; Phase 7 adds 0042 (reminder markers, deadline runner, cron and
+  the four extra realtime publication tables); Phase 8 adds 0043 (five
+  deadline/schedule indexes plus trigger-helper grant hardening).
 - Existing stack: React 19, React Router 8.4, TanStack Query 5, Zustand 5,
   Supabase JS 2.117.2, Vite 8, Vitest 3, Tailwind v4.
 
 VALIDATION EVIDENCE
 -------------------
-Executed in app/ on 2026-10-20:
+Executed in app/ on 2026-10-20 after Phase 8:
 - npm run check
-  - oxlint: 0 errors, 22 baseline warnings (pre-existing warnings only).
+  - oxlint: 0 errors, 23 baseline warnings (pre-existing warnings only).
   - tsc -b: clean.
-  - vitest run: 7 files, 42/42 tests passed.
+  - vitest run: 13 files, 91/91 tests passed (15 Phase 4 lineup tests, 11
+    Phase 5 result tests, 11 Phase 6 standings tests, 6 Phase 7 action tests,
+    3 Phase 7 notification-link tests, 3 Phase 8 locale-parity tests).
 - npm run build
   - Passed.
-  - Existing warning: main bundle 1,110.43 kB, above 500 kB.
-  - PWA service worker generated successfully.
-- git diff --check: clean.
-- No new Vitest tests were added for Phase 3 pages.
-- No browser test, SQL runtime test, RLS test, or Supabase deployment was done.
+  - Existing warning: main bundle 1,220.65 kB (gzip 327.76 kB), above 500 kB.
+  - PWA service worker generated successfully; 36 precache entries.
+- libpg_query syntax parse (pglast) accepted 0043, the Phase 8 SQL checklist
+  and the full FULL_SETUP bundle; the 0043 block matches the migration verbatim.
+- User reported applying 0043_league4v4_hardening.sql in Supabase on 2026-10-20.
+  This is deployment evidence only; Part A catalog checks and authenticated
+  flows have not been run.
+- Read-only anon-key REST smoke against the configured Supabase project:
+  - league_seasons and league_fixtures returned HTTP 200 with RLS-filtered
+    empty arrays; league_team_invites exists.
+  - league_deadline_reminders (0042), league_standings and league_player_stats
+    (0041) returned HTTP 401/42501, proving the objects exist and anon access
+    is denied.
+  - This confirms 0040-0042 objects are present; it does not execute SQL,
+    authenticate, test realtime, or independently confirm the 0043
+    indexes/revokes.
+- Phase 8 Part A executed in the Supabase SQL editor by the user:
+  "Success. No rows returned" means A1-A8 raised no exception (indexes, RLS,
+  SELECT-only policies, definer search paths, anon/internal grants, reminder
+  policies and realtime publication passed). Supabase hides NOTICE output by
+  default; the absence of an exception is the assertion result.
+- Phase 4, Phase 5, Phase 6, Phase 7 and Phase 8 Part B SQL/browser checklists
+  are NOT executed: psql and Docker are not available locally; all must run
+  against a staged Supabase project with real JWT accounts.
+- No browser test, authenticated RLS test, realtime test, or Supabase
+  deployment was done for Phase 4 through Phase 8.
 
 KNOWN ISSUES AND BLOCKERS
 -------------------------
 1. Browser exit test for Phase 3 is not verified.
-   - Requires a live Supabase backend with migrations 0040-0041 applied.
+   - Requires a live Supabase backend with migrations 0040-0043 applied.
    - Requires enough accounts to satisfy 6 active players per approved team.
    - The plan's "two accounts" wording conflicts with that minimum; use
      seeded/pre-existing members or additional test accounts.
-2. SQL runtime, RLS, and RPC behavior are unverified locally.
+2. Phase 4 through Phase 8 exit tests are not verified.
+   - Hidden-lineup privacy, reveal = exactly four duels and substitution locks
+     must be proven with two real JWT accounts and direct PostgREST calls, not
+     just through the UI.
+   - Matched/mismatched reports, confirmation permissions, evidence ownership,
+     dispute visibility, staff resolution and automatic fixture finalization
+     must be proven with real JWTs and real uploaded objects.
+   - Staff preview, dispute queue and realtime visibility must be tested with
+     role changes.
+   - Phase 4-7 SQL test files and Phase 8 Part B have not been executed; only
+     Phase 8 Part A catalog checks have passed.
+3. SQL runtime, RLS, and RPC behavior are unverified locally.
    - psql is not installed.
    - Docker daemon is not running.
-   - Whole-FULL_SETUP.sql parsing crashes the WASM parser; parse migrations and
-     tests separately.
-3. Deployment status of migrations 0034-0039 remains unconfirmed.
-4. Main bundle exceeds 500 kB; code splitting remains an existing concern.
-5. Phase 4-8 functionality is not implemented yet.
+   - Only syntax parsing was done (libpg_query via pglast); it cannot prove
+     runtime semantics, policies or data behavior.
+4. Deployment status: 0040-0042 objects are present per a read-only REST
+   probe; the user applied 0043 and its Part A catalog checks (indexes, RLS,
+   grants, realtime) passed in the SQL editor. 0034-0039 remain unconfirmed.
+   Phase 7 needs pg_cron; enable the extension in Supabase if CREATE EXTENSION
+   is blocked. No Supabase access token or staging test accounts are available
+   locally, so authenticated runtime checks cannot run yet.
+5. Main bundle exceeds 500 kB; code splitting remains an existing concern.
+6. Standings implement head-to-head points but not the plan's separate
+   head-to-head duel-difference criterion. This only affects squads still tied
+   after head-to-head points and needs an accepted decision or a later
+   migration; no DB change was made in Phase 6.
+7. Tiebreak-order, substitution, bye and team-invite realtime publication and
+   invalidations were added in Phase 7 (0042), but realtime behavior remains
+   unverified until a live Supabase test.
+8. Phase 8 implementation is closed; the diff was approved, but Part B runtime
+   checks are deferred and production deploy still needs separate approval.
 
 IMMEDIATE NEXT STEPS
 --------------------
-1. Deploy or confirm migrations 0034-0041 against Supabase/staging.
+Deferred by the user on 2026-10-20: run the Part B/browser checks below when
+test data and accounts are available.
+1. Phase 8 Part A already passed in the Supabase SQL editor; no action needed.
+   Confirm 0034-0039 separately; 0040-0042 objects are already visible to the
+   read-only REST probe.
 2. Run the Phase 3 browser acceptance flow with staff and enough player accounts:
    - Create season (DRAFT).
    - Open registration.
@@ -184,29 +535,88 @@ IMMEDIATE NEXT STEPS
    - Activate season.
    - Verify hub, teams, team detail, my team, and fixtures in EN/FR/AR and RTL.
    - Verify completion is blocked until all fixtures are final.
-3. Record evidence and any defects in this file.
-4. Obtain approval, then implement Phase 4.
+3. Run the Phase 4 exit flow with two real accounts plus staff:
+   - Submit one lineup; verify the opponent cannot read it via the UI or
+     PostgREST, and that no duels exist yet.
+   - Submit the second lineup; verify simultaneous reveal and exactly four
+     duels with slot N vs slot N.
+   - Substitute a bench player before start; retry after start and after a
+     report; verify one substitution per squad per duel.
+   - Start a duel from each side; verify only assigned players can start.
+   - Verify realtime refresh for lineups, reveal, start and substitution.
+4. Run the Phase 5 exit flow with two real accounts plus staff:
+   - Submit a result with a real screenshot; verify both squads and staff can
+     read it but cannot write reports/disputes outside RPCs.
+   - Mirror the result from the opponent and verify auto-confirmation plus
+     automatic fixture finalization when all duels are final.
+   - Submit a mismatched mirror and verify one auto-opened dispute.
+   - Open a manual dispute as a participant and as a participating captain;
+     verify unrelated members cannot read it.
+   - Resolve with OWNER/ADMIN/MODERATOR (scores and forfeit), verify report
+     states, fixture counters and queue removal.
+   - Verify realtime refresh for match pages and the dispute queue.
+5. Run the Phase 6 exit flow with a staged season:
+   - Hand-compute a 4-team table including 2-2, penalties and head-to-head;
+     compare every P/W/D/L, duel, goal and points field with the page.
+   - Apply a penalty and verify the exact deduction, squad notification, audit
+     row and table reorder.
+   - Save an admin tiebreak order for squads tied on points, duel difference,
+     duels won and head-to-head; verify the order applies and is audited.
+   - Verify player/squad statistics against the final duels, including win
+     rate and goals.
+   - Repeat with 8 squads; verify RLS reads, denied direct writes and denied
+     non-admin RPC calls with real JWTs.
+   - Verify EN/FR/AR labels and RTL layout on both pages.
+6. Run the Phase 7 deadline simulation flow in the SQL editor on a disposable
+   ACTIVE season (see app/supabase/tests/0042_league4v4_phase7_tests.sql
+   PART B):
+   - Open a matchday: verify OPEN/LINEUPS_PENDING, open notifications and audit.
+   - Re-run immediately: verify zero opened/reminded transitions.
+   - Move the deadline inside 24h: verify one reminder per missing squad, then
+     none on the second run; submitted lineups are skipped.
+   - Expire the deadline with one lineup: verify FORFEITED 4-0/3-0, LOCKED
+     lineup, notifications and audit; with no lineups: verify CANCELLED 0-0.
+   - Stage both lineups: verify reveal creates four duels and no forfeit.
+   - Re-run after settling: verify zero further transitions and no duplicate
+     notifications.
+   - Verify league deep links and the Home action card with a real account, and
+     that authenticated users cannot execute league_run_deadlines or read the
+     reminder table.
+7. Run Phase 8 Part B on the deployed schema with real JWT accounts
+   (app/supabase/tests/0043_league4v4_phase8_tests.sql):
+   - B1-B4 adversarial checks: hidden lineups, direct-write denials, RPC
+     authorization and evidence paths.
+   - B5 existing-feature regression and B6 EN/FR/AR/RTL/a11y/mobile.
+   - B7 EXPLAIN sanity for cron/schedule/standings queries.
+8. Record evidence and any defects in this file, obtain explicit deploy
+   approval, then follow the B8 deployment sequence. Do not commit or deploy
+   without that approval.
 
-NEXT PHASE - PHASE 4
---------------------
+NEXT STEP - RUNTIME VERIFICATION AND DEPLOY APPROVAL
+----------------------------------------------------
 Scope:
-- Lineup editor with 4 starters and 2-4 substitutes.
-- Hidden lineup states and simultaneous reveal.
-- Duel cards and matchup display.
-- Start duel and atomic substitution before a duel starts.
-- Realtime and visibility tests.
+- Execute the Phase 3-8 SQL/browser/realtime checklists on staging, close any
+  defects, then deploy the approved diff.
 
 Exit criteria:
-- Hidden lineups cannot be read by opponents.
-- Reveal creates exactly four duels.
-- Substitution is atomic and locks after the duel starts.
+- Full regression evidence, user-approved diff, and a separate deploy approval.
 
-Later phases:
-- Phase 5: results, evidence, confirmations, disputes, fixture finalization.
-- Phase 6: standings, penalties, statistics.
-- Phase 7: 0042 deadline cron, notifications, deep links, realtime bindings.
-- Phase 8: integration, security/RLS regression, EN/FR/AR/RTL polish,
-  accessibility/mobile, docs, final check, deployment readiness.
+DEPLOYMENT CHECKLIST
+--------------------
+1. Back up the production database; record the current migration level.
+2. Apply 0040 -> 0043 in order (existing DB) or FULL_SETUP once (fresh DB).
+3. Enable pg_cron if needed; confirm cron.job has vik-league-deadlines at
+   */10 * * * *.
+4. Run select public.league_run_deadlines() manually on staging; expect JSON
+   counts and zero transitions on an immediate second run.
+5. Confirm realtime publication, private match-evidence bucket and the
+   accept-tryout/send-push functions.
+6. 0043 Part A already passed; run 0043 Part B B1-B4 on staging with real JWTs
+   when the deferred QA is scheduled; record evidence.
+7. Complete 0043 B5-B7 (existing features, EN/FR/AR/RTL/a11y/mobile, EXPLAIN
+   sanity).
+8. Deploy the frontend only after the checks pass and the user gives explicit
+   production approval.
 
 COMMANDS
 --------
@@ -220,4 +630,6 @@ npm run typecheck
 
 STOP POINT
 ----------
-Phase 3 is awaiting explicit approval. Do not start Phase 4 until approved.
+Phase 8 implementation is closed at the user's request. Runtime Part B checks
+are deferred. The changes remain uncommitted and undeployed; do not commit or
+deploy until the user explicitly approves.

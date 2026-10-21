@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
+import { notificationPath } from '../competition/notificationLinks';
 import { LoadingRegion } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
 import { syncAppBadge } from '../services/appBadge';
@@ -17,6 +18,17 @@ export default function NotificationsPage() {
 
   const items = query.data ?? [];
   const unread = items.filter((n) => !n.read_at);
+  const linkLabel = (entityType: string | null) => entityType?.startsWith('league_')
+    ? t('notif.viewLeague')
+    : entityType === 'match'
+      ? t('notif.viewMatch')
+      : entityType === 'competition'
+        ? t('notif.viewComp')
+        : entityType === 'battle'
+          ? t('notif.viewBattle')
+          : entityType === 'tryout'
+            ? t('notif.viewTryouts')
+            : t('notif.viewHome');
 
   useEffect(() => {
     if (me && !query.isLoading) void syncAppBadge(me.id);
@@ -54,7 +66,9 @@ export default function NotificationsPage() {
         </>
       </LoadingRegion>
       <div className="mt-3 flex flex-col gap-2">
-        {items.map((n) => (
+        {items.map((n) => {
+          const path = notificationPath(n.entity_type, n.entity_id);
+          return (
           <article key={n.id} className={`card p-3 text-sm ${n.read_at ? 'opacity-70' : ''}`}>
             <div className="flex items-center gap-2">
               <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-400">{n.type.replace(/_/g, ' ')}</span>
@@ -63,17 +77,18 @@ export default function NotificationsPage() {
             <p className="mt-1 font-bold">{n.title}</p>
             <p className="opacity-80">{n.message}</p>
             <div className="mt-1 flex gap-3 text-xs">
-              {n.entity_type === 'match' && n.entity_id && <Link to={`/matches/${n.entity_id}`} className="font-semibold text-brand-400">{t('notif.viewMatch')}</Link>}
-              {n.entity_type === 'competition' && n.entity_id && <Link to={`/competitions/${n.entity_id}`} className="font-semibold text-brand-400">{t('notif.viewComp')}</Link>}
-              {n.entity_type === 'battle' && <Link to="/battles" className="font-semibold text-brand-400">{t('notif.viewBattle')}</Link>}
-              {n.entity_type === 'tryout' && <Link to="/admin" className="font-semibold text-brand-400">{t('notif.viewTryouts')}</Link>}
-              {!n.entity_id && n.entity_type !== 'battle' && <Link to="/home" className="font-semibold text-brand-400">{t('notif.viewHome')}</Link>}
+              {path ? (
+                <Link to={path} className="font-semibold text-brand-400">{linkLabel(n.entity_type)}</Link>
+              ) : n.entity_type !== 'battle' ? (
+                <Link to="/home" className="font-semibold text-brand-400">{t('notif.viewHome')}</Link>
+              ) : null}
               {!n.read_at && (
                 <button onClick={async () => { await markRead(n.id); query.refetch(); }} className="underline">{t('notif.markRead')}</button>
               )}
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
       <BottomNav />
     </main>

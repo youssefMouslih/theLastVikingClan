@@ -1,0 +1,81 @@
+{
+  "competitions": [
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4",
+    "7350b30b-56cc-463c-af17-1e08a2005082",
+    "9bd0d4ba-be77-4832-ae66-b6bf67ca6a86"
+  ],
+  "rounds": [
+    "970ebc7a-8558-48e0-8312-b25366370204",
+    "afebdee1-c114-4910-904c-4aedd7c00d61",
+    "5525fc59-fcd4-4688-8e3c-49da7c98789c",
+    "acfd5c74-222a-418b-96df-dc4bd791cb7a"
+  ],
+  "matches": [
+    "4bd36009-6cdc-4e36-9cf3-7b3d745f4492",
+    "2ca3ad39-1058-4a12-a562-c021388ed609",
+    "273cb35d-e364-43c1-9993-6b724ef876b7",
+    "ffa30cf1-f253-4b8a-ae2f-18800bebfbef",
+    "1bab55b3-f4d4-4e14-b6e4-3931ef4a01cd",
+    "32ee289d-d32b-4c94-a56b-0276b0ab26a1",
+    "fb5c88a3-f8a4-4a17-a29a-4f4a851d43bf",
+    "af636969-4093-4f54-b96c-170fb3de2ee6"
+  ],
+  "challenges": [
+    "46489aa9-16df-4683-b6bb-5db21e62d207",
+    "b6ca5076-0b3c-4ed5-993e-8ebf4c35a74a",
+    "41070fd7-76c8-4814-bfb0-5eb77fdbd16c",
+    "6c1055a0-f262-4880-a621-75f77c91f633",
+    "40cf32f1-8276-4878-8e2a-b9a0dac4e584",
+    "50574bd8-7292-4020-8a83-16e8a5e35a90",
+    "6908fc4d-ba12-4d63-90fc-386d3e3400d0",
+    "a7824ca6-f0dc-4a03-b896-544786f32b03",
+    "d6c8a807-0e5d-41b1-b45a-8a0f14e0f07a"
+  ],
+  "gifts": [
+    "d96d1192-d0f2-49a3-8769-9546693993d7",
+    "6dcd0c77-de99-4167-bc73-f3b95a1a6a42",
+    "1fc99c18-5dba-42d4-ae00-e2fd42fd4c18"
+  ],
+  "squads": [
+    "687074a1-6cf5-41e9-a431-8cb22e437eab"
+  ],
+  "squadMembers": [
+    "4a55059c-9fda-49f0-80e6-7c746a1fc599",
+    "f941172f-e117-4837-aa93-98da54477646"
+  ],
+  "tryouts": [
+    "de75ba2c-47cd-4dff-920a-f7f1d259a5df"
+  ],
+  "announcements": [
+    "30c00bf6-cebc-42bb-b59b-6ef5d6abbac5"
+  ],
+  "honours": [
+    "b2c70d44-b794-4ff9-b88b-2c685bfaad83"
+  ],
+  "ratings": [],
+  "throneReigns": [
+    "d8436d5b-d000-4e04-96a6-bac5bba07164"
+  ],
+  "audit": [],
+  "evidencePaths": [
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4/4bd36009-6cdc-4e36-9cf3-7b3d745f4492/1792535991671_69f0a02c-2861-4bba-bed1-14d81903fb93.png",
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4/2ca3ad39-1058-4a12-a562-c021388ed609/1792535992708_bef1cfc3-4a03-4f50-83ed-2b3c68f693e8.png",
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4/ffa30cf1-f253-4b8a-ae2f-18800bebfbef/1792535993502_7678ddb5-31f2-4fb5-aee2-2cb62e93eacf.png",
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4/273cb35d-e364-43c1-9993-6b724ef876b7/1792535994592_69f0a02c-2861-4bba-bed1-14d81903fb93.png",
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4/1bab55b3-f4d4-4e14-b6e4-3931ef4a01cd/1792535995491_69f0a02c-2861-4bba-bed1-14d81903fb93.png",
+    "c2393206-b32d-4c3a-94de-f7ffde2511f4/1bab55b3-f4d4-4e14-b6e4-3931ef4a01cd/1792535996025_69f0a02c-2861-4bba-bed1-14d81903fb93.png",
+    "battles/46489aa9-16df-4683-b6bb-5db21e62d207/1792535998650_0a2c4ff9-4587-4d36-acac-43a7c7018a29.png",
+    "battles/41070fd7-76c8-4814-bfb0-5eb77fdbd16c/1792535999894_8c7a5a4e-3a27-4b08-844f-f7afd441d0d1.png",
+    "battles/40cf32f1-8276-4878-8e2a-b9a0dac4e584/1792536001561_0a2c4ff9-4587-4d36-acac-43a7c7018a29.png",
+    "battles/50574bd8-7292-4020-8a83-16e8a5e35a90/1792536004716_0a2c4ff9-4587-4d36-acac-43a7c7018a29.png",
+    "battles/6908fc4d-ba12-4d63-90fc-386d3e3400d0/1792536005469_2b9c62c4-30c3-4936-9104-ade5f6dc93f2.png",
+    "battles/d6c8a807-0e5d-41b1-b45a-8a0f14e0f07a/1792536006361_8c7a5a4e-3a27-4b08-844f-f7afd441d0d1.png"
+  ],
+  "avatarPaths": [
+    "69f0a02c-2861-4bba-bed1-14d81903fb93/avatar-qa.png"
+  ],
+  "notifications": [
+    "3dd24011-108a-49ba-a276-99f15953237e",
+    "bc2548ef-736d-43a5-a2fe-42e58ff9836c"
+  ]
+}

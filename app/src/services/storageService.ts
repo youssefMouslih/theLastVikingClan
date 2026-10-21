@@ -58,6 +58,39 @@ export async function getBattleEvidenceUrl(filePath: string | null): Promise<str
   if (error) return null;
   return data.signedUrl;
 }
+
+// League duel evidence. Bucket: match-evidence (private).
+// Path must stay league/{season}/{fixture}/{duel}/{player}-{file}; 0041 validates it.
+const LEAGUE_ALLOWED = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const LEAGUE_MAX_BYTES = 5 * 1024 * 1024;
+const LEAGUE_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+export async function uploadLeagueEvidence(
+  file: File,
+  seasonId: string,
+  fixtureId: string,
+  duelId: string,
+  playerId: string,
+): Promise<string> {
+  const type = file.type.toLowerCase();
+  if (!LEAGUE_ALLOWED.includes(type as (typeof LEAGUE_ALLOWED)[number])) {
+    throw new Error('Evidence must be JPG, PNG or WEBP.');
+  }
+  if (file.size > LEAGUE_MAX_BYTES) throw new Error('Evidence must be under 5 MB.');
+  const ext = LEAGUE_EXT[type];
+  const path = `league/${seasonId}/${fixtureId}/${duelId}/${playerId}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('match-evidence').upload(path, file, {
+    contentType: type,
+    upsert: false,
+  });
+  if (error) throw new Error(`Upload failed: ${error.message}`);
+  return path;
+}
+
 export async function uploadAvatar(file: File, userId: string): Promise<string> {
   if (!ALLOWED.includes(file.type)) throw new Error('Avatar must be JPG, PNG or WEBP.');
   if (file.size > 5 * 1024 * 1024) throw new Error('Avatar must be under 5 MB.');
@@ -197,4 +230,4 @@ export async function purgeRoundEvidence(competitionId: string, roundId: string)
   return purgeEvidenceForMatchIds(ids);
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, deleteStoredFile, purgeCompletedEvidence, purgeRoundEvidence, client: supabase };
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadLeagueEvidence, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, deleteStoredFile, purgeCompletedEvidence, purgeRoundEvidence, client: supabase };

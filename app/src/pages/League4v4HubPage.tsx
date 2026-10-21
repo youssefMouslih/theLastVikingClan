@@ -9,7 +9,8 @@ import LeagueFixtureCard from '../components/league4v4/LeagueFixtureCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { findNextLeagueFixture, getLeagueSchedule } from '../services/leagueFixtureService';
 import { leagueKeys } from '../services/leagueKeys';
-import { getLeagueStandings, listLeagueSeasons, pickCurrentLeagueSeason } from '../services/leagueSeasonService';
+import { listLeagueSeasons, pickCurrentLeagueSeason } from '../services/leagueSeasonService';
+import { getLeagueStandings } from '../services/leagueStandingsService';
 import { findMyLeagueTeam, listIncomingLeagueInvites } from '../services/leagueTeamService';
 import { useAuthStore } from '../stores/authStore';
 
@@ -17,6 +18,7 @@ export default function League4v4HubPage() {
   const { t, fmtDate } = useLocale();
   const me = useAuthStore((state) => state.profile);
   const canManage = me?.role === 'OWNER' || me?.role === 'ADMIN';
+  const canDisputeStaff = canManage || me?.role === 'MODERATOR';
   const seasonsQuery = useQuery({ queryKey: leagueKeys.seasons, queryFn: listLeagueSeasons });
   const season = pickCurrentLeagueSeason(seasonsQuery.data ?? []);
   const seasonId = season?.id ?? '';
@@ -55,6 +57,7 @@ export default function League4v4HubPage() {
         <AppBar title={t('league4.title')} />
         <EmptyState icon={<Icon name="trophy" />} title={t('league4.noSeason')} hint={t('league4.noSeasonHint')} />
         {canManage && <Link to="/4vs4/admin" className="btn-primary mt-3 h-11 w-full">{t('league4.createSeason')}</Link>}
+        {canDisputeStaff && <Link to="/4vs4/disputes" className="btn-ghost mt-2 h-11 w-full">{t('league4.disputes')}</Link>}
         <Link to="/competitions" className="btn-ghost mt-2 h-11 w-full">{t('league4.backCompetitions')}</Link>
         <BottomNav />
       </main>
@@ -138,6 +141,7 @@ export default function League4v4HubPage() {
           <section className="card mt-3">
             <div className="flex items-center gap-2">
               <h2 className="card-title flex flex-1 items-center gap-1"><Icon name="medal" className="h-4 w-4 text-brand-400" /> {t('league4.topStandings')}</h2>
+              <Link to="/4vs4/standings" className="text-xs font-semibold text-brand-400">{t('league4.fullTable')}</Link>
             </div>
             <ol className="mt-2 flex flex-col gap-1">
               {standings.slice(0, 5).map((row) => (
@@ -155,7 +159,10 @@ export default function League4v4HubPage() {
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Link to="/4vs4/teams" className="btn-ghost h-11 text-sm">{t('league4.teams')}</Link>
           <Link to="/4vs4/fixtures" className="btn-ghost h-11 text-sm">{t('league4.fixtures')}</Link>
+          <Link to="/4vs4/standings" className="btn-ghost h-11 text-sm">{t('league4.standings')}</Link>
+          <Link to="/4vs4/stats" className="btn-ghost h-11 text-sm">{t('league4.stats')}</Link>
         </div>
+        {canDisputeStaff && <Link to="/4vs4/disputes" className="btn-ghost mt-2 h-11 w-full text-sm">{t('league4.disputes')}</Link>}
         {canManage && <Link to="/4vs4/admin" className="btn-ghost mt-2 h-11 w-full text-sm">{t('league4.admin')}</Link>}
       </FadeIn>
       <BottomNav />

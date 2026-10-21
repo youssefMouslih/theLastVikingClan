@@ -22,6 +22,8 @@ async function loadProfiles(ids: string[]): Promise<Map<string, LeagueProfileRef
   return new Map(((data ?? []) as LeagueProfileRef[]).map((profile) => [profile.id, profile]));
 }
 
+export { loadProfiles as loadLeagueProfiles };
+
 function withProfiles(
   members: LeagueTeamMember[],
   profiles: Map<string, LeagueProfileRef>,

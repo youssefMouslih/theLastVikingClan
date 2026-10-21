@@ -53,6 +53,33 @@ export function useRealtime(userId: string | undefined) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'league_fixtures' }, () => {
         qc.invalidateQueries({ queryKey: ['league'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_lineups' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_duels' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_duel_reports' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_substitutions' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_penalties' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_tiebreak_orders' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_byes' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_team_invites' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'league_disputes' }, () => {
+        qc.invalidateQueries({ queryKey: ['league'] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);

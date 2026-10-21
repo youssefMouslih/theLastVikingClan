@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import { leagueNextAction } from '../../competition/league4v4/action';
 import { useLocale } from '../../i18n/LocaleContext';
+import { getLeagueMatchActionSnapshot } from '../../services/leagueDuelService';
 import { findNextLeagueFixture, getLeagueSchedule } from '../../services/leagueFixtureService';
 import { leagueKeys } from '../../services/leagueKeys';
 import { listLeagueSeasons, pickCurrentLeagueSeason } from '../../services/leagueSeasonService';
 import { findMyLeagueTeam } from '../../services/leagueTeamService';
 import { useAuthStore } from '../../stores/authStore';
+import { Countdown } from '../ui/Motion';
 import Icon from '../ui/Icon';
 import StatusBadge from '../ui/StatusBadge';
 
@@ -28,6 +31,33 @@ export default function LeagueEntryCard({ compact = false }: { compact?: boolean
   });
   const myTeam = myTeamQuery.data ?? null;
   const next = scheduleQuery.data ? findNextLeagueFixture(scheduleQuery.data, myTeam?.id) : null;
+  const actionQuery = useQuery({
+    queryKey: leagueKeys.action(next?.id ?? 'none', myTeam?.id ?? 'none', me?.id ?? 'none'),
+    queryFn: () => getLeagueMatchActionSnapshot(next!.id),
+    enabled: !!next && !!myTeam && !!me && season?.status === 'ACTIVE',
+  });
+  const action = next?.matchday && myTeam && me && actionQuery.data
+    ? leagueNextAction({
+        fixtureStatus: next.status,
+        matchdayStatus: next.matchday.status,
+        deadline: next.matchday.deadline,
+        myTeamId: myTeam.id,
+        myPlayerId: me.id,
+        isCaptain: myTeam.captain_id === me.id,
+        lineups: actionQuery.data.lineups,
+        duels: actionQuery.data.duels,
+        reports: actionQuery.data.reports,
+      })
+    : null;
+  const actionLabel = action === 'SUBMIT_LINEUP'
+    ? t('league4.actionLineup')
+    : action === 'START_DUEL'
+      ? t('league4.actionStartDuel')
+      : action === 'SUBMIT_RESULT'
+        ? t('league4.actionSubmitResult')
+        : action === 'CONFIRM_RESULT'
+          ? t('league4.actionConfirmResult')
+          : null;
 
   if (seasonsQuery.isLoading) {
     if (compact) return null;
@@ -41,7 +71,7 @@ export default function LeagueEntryCard({ compact = false }: { compact?: boolean
             <Icon name="trophy" className="h-4 w-4 text-brand-400" /> {t('league4.title')}
           </h2>
           <p className="mt-1 text-sm opacity-70">{t('league4.noSeason')}</p>
-          <Link to="/4vs4/admin" className="btn-primary mt-2 h-10 text-sm">{t('league4.createSeason')}</Link>
+          <Link to="/4vs4/admin" className="btn-primary mt-2 h-11 text-sm">{t('league4.createSeason')}</Link>
         </section>
       );
     }
@@ -66,11 +96,27 @@ export default function LeagueEntryCard({ compact = false }: { compact?: boolean
         {myTeam ? myTeam.name : t('league4.noSquad')}
       </p>
       {next && (
-        <p className="mt-1 truncate text-xs opacity-70">
-          {t('league4.nextFixture')}: {next.home?.name ?? '?'} vs {next.away?.name ?? '?'}
-        </p>
+        <>
+          <p className="mt-1 truncate text-xs opacity-70">
+            {t('league4.nextFixture')}: {next.home?.name ?? '?'} vs {next.away?.name ?? '?'}
+          </p>
+          {next.matchday && (
+            <p className="mt-0.5 flex items-center gap-1 text-[11px] opacity-60">
+              <Icon name="clock" className="h-3 w-3" />
+              <Countdown deadline={next.matchday.deadline} />
+            </p>
+          )}
+        </>
       )}
-      <Link to="/4vs4" className="btn-primary mt-3 h-10 w-full text-sm">{t('league4.openHub')}</Link>
+      {action && next ? (
+        <>
+          <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-accent-400">{t('league4.actionNeeded')}</p>
+          <Link to={`/4vs4/match/${next.id}`} className="btn-cta mt-1 h-11 w-full text-sm">{actionLabel}</Link>
+          <Link to="/4vs4" className="mt-1 block text-center text-xs font-semibold text-brand-400">{t('league4.openHub')}</Link>
+        </>
+      ) : (
+        <Link to="/4vs4" className="btn-primary mt-3 h-11 w-full text-sm">{t('league4.openHub')}</Link>
+      )}
     </section>
   );
 }

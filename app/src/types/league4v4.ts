@@ -386,3 +386,45 @@ export interface LeagueSchedule {
   fixtures: LeagueFixtureWithContext[];
   teams: Record<string, LeagueTeamRef>;
 }
+
+export interface LeagueFixtureDetail extends LeagueFixture {
+  home: LeagueTeamRef | null;
+  away: LeagueTeamRef | null;
+  matchday: LeagueMatchday | null;
+  season: Pick<LeagueSeason, 'id' | 'name' | 'status' | 'roster_min' | 'roster_max'> | null;
+}
+
+export interface LeagueLineupPlayerWithProfile extends LeagueLineupPlayer {
+  player: LeagueProfileRef | null;
+}
+
+export interface LeagueLineupWithPlayers extends LeagueLineup {
+  players: LeagueLineupPlayerWithProfile[];
+}
+
+export interface LeagueDuelWithPlayers extends LeagueDuel {
+  home_player: LeagueProfileRef | null;
+  away_player: LeagueProfileRef | null;
+}
+
+export interface LeagueSubstitutionWithPlayers extends LeagueSubstitution {
+  out_player: LeagueProfileRef | null;
+  in_player: LeagueProfileRef | null;
+}
+
+export interface LeagueDuelReportWithPlayer extends LeagueDuelReport {
+  player: LeagueProfileRef | null;
+}
+
+export interface LeagueDisputeWithOpener extends LeagueDispute {
+  opened_by_player: LeagueProfileRef | null;
+}
+
+export interface LeagueDisputeWithContext extends LeagueDisputeWithOpener {
+  duel: LeagueDuelWithPlayers | null;
+  fixture: LeagueFixture | null;
+  season: Pick<LeagueSeason, 'id' | 'name' | 'status'> | null;
+  home: LeagueTeamRef | null;
+  away: LeagueTeamRef | null;
+  reports: LeagueDuelReportWithPlayer[];
+}

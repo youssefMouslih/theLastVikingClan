@@ -41,6 +41,9 @@ export default function LeagueFixtureCard({ fixture, showMatchday = true }: { fi
           {!final && <Countdown deadline={fixture.matchday.deadline} />}
         </p>
       )}
+      <Link to={`/4vs4/match/${fixture.id}`} className="btn-ghost mt-2 h-9 w-full text-xs">
+        <Icon name="swords" className="h-3.5 w-3.5" /> {t('league4.openMatch')}
+      </Link>
     </article>
   );
 }
