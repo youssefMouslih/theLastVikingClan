@@ -37,26 +37,28 @@ export default function NotificationsPage() {
   return (
     <main className="page">
       <div className="flex items-center gap-2">
-        <h1 className="font-display flex flex-1 items-center gap-2 text-xl tracking-wide">
-          <Icon name="bell" className="h-6 w-6" /> {t('notif.title')} {unread.length > 0 && <span className="rounded-full bg-accent-500 px-2 py-0.5 text-xs text-white">{unread.length}</span>}
+        <h1 className="font-display flex min-w-0 flex-1 items-center gap-2 text-xl tracking-wide">
+          <Icon name="bell" className="h-6 w-6 shrink-0" /> <span className="truncate">{t('notif.title')}</span> {unread.length > 0 && <span className="shrink-0 rounded-full bg-accent-600 px-2 py-0.5 text-xs text-white">{unread.length}</span>}
         </h1>
         <button
           type="button"
           aria-label={t('common.refresh')}
           onClick={() => query.refetch()}
-          className="btn-ghost h-10 w-10 !px-0 text-xs"
+          className="btn-ghost h-10 w-10 shrink-0 !px-0"
         >
-          ⟳
+          <Icon name="refresh" className="h-5 w-5" />
         </button>
-        {unread.length > 0 && (
+      </div>
+      {unread.length > 0 && (
+        <div className="mt-1 flex justify-end">
           <button
             onClick={async () => { await markAllRead(me!.id); query.refetch(); }}
-            className="btn-ghost h-10 px-3 text-xs"
+            className="inline-flex min-h-11 items-center whitespace-nowrap text-xs font-semibold text-brand-400 underline decoration-brand-500/60 underline-offset-2"
           >
             {t('notif.markAll')}
           </button>
-        )}
-      </div>
+        </div>
+      )}
       <LoadingRegion loading={query.isLoading} label={t('notif.loading')} skeleton="list">
         <>
           {query.isError && <p className="mt-2 text-sm text-red-500">{t('notif.error')}</p>}
@@ -72,18 +74,18 @@ export default function NotificationsPage() {
           <article key={n.id} className={`card p-3 text-sm ${n.read_at ? 'opacity-70' : ''}`}>
             <div className="flex items-center gap-2">
               <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-400">{n.type.replace(/_/g, ' ')}</span>
-              <span className="ms-auto text-xs opacity-60">{fmtDate(n.created_at)}</span>
+              <span className="ms-auto shrink-0 whitespace-nowrap text-[11px] opacity-60">{fmtDate(n.created_at)}</span>
             </div>
             <p className="mt-1 font-bold">{n.title}</p>
             <p className="opacity-80">{n.message}</p>
             <div className="mt-1 flex gap-3 text-xs">
               {path ? (
-                <Link to={path} className="font-semibold text-brand-400">{linkLabel(n.entity_type)}</Link>
+                <Link to={path} className="inline-flex min-h-11 items-center font-semibold text-brand-400">{linkLabel(n.entity_type)}</Link>
               ) : n.entity_type !== 'battle' ? (
-                <Link to="/home" className="font-semibold text-brand-400">{t('notif.viewHome')}</Link>
+                <Link to="/home" className="inline-flex min-h-11 items-center font-semibold text-brand-400">{t('notif.viewHome')}</Link>
               ) : null}
               {!n.read_at && (
-                <button onClick={async () => { await markRead(n.id); query.refetch(); }} className="underline">{t('notif.markRead')}</button>
+                <button onClick={async () => { await markRead(n.id); query.refetch(); }} className="inline-flex min-h-11 items-center underline">{t('notif.markRead')}</button>
               )}
             </div>
           </article>

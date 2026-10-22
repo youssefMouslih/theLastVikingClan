@@ -9,6 +9,9 @@ const MAP: Record<string, string> = {
   TOURNAMENT_CHAMPION: 'emblem-tournament.svg',
   SEASON_MVP: 'emblem-mvp.svg',
   SPECIAL: 'emblem-special.svg',
+  // League season winner badge: fallback art only (the badge image is
+  // uploaded per season and stored on the achievement).
+  LEAGUE4V4_CHAMPION: 'emblem-league.svg',
   FIRST_BLOOD: 'emblem-firstblood.svg',
   STREAK_5: 'emblem-streak5.svg',
   STREAK_10: 'emblem-streak10.svg',

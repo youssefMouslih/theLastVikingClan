@@ -48,14 +48,14 @@ export default function HomePage() {
   return (
     <main className="page">
       <header className="flex items-center gap-3">
-        <img src="/logo.png" alt="" aria-hidden className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-brand-500/40" />
+        <img src="/logo.png" alt="" width={40} height={40} aria-hidden className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-brand-500/40" />
         <div className="flex-1">
-          <div className="font-display text-sm tracking-wide">{clan?.name ?? 'VIK Clan'} {clan?.tag ? `[${clan.tag}]` : ''}</div>
-          <div className="text-xs opacity-70">{t('home.greeting', { name: me?.display_name ?? me?.username ?? 'Player' })}</div>
+          <h1 className="font-display text-sm tracking-wide">{clan?.name ?? 'VIK Clan'} {clan?.tag ? `[${clan.tag}]` : ''}</h1>
+          <p className="text-xs opacity-70">{t('home.greeting', { name: me?.display_name ?? me?.username ?? 'Player' })}</p>
         </div>
-        <Link to="/notifications" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} className="btn-ghost relative h-11 w-11 !px-0">
+        <Link to="/notifications" aria-label={`${t('notif.title')}${unread ? `, ${unread}` : ''}`} className="btn-ghost relative h-11 w-11 !px-0">
           <Icon name="bell" className="h-5 w-5" />
-          {unread > 0 && <span className="absolute -right-1 -top-1 rounded-full bg-accent-500 px-1.5 text-[11px] font-bold text-white">{unread}</span>}
+          {unread > 0 && <span className="absolute -end-1 -top-1 rounded-full bg-accent-600 px-1.5 text-[11px] font-bold text-white">{unread}</span>}
         </Link>
       </header>
 
@@ -119,7 +119,7 @@ export default function HomePage() {
         {throneQuery.data?.holder ? (
           <div className="mt-2">
             <div className="flex items-center gap-3">
-              <Link to={`/players/${throneQuery.data.holder_id}`} className="flex min-w-0 flex-1 items-center gap-3" aria-label={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}>
+              <Link to={`/players/${throneQuery.data.holder_id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 <Avatar path={throneQuery.data.holder.avatar_url} name={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username} className="h-12 w-12 text-lg" />
                 <div className="min-w-0 flex-1">
                   <p className="font-display truncate text-lg leading-tight underline decoration-brand-500/60 underline-offset-2">{throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}</p>

@@ -221,7 +221,7 @@ export default function PlayerCard({
                   <span className="relative">
                     <HonourBadge honour={h} zoomable />
                     {count > 1 && (
-                      <span className="absolute -bottom-1 -end-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
+                      <span className="absolute -bottom-1 -end-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-abyss-950 shadow">
                         ×{count}
                       </span>
                     )}
@@ -254,7 +254,7 @@ export default function PlayerCard({
           <div className="mt-2 flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
             <div className="min-w-0 flex-1 bg-green-500 text-zinc-950">{t('player.wins')}</div>
             <div className="min-w-0 flex-1 bg-zinc-500 text-white">{t('player.draws')}</div>
-            <div className="min-w-0 flex-1 bg-red-500 text-white">{t('player.losses')}</div>
+            <div className="min-w-0 flex-1 bg-red-600 text-white">{t('player.losses')}</div>
           </div>
           <div className="mt-1 grid grid-cols-3 text-center text-sm">
             <div className="font-display text-lg">{career?.wins ?? '—'}</div>

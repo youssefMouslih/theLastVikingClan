@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
+import { confirmDialog } from '../components/ui/confirm';
 import Icon from '../components/ui/Icon';
 import PlayerCard from '../components/player/PlayerCard';
 import { useLocale } from '../i18n/LocaleContext';
@@ -18,7 +19,7 @@ type WindowWithEyeDropper = Window & { EyeDropper?: new () => EyeDropperInstance
 
 // Pro player card (eFootball style): view by default, Edit reveals the form.
 export default function ProfilePage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const init = useAuthStore((s) => s.init);
   const logout = useAuthStore((s) => s.logout);
@@ -61,7 +62,7 @@ export default function ProfilePage() {
       setPw0(''); setPw1(''); setPw2(''); setPwOpen(false);
       setPwMsg(t('profile.passwordChanged'));
     } catch (err) {
-      setPwMsg(err instanceof Error ? err.message : 'Failed.');
+      setPwMsg(tError(err));
     } finally {
       setPwBusy(false);
     }
@@ -90,7 +91,7 @@ export default function ProfilePage() {
       if (old && old !== path) await deleteStoredFile('avatars', old);
       await init();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Upload failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -166,7 +167,7 @@ export default function ProfilePage() {
       setEditing(false);
       toast(t('profile.saved'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Save failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -174,6 +175,7 @@ export default function ProfilePage() {
 
   return (
     <main className="page">
+      <h1 className="sr-only">{t('profile.title')}</h1>
       <div className="mb-2 flex justify-end">
         <Link to="/settings" aria-label={t('settings.title')} className="btn-ghost h-10 w-10 !px-0">
           <Icon name="sliders" className="h-5 w-5" />
@@ -340,7 +342,7 @@ export default function ProfilePage() {
         )}
         {!pwOpen && pwMsg && <p className="mt-1 text-center text-sm text-green-500">{pwMsg}</p>}
       </div>
-      <button onClick={() => { if (confirm(`${t('profile.logout')}?`)) logout(); }} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
+      <button onClick={async () => { if (await confirmDialog({ message: `${t('profile.logout')}?`, danger: true })) logout(); }} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
       <BottomNav />
     </main>
   );

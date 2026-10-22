@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import HonourBadge from '../emblem/HonourBadge';
 import { useLocale } from '../../i18n/LocaleContext';
+import { confirmDialog } from '../ui/confirm';
 import { generateBatch, generateOne, type BatchProgress } from '../../services/badgeForge';
 import { listCompetitions } from '../../services/competitionService';
 import { awardHonour, deleteHonour, listRecentHonours, HONOUR_TYPES, BADGE_TEMPLATE_SLOTS, type HonourType } from '../../services/honourService';
@@ -12,7 +13,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 // Manual honours in V1 (§118): admin awards titles + season MVP.
 export default function HonoursTab() {
-  const { t } = useLocale();
+  const { t, tError } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [form, setForm] = useState({ player_id: '', competition_id: '', type: 'LEAGUE_CHAMPION' as HonourType, name: '' });
   const [msg, setMsg] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export default function HonoursTab() {
       setForm({ player_id: '', competition_id: '', type: 'LEAGUE_CHAMPION', name: '' });
       await honoursQuery.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Award failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -84,7 +85,7 @@ export default function HonoursTab() {
                 setMsg(t('hon.forgeBatchDone', { n: report.ok.length, f: report.failed.length }));
                 await honoursQuery.refetch();
               } catch (err) {
-                setMsg(err instanceof Error ? err.message : 'Batch failed.');
+                setMsg(tError(err));
               } finally {
                 setBatchBusy(false);
                 setProgress(null);
@@ -121,7 +122,7 @@ export default function HonoursTab() {
                   setMsg(t('hon.forged'));
                   await honoursQuery.refetch();
                 } catch (err) {
-                  setMsg(err instanceof Error ? err.message : 'Forge failed.');
+                  setMsg(tError(err));
                 } finally {
                   setForgeId(null);
                 }
@@ -130,7 +131,7 @@ export default function HonoursTab() {
             >
               {forgeId === h.id ? t('hon.forging') : t('hon.forgeOne')}
             </button>
-            <button onClick={async () => { if (confirm(t('hon.removeConfirm'))) { await deleteHonour(h.id); honoursQuery.refetch(); } }} className="text-xs underline">{t('hon.remove')}</button>
+            <button onClick={async () => { if (await confirmDialog({ message: t('hon.removeConfirm'), danger: true })) { await deleteHonour(h.id); honoursQuery.refetch(); } }} className="text-xs underline">{t('hon.remove')}</button>
           </div>
         ))}
       </div>
@@ -141,7 +142,7 @@ export default function HonoursTab() {
 // One template picture per badge type: the latest upload wins for every
 // award of that type, past and future.
 function TplRow({ type, onMsg }: { type: string; onMsg: (m: string | null) => void }) {
-  const { t } = useLocale();
+  const { t, tError } = useLocale();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   return (
@@ -164,7 +165,7 @@ function TplRow({ type, onMsg }: { type: string; onMsg: (m: string | null) => vo
               await queryClient.invalidateQueries({ queryKey: ['badge-tpl'] });
               onMsg(t('hon.tplUpdated'));
             } catch (err) {
-              onMsg(err instanceof Error ? err.message : 'Upload failed.');
+              onMsg(tError(err));
             } finally {
               setBusy(false);
             }

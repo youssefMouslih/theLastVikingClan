@@ -6,7 +6,6 @@ import { uploadBattleEvidence } from './storageService';
 
 export interface IssueChallengeInput {
   opponent_id?: string | null;
-  opponent_label?: string | null;
   type: ChallengeType;
   conditions?: string | null;
   stakes?: string | null;
@@ -26,7 +25,7 @@ export async function issueChallenge(input: IssueChallengeInput, challengerId: s
   if (input.openCall) {
     if (input.type !== 'FRIENDLY') throw new Error('Only friendlies can be open calls.');
   } else {
-    if (!input.opponent_id && !input.opponent_label?.trim()) throw new Error('Name an opponent.');
+    if (!input.opponent_id) throw new Error('Choose a clan member.');
     if (input.opponent_id === challengerId) throw new Error('You cannot challenge yourself.');
   }
   if (input.forced) {
@@ -52,7 +51,7 @@ export async function issueChallenge(input: IssueChallengeInput, challengerId: s
     .insert({
       challenger_id: challengerId,
       opponent_id: input.opponent_id ?? null,
-      opponent_label: input.opponent_id ? null : input.opponent_label?.trim() || null,
+      opponent_label: null,
       type: input.type,
       conditions: input.conditions ?? null,
       stakes: input.stakes ?? null,

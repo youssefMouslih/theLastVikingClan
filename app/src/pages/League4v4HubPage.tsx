@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { EmptyState, FadeIn, LoadingRegion } from '../components/ui/Motion';
+import QueryError from '../components/ui/QueryError';
 import StatusBadge from '../components/ui/StatusBadge';
+import LeagueSeasonSelect from '../components/league4v4/LeagueSeasonSelect';
 import LeagueFixtureCard from '../components/league4v4/LeagueFixtureCard';
 import { useLocale } from '../i18n/LocaleContext';
 import { findNextLeagueFixture, getLeagueSchedule } from '../services/leagueFixtureService';
@@ -19,8 +22,12 @@ export default function League4v4HubPage() {
   const me = useAuthStore((state) => state.profile);
   const canManage = me?.role === 'OWNER' || me?.role === 'ADMIN';
   const canDisputeStaff = canManage || me?.role === 'MODERATOR';
+  const [selectedId, setSelectedId] = useState('');
   const seasonsQuery = useQuery({ queryKey: leagueKeys.seasons, queryFn: listLeagueSeasons });
-  const season = pickCurrentLeagueSeason(seasonsQuery.data ?? []);
+  const seasons = seasonsQuery.data ?? [];
+  const currentSeason = pickCurrentLeagueSeason(seasons);
+  const season = seasons.find((item) => item.id === selectedId) ?? currentSeason;
+  const isCurrent = !!season && season.id === currentSeason?.id;
   const seasonId = season?.id ?? '';
   const myTeamQuery = useQuery({
     queryKey: leagueKeys.myTeam(seasonId, me?.id ?? 'none'),
@@ -51,6 +58,10 @@ export default function League4v4HubPage() {
     return <main className="page"><AppBar title={t('league4.title')} /><LoadingRegion loading label={t('common.loading')} skeleton="card"><span /></LoadingRegion><BottomNav /></main>;
   }
 
+  if (seasonsQuery.isError) {
+    return <main className="page"><AppBar title={t('league4.title')} /><QueryError error={seasonsQuery.error} onRetry={() => void seasonsQuery.refetch()} /><BottomNav /></main>;
+  }
+
   if (!season) {
     return (
       <main className="page">
@@ -64,11 +75,15 @@ export default function League4v4HubPage() {
     );
   }
 
-  const registrationOpen = season.status === 'REGISTRATION';
+  const registrationOpen = season.status === 'REGISTRATION' && isCurrent;
   return (
     <main className="page">
       <AppBar title={t('league4.title')} />
       <FadeIn>
+        {seasons.length > 1 && (
+          <LeagueSeasonSelect seasons={seasons} value={season.id} onChange={setSelectedId} />
+        )}
+        {!isCurrent && <p className="mt-2 rounded-xl border border-accent-500/40 bg-accent-500/5 p-2 text-xs opacity-80">{t('league4.pastSeasonNotice')}</p>}
         <section className="hero hero-glow mt-3">
           <div className="flex items-center gap-2">
             <Icon name="trophy" className="h-5 w-5 text-brand-400" />
@@ -96,6 +111,13 @@ export default function League4v4HubPage() {
           </div>
         </section>
 
+        {season.rules && (
+          <section className="card mt-3">
+            <h2 className="card-title flex items-center gap-1"><Icon name="scroll" className="h-4 w-4 text-brand-400" /> {t('league4.rules')}</h2>
+            <p className="mt-2 whitespace-pre-wrap text-sm opacity-80">{season.rules}</p>
+          </section>
+        )}
+
         {inviteCount > 0 && (
           <Link to="/4vs4/my-team" className="card mt-3 flex items-center gap-2 border-accent-500/50">
             <Icon name="bell" className="h-5 w-5 text-accent-400" />
@@ -115,16 +137,16 @@ export default function League4v4HubPage() {
                 <StatusBadge value={myTeam.status} />
               </div>
               <p className="text-xs opacity-60">{t('league4.playersCount', { n: myTeam.member_count })}</p>
-              <Link to="/4vs4/my-team" className="btn-primary mt-2 h-10 w-full text-sm">{t('league4.manageSquad')}</Link>
+              {isCurrent && <Link to="/4vs4/my-team" className="btn-primary mt-2 h-10 w-full text-sm">{t('league4.manageSquad')}</Link>}
             </div>
           ) : (
             <div className="mt-2">
               <p className="text-sm opacity-70">{t('league4.noSquad')}</p>
-              {registrationOpen ? (
+              {isCurrent && (registrationOpen ? (
                 <Link to="/4vs4/teams/create" className="btn-primary mt-2 h-10 w-full text-sm">{t('league4.createSquad')}</Link>
               ) : (
-                <Link to="/4vs4/teams" className="btn-ghost mt-2 h-10 w-full text-sm">{t('league4.browseSquads')}</Link>
-              )}
+                <Link to={`/4vs4/teams?season=${season.id}`} className="btn-ghost mt-2 h-10 w-full text-sm">{t('league4.browseSquads')}</Link>
+              ))}
             </div>
           )}
         </section>
@@ -132,7 +154,7 @@ export default function League4v4HubPage() {
         <section className="mt-3">
           <div className="mb-2 flex items-center gap-2">
             <h2 className="card-title flex flex-1 items-center gap-1"><Icon name="swords" className="h-4 w-4 text-brand-400" /> {t('league4.nextFixture')}</h2>
-            <Link to="/4vs4/fixtures" className="text-xs font-semibold text-brand-400">{t('league4.viewFixtures')}</Link>
+            <Link to={`/4vs4/fixtures?season=${season.id}`} className="text-xs font-semibold text-brand-400">{t('league4.viewFixtures')}</Link>
           </div>
           {next ? <LeagueFixtureCard fixture={next} /> : <p className="card text-sm opacity-70">{season.status === 'ACTIVE' ? t('league4.noUpcomingFixture') : t('league4.fixturesNotScheduled')}</p>}
         </section>
@@ -141,7 +163,7 @@ export default function League4v4HubPage() {
           <section className="card mt-3">
             <div className="flex items-center gap-2">
               <h2 className="card-title flex flex-1 items-center gap-1"><Icon name="medal" className="h-4 w-4 text-brand-400" /> {t('league4.topStandings')}</h2>
-              <Link to="/4vs4/standings" className="text-xs font-semibold text-brand-400">{t('league4.fullTable')}</Link>
+              <Link to={`/4vs4/standings?season=${season.id}`} className="text-xs font-semibold text-brand-400">{t('league4.fullTable')}</Link>
             </div>
             <ol className="mt-2 flex flex-col gap-1">
               {standings.slice(0, 5).map((row) => (
@@ -157,13 +179,13 @@ export default function League4v4HubPage() {
         )}
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Link to="/4vs4/teams" className="btn-ghost h-11 text-sm">{t('league4.teams')}</Link>
-          <Link to="/4vs4/fixtures" className="btn-ghost h-11 text-sm">{t('league4.fixtures')}</Link>
-          <Link to="/4vs4/standings" className="btn-ghost h-11 text-sm">{t('league4.standings')}</Link>
-          <Link to="/4vs4/stats" className="btn-ghost h-11 text-sm">{t('league4.stats')}</Link>
+          <Link to={`/4vs4/teams?season=${season.id}`} className="btn-ghost h-11 text-sm">{t('league4.teams')}</Link>
+          <Link to={`/4vs4/fixtures?season=${season.id}`} className="btn-ghost h-11 text-sm">{t('league4.fixtures')}</Link>
+          <Link to={`/4vs4/standings?season=${season.id}`} className="btn-ghost h-11 text-sm">{t('league4.standings')}</Link>
+          <Link to={`/4vs4/stats?season=${season.id}`} className="btn-ghost h-11 text-sm">{t('league4.stats')}</Link>
         </div>
         {canDisputeStaff && <Link to="/4vs4/disputes" className="btn-ghost mt-2 h-11 w-full text-sm">{t('league4.disputes')}</Link>}
-        {canManage && <Link to="/4vs4/admin" className="btn-ghost mt-2 h-11 w-full text-sm">{t('league4.admin')}</Link>}
+        {canManage && isCurrent && <Link to="/4vs4/admin" className="btn-ghost mt-2 h-11 w-full text-sm">{t('league4.admin')}</Link>}
       </FadeIn>
       <BottomNav />
     </main>

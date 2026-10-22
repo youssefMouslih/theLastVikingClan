@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
+import { confirmDialog } from '../ui/confirm';
 import { supabase } from '../../lib/supabase';
 import { listMembers, manageMember } from '../../services/playerService';
 import { crownHolder, getCurrentReign, vacateThrone } from '../../services/throneService';
@@ -15,7 +16,7 @@ const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT'];
 // Owner-managed user permissions (§10): who may create leagues/cups (ADMIN),
 // moderate disputes (MODERATOR), or play (PLAYER). Owner-only guards inside.
 export default function MembersTab() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [drafts, setDrafts] = useState<Record<string, { role: Role; status: MemberStatus }>>({});
   const [filter, setFilter] = useState('');
@@ -29,14 +30,14 @@ export default function MembersTab() {
   const throneQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
 
   async function crown(m: Profile) {
-    if (!confirm(t('throne.crownConfirm', { name: m.display_name ?? m.username }))) return;
+    if (!(await confirmDialog({ message: t('throne.crownConfirm', { name: m.display_name ?? m.username }), danger: true }))) return;
     setBusyId(m.id); setMsg(null);
     try {
       await crownHolder(m.id, me!.id);
       setMsg(t('throne.crowned'));
       await Promise.all([query.refetch(), throneQuery.refetch()]);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }
@@ -50,7 +51,7 @@ export default function MembersTab() {
       setMsg(t('members.saved'));
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Save failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }
@@ -62,7 +63,7 @@ export default function MembersTab() {
 
   async function transfer() {
     if (!transferTarget || transferConfirm !== transferTarget.username) return;
-    if (!confirm(`${t('admin.transferBtn')} → ${transferTarget.username}?`)) return;
+    if (!(await confirmDialog({ message: `${t('admin.transferBtn')} → ${transferTarget.username}?`, danger: true }))) return;
     setTransferBusy(true); setMsg(null);
     try {
       const { error } = await supabase.rpc('transfer_ownership', {
@@ -76,7 +77,7 @@ export default function MembersTab() {
       await useAuthStore.getState().init();
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setTransferBusy(false);
     }
@@ -101,7 +102,7 @@ export default function MembersTab() {
         {throneQuery.data?.holder && (
           <button
             disabled={busyId === 'vacate'}
-            onClick={async () => { if (!confirm(t('throne.vacate') + '?')) return; setBusyId('vacate'); try { await vacateThrone(me!.id); setMsg(t('throne.vacated')); throneQuery.refetch(); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setBusyId(null); } }}
+            onClick={async () => { if (!(await confirmDialog({ message: t('throne.vacate') + '?', danger: true }))) return; setBusyId('vacate'); try { await vacateThrone(me!.id); setMsg(t('throne.vacated')); throneQuery.refetch(); } catch (e) { setMsg(tError(e)); } finally { setBusyId(null); } }}
             className="btn-ghost h-9 px-3 text-xs"
           >
             {t('throne.vacate')}

@@ -8,7 +8,7 @@ import { useAuthStore } from '../stores/authStore';
 // here after login and cannot reach the app until the temp password is gone.
 // The router bounces every other page to /password while the flag is set.
 export default function ForcePasswordPage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const nav = useNavigate();
   const me = useAuthStore((s) => s.profile);
   const init = useAuthStore((s) => s.init);
@@ -39,7 +39,7 @@ export default function ForcePasswordPage() {
       await init();
       nav('/home', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed.');
+      setError(tError(err));
     } finally {
       setBusy(false);
     }

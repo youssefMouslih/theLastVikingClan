@@ -31,6 +31,7 @@ export interface LeagueSeason {
   id: string;
   name: string;
   description: string | null;
+  rules: string | null;
   status: LeagueSeasonStatus;
   registration_opens_at: string | null;
   registration_closes_at: string | null;
@@ -43,6 +44,9 @@ export interface LeagueSeason {
   points_win: number;
   points_draw: number;
   points_loss: number;
+  winner_badge_path: string | null;
+  winner_team_id: string | null;
+  winner_badge_awarded_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -52,6 +56,7 @@ export interface LeagueTeam {
   id: string;
   season_id: string;
   name: string;
+  bio: string | null;
   logo_path: string | null;
   captain_id: string;
   status: LeagueTeamStatus;
@@ -347,10 +352,19 @@ export interface LeagueProfileRef {
   avatar_url: string | null;
 }
 
+export type LeagueInviteCandidateStatus = 'FREE' | 'INVITED' | 'IN_SQUAD';
+
+export interface LeagueInviteCandidate extends LeagueProfileRef {
+  squad_status: LeagueInviteCandidateStatus;
+  squad_name: string | null;
+  invite_id: string | null;
+}
+
 export interface LeagueTeamRef {
   id: string;
   name: string;
   status: LeagueTeamStatus;
+  logo_path: string | null;
 }
 
 export interface LeagueMemberWithProfile extends LeagueTeamMember {

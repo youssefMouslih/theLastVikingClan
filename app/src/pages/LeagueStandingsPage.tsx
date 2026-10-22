@@ -1,14 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import LeagueSeasonSelect from '../components/league4v4/LeagueSeasonSelect';
 import LeagueStandingsTable from '../components/league4v4/LeagueStandingsTable';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { EmptyState, FadeIn, LoadingRegion } from '../components/ui/Motion';
+import QueryError from '../components/ui/QueryError';
 import { useLocale } from '../i18n/LocaleContext';
+import { useAuthStore } from '../stores/authStore';
+import { type FormResult } from '../components/ui/FormDots';
 import { leagueKeys } from '../services/leagueKeys';
+import { listLeagueFixtures } from '../services/leagueFixtureService';
+import { findMyLeagueTeam, listLeagueTeamRefs } from '../services/leagueTeamService';
 import { listLeagueSeasons, pickCurrentLeagueSeason } from '../services/leagueSeasonService';
 import {
   getLeagueStandings,
@@ -26,11 +31,13 @@ const TIEBREAK_RULES = [
 
 export default function LeagueStandingsPage() {
   const { t } = useLocale();
-  const [selectedId, setSelectedId] = useState('');
+  const me = useAuthStore((state) => state.profile);
+  const [params, setParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState(params.get('season') ?? '');
   const seasonsQuery = useQuery({ queryKey: leagueKeys.seasons, queryFn: listLeagueSeasons });
   const seasons = useMemo(() => seasonsQuery.data ?? [], [seasonsQuery.data]);
   const autoId = seasons.length > 0 ? pickCurrentLeagueSeason(seasons)?.id ?? seasons[0].id : '';
-  const activeId = selectedId || autoId;
+  const activeId = selectedId && seasons.some((item) => item.id === selectedId) ? selectedId : autoId;
   const season = seasons.find((item) => item.id === activeId) ?? null;
   const standingsActive = season?.status === 'ACTIVE' || season?.status === 'COMPLETED';
   const standingsQuery = useQuery({
@@ -43,8 +50,37 @@ export default function LeagueStandingsPage() {
     queryFn: () => listLeagueTiebreakOrder(activeId),
     enabled: !!season,
   });
+  const teamsQuery = useQuery({
+    queryKey: leagueKeys.teams(activeId || 'none'),
+    queryFn: () => listLeagueTeamRefs(activeId),
+    enabled: !!season,
+  });
+  const fixturesQuery = useQuery({
+    queryKey: leagueKeys.fixtures(activeId || 'none'),
+    queryFn: () => listLeagueFixtures(activeId),
+    enabled: !!season && standingsActive,
+  });
+  const myTeamQuery = useQuery({
+    queryKey: leagueKeys.myTeam(activeId || 'none', me?.id ?? ''),
+    queryFn: () => findMyLeagueTeam(activeId, me!.id),
+    enabled: !!season && !!me?.id,
+  });
   const rows = standingsQuery.data ?? [];
+  const logos = Object.fromEntries((teamsQuery.data ?? []).map((team) => [team.id, team.logo_path]));
   const hasTiebreak = (tiebreakQuery.data?.length ?? 0) > 0;
+  const formByTeam = useMemo(() => {
+    const form: Record<string, FormResult[]> = {};
+    const finished = (fixturesQuery.data ?? [])
+      .filter((fixture) => fixture.status === 'COMPLETED' || fixture.status === 'FORFEITED')
+      .sort((a, b) => new Date(a.completed_at ?? a.created_at).getTime() - new Date(b.completed_at ?? b.created_at).getTime());
+    for (const fixture of finished) {
+      const homeResult: FormResult = fixture.home_points > fixture.away_points ? 'W' : fixture.home_points < fixture.away_points ? 'L' : 'D';
+      const awayResult: FormResult = homeResult === 'W' ? 'L' : homeResult === 'L' ? 'W' : 'D';
+      (form[fixture.home_team_id] ??= []).push(homeResult);
+      (form[fixture.away_team_id] ??= []).push(awayResult);
+    }
+    return form;
+  }, [fixturesQuery.data]);
 
   if (seasonsQuery.isLoading) {
     return <main className="page"><AppBar title={t('league4.standings')} /><LoadingRegion loading label={t('common.loading')} skeleton="card"><span /></LoadingRegion><BottomNav /></main>;
@@ -59,23 +95,34 @@ export default function LeagueStandingsPage() {
         <Link to="/4vs4/stats" className="btn-ghost h-10 px-3 text-xs">{t('league4.stats')}</Link>
       </div>
 
-      {seasons.length === 0 ? (
+      {seasonsQuery.isError ? (
+        <QueryError error={seasonsQuery.error} onRetry={() => void seasonsQuery.refetch()} />
+      ) : seasons.length === 0 ? (
         <EmptyState icon={<Icon name="medal" />} title={t('league4.noSeason')} hint={t('league4.noSeasonHint')} />
       ) : (
         <FadeIn>
-          <LeagueSeasonSelect seasons={seasons} value={activeId} onChange={setSelectedId} />
+          <LeagueSeasonSelect
+            seasons={seasons}
+            value={activeId}
+            onChange={(id) => {
+              setSelectedId(id);
+              setParams(id === autoId ? {} : { season: id }, { replace: true });
+            }}
+          />
 
           {!standingsActive ? (
             <EmptyState icon={<Icon name="medal" />} title={t('league4.noStandings')} hint={t('league4.noStandingsHint')} />
           ) : standingsQuery.isLoading ? (
             <LoadingRegion loading label={t('common.loading')} skeleton="card"><span /></LoadingRegion>
+          ) : standingsQuery.isError ? (
+            <QueryError error={standingsQuery.error} onRetry={() => void standingsQuery.refetch()} />
           ) : rows.length === 0 ? (
             <EmptyState icon={<Icon name="medal" />} title={t('league4.noStandings')} hint={t('league4.noStandingsHint')} />
           ) : (
             <>
               <p className="mt-3 text-xs opacity-60">{t('league4.includesPenalties')}</p>
               <div className="mt-2">
-                <LeagueStandingsTable rows={rows} />
+                <LeagueStandingsTable rows={rows} logos={logos} form={formByTeam} highlightTeamId={myTeamQuery.data?.id ?? null} />
               </div>
               {hasTiebreak && (
                 <p className="mt-2 rounded-lg border border-accent-500/40 p-2 text-xs opacity-80">{t('league4.adminTiebreakApplied')}</p>

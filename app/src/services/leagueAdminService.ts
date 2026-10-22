@@ -17,6 +17,14 @@ import type {
 } from '../types/league4v4';
 
 export async function createLeagueSeason(input: LeagueCreateSeasonInput): Promise<string> {
+  const { data: existingDraft, error: draftError } = await supabase
+    .from('league_seasons')
+    .select('id')
+    .eq('status', 'DRAFT')
+    .limit(1)
+    .maybeSingle();
+  if (draftError) throw new Error(draftError.message);
+  if (existingDraft) throw new Error('A draft season already exists. Resume it from the admin panel.');
   const { data, error } = await supabase.rpc('league_create_season', {
     p_name: input.name.trim(),
     p_description: input.description?.trim() || null,
@@ -80,6 +88,38 @@ export async function generateLeagueFixtures(seasonId: string, reset = false): P
   if (error) throw new Error(error.message);
 }
 
+export async function cancelLeagueSeason(seasonId: string, reason?: string | null): Promise<void> {
+  const { error } = await supabase.rpc('league_cancel_season', {
+    p_season_id: seasonId,
+    p_reason: reason?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function setLeagueSeasonRules(seasonId: string, rules: string): Promise<void> {
+  const { error } = await supabase.rpc('league_set_season_rules', {
+    p_season_id: seasonId,
+    p_rules: rules.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function setLeagueWinnerBadge(seasonId: string, badgePath: string): Promise<void> {
+  const { error } = await supabase.rpc('league_set_winner_badge', {
+    p_season_id: seasonId,
+    p_badge_path: badgePath,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function awardLeagueWinnerBadge(seasonId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('league_award_winner_badge', {
+    p_season_id: seasonId,
+  });
+  if (error) throw new Error(error.message);
+  return (data as number | null) ?? 0;
+}
+
 export async function listOpenLeagueDisputes(): Promise<LeagueDisputeWithContext[]> {
   const disputesResult = await supabase
     .from('league_disputes')
@@ -113,7 +153,7 @@ export async function listOpenLeagueDisputes(): Promise<LeagueDisputeWithContext
       .from('league_seasons')
       .select('id,name,status')
       .in('id', [...seasonIdsFromDuels]),
-    supabase.from('league_teams').select('id,name,status').in('id', teamIds),
+    supabase.from('league_teams').select('id,name,status,logo_path').in('id', teamIds),
   ]);
   if (seasonsResult.error) throw new Error(seasonsResult.error.message);
   if (teamsResult.error) throw new Error(teamsResult.error.message);

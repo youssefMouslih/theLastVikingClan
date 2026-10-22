@@ -8093,3 +8093,889 @@ create policy "anon submit tryout"
   with check (status = 'PENDING' and char_length(name) > 0 and char_length(contact) > 0
     and (website_url is null or website_url = ''));
 grant insert on public.tryout_requests to anon, authenticated;
+
+-- VIK Clan migration 0045: 4vs4 squad logos.
+-- (Body identical to app/supabase/migrations/0045_league_team_logos.sql.)
+
+-- VIK Clan migration 0045: 4vs4 squad logos.
+-- Run AFTER 0044. Private league-assets bucket, captain-only writes,
+-- logo_path validation, and one RPC to set or clear a squad logo.
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('league-assets', 'league-assets', false, 2097152,
+  array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "league logos read" on storage.objects;
+create policy "league logos read" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'league-assets');
+
+drop policy if exists "league captains upload logos" on storage.objects;
+create policy "league captains upload logos" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and exists (
+      select 1 from public.league_teams t
+      where t.id::text = (storage.foldername(name))[2]
+        and t.captain_id = auth.uid()
+        and t.status in ('PENDING','APPROVED')
+    )
+  );
+
+drop policy if exists "league captains update logos" on storage.objects;
+create policy "league captains update logos" on storage.objects
+  for update to authenticated
+  using (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and exists (
+      select 1 from public.league_teams t
+      where t.id::text = (storage.foldername(name))[2]
+        and t.captain_id = auth.uid()
+        and t.status in ('PENDING','APPROVED')
+    )
+  )
+  with check (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and exists (
+      select 1 from public.league_teams t
+      where t.id::text = (storage.foldername(name))[2]
+        and t.captain_id = auth.uid()
+        and t.status in ('PENDING','APPROVED')
+    )
+  );
+
+drop policy if exists "league captains delete logos" on storage.objects;
+create policy "league captains delete logos" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and exists (
+      select 1 from public.league_teams t
+      where t.id::text = (storage.foldername(name))[2]
+        and t.captain_id = auth.uid()
+        and t.status in ('PENDING','APPROVED')
+    )
+  );
+
+create or replace function public.league_set_team_logo(
+  p_team_id uuid,
+  p_logo_path text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_team public.league_teams%rowtype;
+  v_season public.league_seasons%rowtype;
+  v_path text := nullif(btrim(coalesce(p_logo_path, '')), '');
+begin
+  perform public.league_require_captain(p_team_id);
+  v_team := public.league_lock_team(p_team_id);
+  select * into v_season from public.league_seasons where id = v_team.season_id;
+
+  if v_season.status not in ('REGISTRATION','ACTIVE') then
+    raise exception 'Squad logos cannot be changed in a % season.', v_season.status;
+  end if;
+  if v_team.status not in ('PENDING','APPROVED') then
+    raise exception 'This squad can no longer be edited.';
+  end if;
+
+  if v_path is not null then
+    if char_length(v_path) > 300 then
+      raise exception 'Squad logo path is too long.';
+    end if;
+    if v_path not like ('league/' || p_team_id::text || '/%') then
+      raise exception 'Squad logo must live under league/%.', p_team_id;
+    end if;
+    if not exists (
+      select 1 from storage.objects o
+      where o.bucket_id = 'league-assets'
+        and o.name = v_path
+        and o.owner = auth.uid()
+    ) then
+      raise exception 'Squad logo file not found.';
+    end if;
+  end if;
+
+  update public.league_teams
+    set logo_path = v_path, updated_at = now()
+    where id = p_team_id;
+
+  perform public.league_audit(
+    v_team.season_id, 'TEAM_LOGO_UPDATED', 'league_team', p_team_id,
+    jsonb_build_object('logo_path', v_team.logo_path),
+    jsonb_build_object('logo_path', v_path), null);
+end;
+$$;
+
+revoke all on function public.league_set_team_logo(uuid, text) from public, anon, authenticated;
+grant execute on function public.league_set_team_logo(uuid, text) to authenticated;
+
+-- ============================================================================
+-- migration 0046_league_team_logo_rls_fix.sql
+-- ============================================================================
+
+-- VIK Clan migration 0046: fix league squad logo uploads.
+-- 0045 tied the storage policy to a subquery on public.league_teams.
+-- Use the uploader's own folder instead: league/<auth.uid()>/<team_id>/...
+-- The captain check stays in league_set_team_logo, so another player can
+-- never attach their upload to a team they do not captain.
+
+drop policy if exists "league captains upload logos" on storage.objects;
+create policy "league captains upload logos" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+drop policy if exists "league captains update logos" on storage.objects;
+create policy "league captains update logos" on storage.objects
+  for update to authenticated
+  using (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  )
+  with check (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+drop policy if exists "league captains delete logos" on storage.objects;
+create policy "league captains delete logos" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'league-assets'
+    and (storage.foldername(name))[1] = 'league'
+    and (storage.foldername(name))[2] = auth.uid()::text
+  );
+
+create or replace function public.league_set_team_logo(
+  p_team_id uuid,
+  p_logo_path text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_team public.league_teams%rowtype;
+  v_season public.league_seasons%rowtype;
+  v_path text := nullif(btrim(coalesce(p_logo_path, '')), '');
+begin
+  perform public.league_require_captain(p_team_id);
+  v_team := public.league_lock_team(p_team_id);
+  select * into v_season from public.league_seasons where id = v_team.season_id;
+
+  if v_season.status not in ('REGISTRATION','ACTIVE') then
+    raise exception 'Squad logos cannot be changed in a % season.', v_season.status;
+  end if;
+  if v_team.status not in ('PENDING','APPROVED') then
+    raise exception 'This squad can no longer be edited.';
+  end if;
+
+  if v_path is not null then
+    if char_length(v_path) > 300 then
+      raise exception 'Squad logo path is too long.';
+    end if;
+    if v_path not like ('league/' || auth.uid()::text || '/' || p_team_id::text || '/%') then
+      raise exception 'Squad logo must live under league/<you>/%.', p_team_id;
+    end if;
+    if not exists (
+      select 1 from storage.objects o
+      where o.bucket_id = 'league-assets'
+        and o.name = v_path
+        and o.owner = auth.uid()
+    ) then
+      raise exception 'Squad logo file not found.';
+    end if;
+  end if;
+
+  update public.league_teams
+    set logo_path = v_path, updated_at = now()
+    where id = p_team_id;
+
+  perform public.league_audit(
+    v_team.season_id, 'TEAM_LOGO_UPDATED', 'league_team', p_team_id,
+    jsonb_build_object('logo_path', v_team.logo_path),
+    jsonb_build_object('logo_path', v_path), null);
+end;
+$$;
+
+revoke all on function public.league_set_team_logo(uuid, text) from public, anon, authenticated;
+grant execute on function public.league_set_team_logo(uuid, text) to authenticated;
+
+-- ============================================================================
+-- migration 0047_league_revoke_invite.sql
+-- ============================================================================
+
+-- VIK Clan migration 0047: captains can undo a pending 4vs4 invite.
+
+create or replace function public.league_revoke_invite(p_invite_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_invite public.league_team_invites%rowtype;
+begin
+  perform public.league_require_active();
+
+  select * into v_invite
+  from public.league_team_invites
+  where id = p_invite_id
+  for update;
+
+  if v_invite.id is null then
+    raise exception 'Invite not found.';
+  end if;
+
+  perform public.league_require_captain(v_invite.team_id);
+
+  if v_invite.status <> 'PENDING' then
+    raise exception 'This invite is no longer pending.';
+  end if;
+
+  update public.league_team_invites
+    set status = 'REVOKED', responded_at = now()
+    where id = p_invite_id;
+
+  perform public.league_audit(
+    v_invite.season_id, 'INVITE_REVOKED', 'league_team', v_invite.team_id,
+    jsonb_build_object('status', v_invite.status),
+    jsonb_build_object('status', 'REVOKED', 'player_id', v_invite.player_id,
+      'invite_id', p_invite_id), null);
+end;
+$$;
+
+revoke all on function public.league_revoke_invite(uuid) from public, anon, authenticated;
+grant execute on function public.league_revoke_invite(uuid) to authenticated;
+
+-- ============================================================================
+-- migration 0048_league_team_bio.sql
+-- ============================================================================
+
+-- VIK Clan migration 0048: short squad bio.
+
+alter table public.league_teams add column if not exists bio text;
+
+alter table public.league_teams drop constraint if exists league_teams_bio_check;
+alter table public.league_teams add constraint league_teams_bio_check
+  check (bio is null or char_length(bio) <= 160);
+
+create or replace function public.league_set_team_bio(
+  p_team_id uuid,
+  p_bio text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_team public.league_teams%rowtype;
+  v_season public.league_seasons%rowtype;
+  v_bio text := nullif(btrim(coalesce(p_bio, '')), '');
+begin
+  perform public.league_require_captain(p_team_id);
+  v_team := public.league_lock_team(p_team_id);
+  select * into v_season from public.league_seasons where id = v_team.season_id;
+
+  if v_season.status not in ('REGISTRATION','ACTIVE') then
+    raise exception 'Squad bio cannot be changed in a % season.', v_season.status;
+  end if;
+  if v_team.status not in ('PENDING','APPROVED') then
+    raise exception 'This squad can no longer be edited.';
+  end if;
+  if char_length(v_bio) > 160 then
+    raise exception 'Squad bio must be 160 characters or less.';
+  end if;
+
+  update public.league_teams
+    set bio = v_bio, updated_at = now()
+    where id = p_team_id;
+
+  perform public.league_audit(
+    v_team.season_id, 'TEAM_BIO_UPDATED', 'league_team', p_team_id,
+    jsonb_build_object('bio', v_team.bio),
+    jsonb_build_object('bio', v_bio), null);
+end;
+$$;
+
+revoke all on function public.league_set_team_bio(uuid, text) from public, anon, authenticated;
+grant execute on function public.league_set_team_bio(uuid, text) to authenticated;
+
+-- ============================================================================
+-- migration 0049_league_cancel_season.sql
+-- ============================================================================
+
+-- VIK Clan migration 0049: admins can cancel (delete) a league season.
+--
+-- Cancelling removes the season and every child row (squads, members,
+-- invites, matchdays, fixtures, lineups) through the existing cascade.
+-- Seasons that already have duels are refused so recorded/ongoing results
+-- are never silently destroyed.
+
+create or replace function public.league_cancel_season(
+  p_season_id uuid,
+  p_reason text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_season public.league_seasons%rowtype;
+  v_duels int;
+begin
+  perform public.league_require_admin();
+  v_season := public.league_lock_season(p_season_id);
+
+  if v_season.status not in ('DRAFT','REGISTRATION','ACTIVE') then
+    raise exception 'Only draft, registration or active seasons can be cancelled.';
+  end if;
+
+  select count(*) into v_duels
+  from public.league_duels d
+  join public.league_fixtures f on f.id = d.fixture_id
+  where f.season_id = p_season_id;
+
+  if v_duels > 0 then
+    raise exception 'This season already has duels and cannot be cancelled.';
+  end if;
+
+  perform public.league_notify_season(
+    p_season_id,
+    'LEAGUE_SEASON_CANCELLED',
+    'League season cancelled',
+    format('The 4vs4 season "%s" was cancelled by the staff.', v_season.name),
+    'league_season', p_season_id);
+
+  perform public.league_audit(
+    p_season_id,
+    'SEASON_CANCELLED',
+    'league_season',
+    p_season_id,
+    jsonb_build_object('name', v_season.name, 'status', v_season.status),
+    null,
+    p_reason);
+
+  delete from public.league_seasons where id = p_season_id;
+end;
+$$;
+
+revoke all on function public.league_cancel_season(uuid, text) from public, anon, authenticated;
+grant execute on function public.league_cancel_season(uuid, text) to authenticated;
+
+-- ============================================================================
+-- migration 0050_league_winner_badge.sql
+-- ============================================================================
+
+-- VIK Clan migration 0050: 4vs4 season winner badge.
+--
+-- Two steps:
+--   1. league_set_winner_badge: the admin uploads/changes the badge that the
+--      first-place squad will earn. It can be uploaded while the season is
+--      still in DRAFT/REGISTRATION/ACTIVE.
+--   2. league_award_winner_badge: once the season is COMPLETED/ARCHIVED, the
+--      RPC resolves the standings winner and awards one LEAGUE4V4_CHAMPION
+--      achievement (with the badge image) to every ACTIVE member of that
+--      squad, so it shows in their profile badge area.
+
+alter table public.league_seasons add column if not exists winner_badge_path text;
+alter table public.league_seasons add column if not exists winner_team_id uuid
+  references public.league_teams(id) on delete set null;
+alter table public.league_seasons add column if not exists winner_badge_awarded_at timestamptz;
+
+create or replace function public.league_set_winner_badge(
+  p_season_id uuid,
+  p_badge_path text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_season public.league_seasons%rowtype;
+  v_path text := nullif(btrim(coalesce(p_badge_path, '')), '');
+begin
+  perform public.league_require_admin();
+  v_season := public.league_lock_season(p_season_id);
+
+  if v_path is null then
+    raise exception 'Upload a badge image first.';
+  end if;
+  if v_season.winner_badge_awarded_at is not null then
+    raise exception 'The winner badge was already awarded for this season.';
+  end if;
+
+  update public.league_seasons
+    set winner_badge_path = v_path
+    where id = p_season_id;
+
+  perform public.league_audit(
+    p_season_id,
+    'WINNER_BADGE_UPLOADED',
+    'league_season',
+    p_season_id,
+    jsonb_build_object('winner_badge_path', v_season.winner_badge_path),
+    jsonb_build_object('winner_badge_path', v_path),
+    null);
+end;
+$$;
+
+create or replace function public.league_award_winner_badge(
+  p_season_id uuid
+)
+returns int
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_season public.league_seasons%rowtype;
+  v_winner record;
+  v_awarded int := 0;
+  r record;
+begin
+  perform public.league_require_admin();
+  v_season := public.league_lock_season(p_season_id);
+
+  if v_season.status not in ('COMPLETED','ARCHIVED') then
+    raise exception 'Complete the season before awarding the winner badge.';
+  end if;
+  if v_season.winner_badge_path is null then
+    raise exception 'Upload the winner badge first.';
+  end if;
+  if v_season.winner_badge_awarded_at is not null then
+    raise exception 'The winner badge was already awarded for this season.';
+  end if;
+
+  select s.team_id, s.team_name
+  into v_winner
+  from public.league_standings(p_season_id) s
+  order by s.standing_position
+  limit 1;
+
+  if v_winner.team_id is null then
+    raise exception 'No standings are available for this season.';
+  end if;
+
+  update public.league_seasons
+    set winner_team_id = v_winner.team_id,
+        winner_badge_awarded_at = now()
+    where id = p_season_id;
+
+  for r in
+    select distinct m.player_id
+    from public.league_team_members m
+    join public.profiles p on p.id = m.player_id and p.status = 'ACTIVE'
+    where m.team_id = v_winner.team_id and m.status = 'ACTIVE'
+  loop
+    insert into public.achievements
+      (player_id, competition_id, type, name, description, image_url)
+    values
+      (r.player_id, null, 'LEAGUE4V4_CHAMPION',
+       format('%s — 4vs4 Champions', v_season.name),
+       format('Won first place in the 4vs4 League season "%s" with %s.',
+         v_season.name, v_winner.team_name),
+       v_season.winner_badge_path);
+
+    perform public.league_notify(
+      r.player_id,
+      'LEAGUE_WINNER_BADGE',
+      '4vs4 Champions',
+      format('Your squad %s won the 4vs4 season "%s". A champion badge was added to your profile.',
+        v_winner.team_name, v_season.name),
+      'league_season', p_season_id);
+
+    v_awarded := v_awarded + 1;
+  end loop;
+
+  perform public.league_audit(
+    p_season_id,
+    'WINNER_BADGE_AWARDED',
+    'league_season',
+    p_season_id,
+    jsonb_build_object('winner_badge_path', v_season.winner_badge_path),
+    jsonb_build_object('winner_team_id', v_winner.team_id,
+      'winner_badge_path', v_season.winner_badge_path,
+      'awarded_players', v_awarded),
+    null);
+
+  return v_awarded;
+end;
+$$;
+
+revoke all on function public.league_set_winner_badge(uuid, text) from public, anon, authenticated;
+revoke all on function public.league_award_winner_badge(uuid) from public, anon, authenticated;
+grant execute on function public.league_set_winner_badge(uuid, text) to authenticated;
+grant execute on function public.league_award_winner_badge(uuid) to authenticated;
+
+-- ============================================================================
+-- migration 0051_league_season_rules.sql
+-- ============================================================================
+
+-- VIK Clan migration 0051: 4vs4 season rules.
+--
+-- Admins write the competition rules while the season is DRAFT/REGISTRATION
+-- (or correct them while ACTIVE). The text is shown to every player on the
+-- 4vs4 hub.
+
+alter table public.league_seasons add column if not exists rules text;
+
+alter table public.league_seasons drop constraint if exists league_seasons_rules_check;
+alter table public.league_seasons add constraint league_seasons_rules_check
+  check (rules is null or char_length(rules) <= 5000);
+
+create or replace function public.league_set_season_rules(
+  p_season_id uuid,
+  p_rules text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_season public.league_seasons%rowtype;
+  v_rules text := nullif(btrim(coalesce(p_rules, '')), '');
+begin
+  perform public.league_require_admin();
+  v_season := public.league_lock_season(p_season_id);
+
+  if v_season.status not in ('DRAFT','REGISTRATION','ACTIVE') then
+    raise exception 'Rules can only be edited before the season is completed.';
+  end if;
+  if v_rules is not null and char_length(v_rules) > 5000 then
+    raise exception 'Rules must be 5000 characters or less.';
+  end if;
+
+  update public.league_seasons
+    set rules = v_rules
+    where id = p_season_id;
+
+  perform public.league_audit(
+    p_season_id,
+    'SEASON_RULES_UPDATED',
+    'league_season',
+    p_season_id,
+    jsonb_build_object('rules', v_season.rules),
+    jsonb_build_object('rules', v_rules),
+    null);
+end;
+$$;
+
+revoke all on function public.league_set_season_rules(uuid, text) from public, anon, authenticated;
+grant execute on function public.league_set_season_rules(uuid, text) to authenticated;
+
+-- ===== 0052_league_fixture_generation_fix.sql =====
+-- VIK Clan migration 0052: deterministic 4vs4 fixture generation.
+--
+-- The deployed generator could raise
+-- league_fixtures_season_id_leg_home_team_id_away_team_id_key on the first
+-- generation. This replaces the array-rotation schedule with the standard
+-- circle formula, which produces every pairing exactly once per leg.
+
+create or replace function public.league_generate_fixtures(
+  p_season_id uuid,
+  p_reset boolean default false
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_season public.league_seasons%rowtype;
+  v_teams uuid[];
+  v_team_count int;
+  v_slots int;
+  v_rounds int;
+  v_total_matchdays int;
+  v_matchday_ids uuid[] := '{}';
+  v_md int;
+  v_r int;
+  v_i int;
+  v_j int;
+  v_a uuid;
+  v_b uuid;
+  v_home uuid;
+  v_away uuid;
+  v_bye uuid;
+  v_last uuid;
+  v_new_id uuid;
+  v_n int;
+  v_idx_a int;
+  v_idx_b int;
+begin
+  perform public.league_require_admin();
+  v_season := public.league_lock_season(p_season_id);
+
+  if v_season.status not in ('DRAFT','REGISTRATION','ACTIVE') then
+    raise exception 'Fixtures cannot be generated for a % season.', v_season.status;
+  end if;
+  if v_season.starts_at is null then
+    raise exception 'Set the season start before generating fixtures.';
+  end if;
+
+  select array_agg(t.id order by lower(t.name), t.id) into v_teams
+  from public.league_teams t
+  where t.season_id = p_season_id and t.status = 'APPROVED';
+
+  v_team_count := coalesce(array_length(v_teams, 1), 0);
+  if v_team_count < v_season.min_teams or v_team_count > v_season.max_teams then
+    raise exception 'Fixture generation needs %-% approved squads (has %).',
+      v_season.min_teams, v_season.max_teams, v_team_count;
+  end if;
+
+  if exists (select 1 from public.league_matchdays m where m.season_id = p_season_id)
+     or exists (select 1 from public.league_fixtures f where f.season_id = p_season_id) then
+    if not coalesce(p_reset, false) then
+      raise exception 'Fixtures already exist. Pass p_reset = true to replace a clean schedule.';
+    end if;
+    if exists (
+      select 1 from public.league_fixtures f
+      where f.season_id = p_season_id and f.status <> 'SCHEDULED'
+    ) or exists (
+      select 1 from public.league_lineups l
+      join public.league_fixtures f on f.id = l.fixture_id
+      where f.season_id = p_season_id
+    ) or exists (
+      select 1 from public.league_duels d
+      join public.league_fixtures f on f.id = d.fixture_id
+      where f.season_id = p_season_id
+    ) then
+      raise exception 'A started or reported schedule cannot be reset.';
+    end if;
+    delete from public.league_matchdays where season_id = p_season_id;
+  end if;
+
+  if mod(v_team_count, 2) = 1 then
+    v_teams := array_append(v_teams, null::uuid);
+  end if;
+  v_slots := array_length(v_teams, 1);
+  v_rounds := v_slots - 1;
+  v_total_matchdays := 2 * v_rounds;
+
+  for v_md in 1..v_total_matchdays loop
+    insert into public.league_matchdays
+      (season_id, number, opens_at, deadline)
+    values
+      (p_season_id, v_md,
+       v_season.starts_at + ((v_md - 1) * v_season.matchday_days) * interval '1 day',
+       v_season.starts_at + (v_md * v_season.matchday_days) * interval '1 day')
+    returning id into v_new_id;
+    v_matchday_ids := array_append(v_matchday_ids, v_new_id);
+  end loop;
+
+  v_n := v_slots - 1;
+
+  for v_r in 0..(v_rounds - 1) loop
+    for v_i in 0..((v_slots / 2) - 1) loop
+      if v_i = 0 then
+        v_idx_a := v_slots;
+        v_idx_b := v_r + 1;
+      else
+        v_idx_a := ((v_r + v_i) % v_n) + 1;
+        v_idx_b := ((v_r - v_i + (2 * v_n)) % v_n) + 1;
+      end if;
+
+      v_a := v_teams[v_idx_a];
+      v_b := v_teams[v_idx_b];
+
+      if v_a is null then
+        v_bye := v_b;
+      elsif v_b is null then
+        v_bye := v_a;
+      else
+        v_bye := null;
+      end if;
+
+      if v_bye is not null then
+        insert into public.league_byes (season_id, matchday_id, team_id)
+        values (p_season_id, v_matchday_ids[v_r + 1], v_bye)
+        on conflict do nothing;
+        insert into public.league_byes (season_id, matchday_id, team_id)
+        values (p_season_id, v_matchday_ids[v_rounds + v_r + 1], v_bye)
+        on conflict do nothing;
+      else
+        if mod(v_r + v_i, 2) = 0 then
+          v_home := v_a;
+          v_away := v_b;
+        else
+          v_home := v_b;
+          v_away := v_a;
+        end if;
+
+        insert into public.league_fixtures
+          (season_id, matchday_id, leg, home_team_id, away_team_id)
+        values
+          (p_season_id, v_matchday_ids[v_r + 1], 1, v_home, v_away);
+        insert into public.league_fixtures
+          (season_id, matchday_id, leg, home_team_id, away_team_id)
+        values
+          (p_season_id, v_matchday_ids[v_rounds + v_r + 1], 2, v_away, v_home);
+      end if;
+    end loop;
+  end loop;
+
+  perform public.league_audit(
+    p_season_id, 'FIXTURES_GENERATED', 'league_season', p_season_id,
+    null,
+    jsonb_build_object(
+      'teams', v_team_count, 'matchdays', v_total_matchdays,
+      'fixtures', v_team_count * (v_team_count - 1)),
+    null);
+end;
+$$;
+
+revoke all on function public.league_generate_fixtures(uuid, boolean) from public, anon, authenticated;
+grant execute on function public.league_generate_fixtures(uuid, boolean) to authenticated;
+
+-- 0053_dispute_hardening.sql
+-- 1v1 result disputes were opened by a client-side insert + match update.
+-- That allowed stale clients to reopen CONFIRMED/FORFEIT matches and create
+-- duplicate open disputes. This migration makes the write authoritative:
+--   * one SECURITY DEFINER RPC validates the match state and the caller;
+--   * direct player inserts are denied by RLS;
+--   * only one OPEN/UNDER_REVIEW dispute can exist per match;
+--   * players can read only disputes for their own matches (staff still read
+--     the full queue).
+
+-- Close legacy duplicate open disputes before adding the partial unique index.
+update public.disputes d
+set status = 'REJECTED',
+    resolution = coalesce(d.resolution, 'Closed duplicate dispute during 0053 cleanup.'),
+    resolved_at = coalesce(d.resolved_at, now())
+where d.id in (
+  select ranked.id
+  from (
+    select id,
+           row_number() over (
+             partition by match_id
+             order by created_at desc, id desc
+           ) as rn
+    from public.disputes
+    where status in ('OPEN', 'UNDER_REVIEW')
+  ) ranked
+  where ranked.rn > 1
+);
+
+create unique index if not exists disputes_one_open_per_match_idx
+  on public.disputes (match_id)
+  where status in ('OPEN', 'UNDER_REVIEW');
+
+-- Players may only read disputes for matches they played. Staff keep full access.
+drop policy if exists "authenticated read disputes" on public.disputes;
+create policy "match players and staff read disputes" on public.disputes
+  for select to authenticated
+  using (
+    public.is_clan_role(array['OWNER', 'ADMIN', 'MODERATOR'])
+    or exists (
+      select 1
+      from public.matches m
+      where m.id = match_id
+        and (m.player_a_id = auth.uid() or m.player_b_id = auth.uid())
+    )
+  );
+
+-- Direct player inserts are no longer allowed; use dispute_match().
+drop policy if exists "members open disputes" on public.disputes;
+
+create or replace function public.dispute_match(
+  p_match_id uuid,
+  p_reason text,
+  p_description text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_me uuid := auth.uid();
+  v_match public.matches%rowtype;
+  v_reason text := btrim(coalesce(p_reason, ''));
+  v_description text := nullif(btrim(coalesce(p_description, '')), '');
+  v_id uuid;
+begin
+  if v_me is null then
+    raise exception 'Sign in to open a dispute.';
+  end if;
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = v_me and p.status = 'ACTIVE'
+  ) then
+    raise exception 'Only active members can open a dispute.';
+  end if;
+
+  select * into v_match
+  from public.matches m
+  where m.id = p_match_id
+  for update;
+
+  if not found then
+    raise exception 'Match not found.';
+  end if;
+  if v_me <> v_match.player_a_id and v_me <> v_match.player_b_id then
+    raise exception 'Only the two match players can open a dispute.';
+  end if;
+  if v_match.status <> 'RESULT_SUBMITTED' then
+    raise exception 'A dispute can only be opened while a result is waiting for confirmation.';
+  end if;
+  if char_length(v_reason) not between 3 and 1000 then
+    raise exception 'Give a reason between 3 and 1000 characters.';
+  end if;
+  if v_description is not null and char_length(v_description) > 2000 then
+    raise exception 'Dispute description is too long.';
+  end if;
+  if exists (
+    select 1 from public.disputes d
+    where d.match_id = p_match_id
+      and d.status in ('OPEN', 'UNDER_REVIEW')
+  ) then
+    raise exception 'This match already has an open dispute. Staff must resolve it first.';
+  end if;
+
+  insert into public.disputes
+    (match_id, created_by, reason, description, status)
+  values
+    (p_match_id, v_me, v_reason, v_description, 'OPEN')
+  returning id into v_id;
+
+  update public.matches
+  set status = 'DISPUTED', updated_at = now()
+  where id = p_match_id;
+
+  insert into public.audit_logs
+    (actor_id, action, entity_type, entity_id, reason)
+  values
+    (v_me, 'DISPUTE_OPENED', 'match', p_match_id, v_reason);
+
+  return v_id;
+end;
+$$;
+
+revoke all on function public.dispute_match(uuid, text, text) from public, anon;
+grant execute on function public.dispute_match(uuid, text, text) to authenticated;
+
+notify pgrst, 'reload schema';

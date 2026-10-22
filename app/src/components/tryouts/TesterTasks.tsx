@@ -7,7 +7,7 @@ import WhatsAppIcon from '../ui/WhatsAppIcon';
 
 // Trial matches assigned to me: play, then report pass/fail with the score.
 export default function TesterTasks() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [scores, setScores] = useState<Record<string, { a: string; b: string; note: string }>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function TesterTasks() {
       setMsg(t('tryout.verdictSaved'));
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }

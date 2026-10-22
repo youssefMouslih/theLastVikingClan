@@ -105,6 +105,21 @@ export interface ParticipantRow {
   player?: { id: string; username: string; display_name: string | null; avatar_url: string | null } | null;
 }
 
+export async function listParticipantCounts(competitionIds: string[]): Promise<Record<string, number>> {
+  if (competitionIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('competition_participants')
+    .select('competition_id')
+    .in('competition_id', competitionIds);
+  if (error) throw new Error(error.message);
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = (row as { competition_id: string }).competition_id;
+    counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function listParticipants(competitionId: string): Promise<ParticipantRow[]> {
   // Explicit FK hint: two FKs point to profiles (player_id, replacement_for).
   const { data, error } = await supabase
@@ -304,6 +319,7 @@ export const competitionService = {
   getCompetition,
   getCompetitionByCode,
   createCompetition,
+  listParticipantCounts,
   listParticipants,
   joinCompetition,
   leaveCompetition,

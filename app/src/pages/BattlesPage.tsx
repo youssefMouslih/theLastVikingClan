@@ -4,13 +4,13 @@ import { useSearchParams } from 'react-router';
 import Avatar from '../components/ui/Avatar';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
+import { confirmDialog } from '../components/ui/confirm';
 import CopyButton from '../components/ui/CopyButton';
 import { usePersistentTab } from '../hooks/usePersistentTab';
 import { Lightbox } from '../components/ui/Motion';
 import Icon from '../components/ui/Icon';
 import WhatsAppIcon from '../components/ui/WhatsAppIcon';
 import { EmptyState, FadeIn } from '../components/ui/Motion';
-import SquadsTab from '../components/battle/SquadsTab';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import {
@@ -49,7 +49,7 @@ function BattleEvidence({ path }: { path: string }) {
   );
 }
 
-const TYPES: ChallengeType[] = ['HEAD', 'FRIENDLY', 'HONOR', 'REMATCH', 'WAR'];
+const TYPES: ChallengeType[] = ['HEAD', 'FRIENDLY', 'HONOR', 'REMATCH'];
 const CONDS = ['battle.cSTD', 'battle.cCUSTOM', 'battle.cTOUR'] as const;
 const STAKES = ['battle.sNONE', 'battle.sRANK', 'battle.sTITLE'] as const;
 const COMMANDS = [
@@ -64,13 +64,13 @@ function nameOf(p: { display_name: string | null; username: string } | null | un
 }
 
 export default function BattlesPage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [params] = useSearchParams();
-  const initialTab = (['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const).find((tb) => tb === params.get('tab')) ?? 'issue';
-  const [tab, setTab] = usePersistentTab('vik-tab-battles', initialTab, ['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const);
-  const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', opponent_label: '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
-  const [rivalName, setRivalName] = useState('');
+  const initialTab = (['issue', 'incoming', 'open', 'history', 'commands'] as const).find((tb) => tb === params.get('tab')) ?? 'issue';
+  const [tab, setTab] = usePersistentTab('vik-tab-battles', initialTab, ['issue', 'incoming', 'open', 'history', 'commands'] as const);
+  const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
+  const [rivalId, setRivalId] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});
   const [shots, setShots] = useState<Record<string, File | null>>({});
   const [msg, setMsg] = useState<string | null>(null);
@@ -99,6 +99,8 @@ export default function BattlesPage() {
   const reignQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
   const holderId = reignQuery.data?.holder_id ?? null;
   const candidates = (membersQuery.data ?? []).filter((m) => m.id !== me?.id);
+  const rival = candidates.find((m) => m.id === rivalId) ?? null;
+  const rivalName = rival ? (rival.known_name ?? rival.display_name ?? rival.username) : '';
 
   // Throne pledge entry (?opponent=<holder>&throne=1 from the throne card):
   // pre-arm an Honor Duel flagged for the throne once the reign loads.
@@ -120,7 +122,7 @@ export default function BattlesPage() {
       if (ok) setMsg(ok);
       return true;
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
       return false;
     } finally {
       setBusy(false);
@@ -131,6 +133,7 @@ export default function BattlesPage() {
     e.preventDefault();
     const sent = await run(
       async () => {
+        if (!form.openCall && !form.opponent_id) throw new Error(t('battle.opponentRequired'));
         if (form.for_throne) {
           if (form.type !== 'HONOR') throw new Error('Throne battles must be Honor Duels.');
           if (!holderId) throw new Error('The throne is vacant - ask an admin to crown a champion.');
@@ -140,8 +143,7 @@ export default function BattlesPage() {
         }
         await issueChallenge(
           {
-            opponent_id: form.opponent_id || null,
-            opponent_label: form.opponent_id ? null : form.opponent_label || null,
+            opponent_id: form.opponent_id,
             type: form.type,
             conditions: t(form.conditions as 'battle.cSTD'),
             stakes: form.for_throne ? t('throne.title') : t(form.stakes as 'battle.sNONE'),
@@ -154,14 +156,13 @@ export default function BattlesPage() {
       },
       t('battle.issued'),
     );
-    setForm({ opponent_id: '', opponent_label: '', type: 'HEAD', conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
+    setForm({ opponent_id: '', type: 'HEAD', conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
     if (sent) setTab('history');
   }
 
   function rematchOf(ch: ChallengeRow) {
     setForm({
       opponent_id: ch.challenger_id === me?.id ? (ch.opponent_id ?? '') : ch.challenger_id,
-      opponent_label: '',
       type: 'REMATCH',
       conditions: 'battle.cSTD',
       stakes: 'battle.sNONE',
@@ -188,7 +189,7 @@ export default function BattlesPage() {
           </button>
           <button
             disabled={busy}
-            onClick={() => { if (confirm(t('battle.cancel') + '?')) run(() => cancelChallenge(ch, me!.id), t('battle.cancelled')); }}
+            onClick={async () => { if (await confirmDialog({ message: t('battle.cancel') + '?', danger: true })) run(() => cancelChallenge(ch, me!.id), t('battle.cancelled')); }}
             className="btn-ghost h-8 px-2 text-[11px]"
           >
             {t('battle.cancel')}
@@ -284,7 +285,7 @@ export default function BattlesPage() {
             <p className="text-xs opacity-70">{t('match.submitted')}</p>
           )}
           {(ch.status === 'PENDING' || ch.status === 'ACCEPTED') && (!isIn || ch.type === 'FRIENDLY') && (
-            <button disabled={busy} onClick={() => { if (confirm(t('battle.cancel') + '?')) run(() => cancelChallenge(ch, me!.id), t('battle.cancelled')); }} className="btn-ghost h-9 px-3 text-xs">{t('battle.cancel')}</button>
+            <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('battle.cancel') + '?', danger: true })) run(() => cancelChallenge(ch, me!.id), t('battle.cancelled')); }} className="btn-ghost h-9 px-3 text-xs">{t('battle.cancel')}</button>
           )}
           {!isIn && (
             <button
@@ -320,13 +321,13 @@ export default function BattlesPage() {
       {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
 
       <nav aria-label="Battles" className="mt-2 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
-        {(['issue', 'incoming', 'open', 'squads', 'history', 'commands'] as const).map((tb) => (
+        {(['issue', 'incoming', 'open', 'history', 'commands'] as const).map((tb) => (
           <button
             key={tb}
             onClick={() => setTab(tb)}
             className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === tb ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}
           >
-            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'open' ? `${t('battle.openMat')}${openBattles.length ? ` (${openBattles.length})` : ''}` : tb === 'squads' ? t('squad.title') : tb === 'history' ? t('battle.history') : t('battle.commands')}
+            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'open' ? `${t('battle.openMat')}${openBattles.length ? ` (${openBattles.length})` : ''}` : tb === 'history' ? t('battle.history') : t('battle.commands')}
           </button>
         ))}
       </nav>
@@ -337,7 +338,7 @@ export default function BattlesPage() {
               type="checkbox"
               checked={form.openCall}
               onChange={(e) => {
-                if (e.target.checked) setForm({ ...form, openCall: true, type: 'FRIENDLY', opponent_id: '', opponent_label: '' });
+                if (e.target.checked) setForm({ ...form, openCall: true, type: 'FRIENDLY', opponent_id: '' });
                 else setForm({ ...form, openCall: false });
               }}
               className="mt-1 h-5 w-5 accent-[#eab308]"
@@ -346,16 +347,11 @@ export default function BattlesPage() {
           </label>
           {!form.openCall && (
           <label className="label">{t('battle.opponent')}
-            <select value={form.opponent_id} onChange={(e) => setForm({ ...form, opponent_id: e.target.value, opponent_label: '' })} className="input text-sm">
+            <select required value={form.opponent_id} onChange={(e) => setForm({ ...form, opponent_id: e.target.value })} className="input text-sm">
               <option value="">{t('battle.selectOpp')}</option>
               {candidates.map((m) => <option key={m.id} value={m.id}>{m.display_name ?? m.username}</option>)}
             </select>
           </label>
-          )}
-          {!form.opponent_id && !form.openCall && (
-            <label className="label">{t('battle.external')}
-              <input value={form.opponent_label} onChange={(e) => setForm({ ...form, opponent_label: e.target.value })} className="input text-sm" />
-            </label>
           )}
           <label className="label">{t('battle.type')}
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as ChallengeType, openCall: e.target.value === 'FRIENDLY' ? form.openCall : false })} className="input text-sm">
@@ -455,7 +451,6 @@ export default function BattlesPage() {
         </div>
       )}
 
-      {tab === 'squads' && <SquadsTab />}
 
       {tab === 'history' && (
         <div className="mt-3 flex flex-col gap-2">
@@ -473,20 +468,20 @@ export default function BattlesPage() {
       {tab === 'commands' && (
         <div className="mt-3 flex flex-col gap-2">
           <label className="label">{t('battle.cmdName')}
-            <input value={rivalName} onChange={(e) => setRivalName(e.target.value)} className="input text-sm" placeholder="…" list="vik-rivals" autoComplete="off" />
-            <datalist id="vik-rivals">
+            <select value={rivalId} onChange={(e) => setRivalId(e.target.value)} className="input text-sm">
+              <option value="">{t('battle.cmdPick')}</option>
               {candidates.map((m) => (
-                <option key={m.id} value={m.known_name ?? m.display_name ?? m.username} />
+                <option key={m.id} value={m.id}>{m.known_name ?? m.display_name ?? m.username} (@{m.username})</option>
               ))}
-            </datalist>
+            </select>
           </label>
           {COMMANDS.map((c) => (
             <article key={c.title} className="card p-3 text-sm">
               <p className="font-display text-sm tracking-wide text-accent-400">{t(c.title)}</p>
               <p className="text-xs opacity-60">{t(c.sub)}</p>
-              <p className="mt-1 italic">“{t(c.text, { name: rivalName.trim() || 'Rival' })}”</p>
+              <p className="mt-1 italic">“{t(c.text, { name: rivalName || '—' })}”</p>
               <div className="mt-2">
-                <CopyButton text={t(c.text, { name: rivalName.trim() || 'Rival' })} label={t('battle.cmdCopy')} />
+                <CopyButton text={t(c.text, { name: rivalName || '—' })} label={t('battle.cmdCopy')} />
               </div>
             </article>
           ))}

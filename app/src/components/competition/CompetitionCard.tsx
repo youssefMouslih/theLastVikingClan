@@ -1,9 +1,12 @@
 import { Link } from 'react-router';
 import Icon from '../ui/Icon';
 import StatusBadge from '../ui/StatusBadge';
+import { competitionTypeLabel } from '../../i18n/competitionType';
+import { useLocale } from '../../i18n/LocaleContext';
 import type { Competition } from '../../types/database';
 
 export default function CompetitionCard({ comp, count }: { comp: Competition; count?: number }) {
+  const { t, fmtDate } = useLocale();
   return (
     <Link to={`/competitions/${comp.id}`} className="card block transition hover:shadow-md">
       <div className="flex items-center gap-2">
@@ -14,8 +17,8 @@ export default function CompetitionCard({ comp, count }: { comp: Competition; co
         <StatusBadge value={comp.status} />
       </div>
       <p className="mt-1 text-xs opacity-70">
-        {comp.type} • {count ?? '—'} / {comp.max_players} players
-        {comp.registration_deadline ? ` • closes ${new Date(comp.registration_deadline).toLocaleDateString()}` : ''}
+        {competitionTypeLabel(t, comp.type)} • {count ?? '—'} / {comp.max_players} {t('league4.players')}
+        {comp.registration_deadline ? ` • ${t('comps.closes', { date: fmtDate(comp.registration_deadline, false) })}` : ''}
       </p>
     </Link>
   );

@@ -6,6 +6,7 @@ import Icon from '../components/ui/Icon';
 import { EmptyState, LoadingRegion } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import LeagueRoster from '../components/league4v4/LeagueRoster';
+import TeamLogo from '../components/league4v4/TeamLogo';
 import { useLocale } from '../i18n/LocaleContext';
 import { leagueKeys } from '../services/leagueKeys';
 import { getLeagueSeason } from '../services/leagueSeasonService';
@@ -49,9 +50,7 @@ export default function LeagueTeamDetailPage() {
 
       <section className="hero hero-glow mt-3">
         <div className="flex items-center gap-3">
-          <span className="font-display flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-500/20 text-2xl font-bold text-brand-300">
-            {team.name.slice(0, 1).toUpperCase()}
-          </span>
+          <TeamLogo path={team.logo_path} name={team.name} className="h-14 w-14 text-2xl" rounded="rounded-2xl" />
           <div className="min-w-0 flex-1">
             <h1 className="font-display truncate text-2xl tracking-wide">{team.name}</h1>
             <p className="mt-1 flex items-center gap-1 text-xs opacity-70">
@@ -60,6 +59,7 @@ export default function LeagueTeamDetailPage() {
           </div>
           <StatusBadge value={team.status} />
         </div>
+        {team.bio && <p className="mt-3 text-sm opacity-80">{team.bio}</p>}
         {team.status === 'PENDING' && <p className="mt-3 rounded-lg border border-accent-500/40 p-2 text-xs opacity-80">{t('league4.awaitingApprovalHint')}</p>}
         <p className="mt-3 flex items-center gap-1.5 text-xs opacity-70">
           <Icon name="users" className="h-4 w-4" /> {t('league4.playersCount', { n: team.member_count })}

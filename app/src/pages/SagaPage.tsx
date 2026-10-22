@@ -14,7 +14,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Saga: Glory levels, quest board, seasonal leaderboard.
 export default function SagaPage() {
-  const { t } = useLocale();
+  const { t, tError } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [tab, setTab] = usePersistentTab('vik-tab-saga', 'quests' as 'quests' | 'ranks' | 'gifts', ['quests', 'ranks', 'gifts'] as const);
   const [msg, setMsg] = useState<string | null>(null);
@@ -95,7 +95,7 @@ export default function SagaPage() {
                     setMsg(t('gift.accepted'));
                     await Promise.all([giftsInQuery.refetch(), xpQuery.refetch(), boardQuery.refetch()]);
                   } catch (err) {
-                    setMsg(err instanceof Error ? err.message : 'Failed.');
+                    setMsg(tError(err));
                   } finally {
                     setGiftBusy(null);
                   }
@@ -113,7 +113,7 @@ export default function SagaPage() {
                     setMsg(t('gift.declined'));
                     await giftsInQuery.refetch();
                   } catch (err) {
-                    setMsg(err instanceof Error ? err.message : 'Failed.');
+                    setMsg(tError(err));
                   } finally {
                     setGiftBusy(null);
                   }
@@ -195,7 +195,7 @@ function QuestRow({ quest, userId, busyKey, setBusyKey, setMsg, norse }: {
   setMsg: (m: string | null) => void;
   norse: boolean;
 }) {
-  const { t } = useLocale();
+  const { t, tError } = useLocale();
   const query = useQuery({ queryKey: ['quest', userId, quest.key], queryFn: () => questProgress(userId, quest) });
   const p = query.data;
 
@@ -206,7 +206,7 @@ function QuestRow({ quest, userId, busyKey, setBusyKey, setMsg, norse }: {
       setMsg(t('saga.claimed', { n: quest.xp }));
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusyKey(null);
     }

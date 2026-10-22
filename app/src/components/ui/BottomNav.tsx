@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { NavLink } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import Icon, { type IconName } from './Icon';
 import { useLocale } from '../../i18n/LocaleContext';
 import { listIncoming } from '../../services/challengeService';
@@ -15,8 +15,16 @@ const tabs: { to: string; labelKey: 'nav.hall' | 'nav.arena' | 'nav.league' | 'n
   { to: '/profile', labelKey: 'nav.profile', icon: 'user' },
 ];
 
+function isTabActive(to: string, pathname: string): boolean {
+  if (to === '/home') return pathname === '/' || pathname === '/home';
+  if (to === '/competitions') return pathname === '/competitions' || pathname.startsWith('/competitions/') || pathname === '/4vs4' || pathname.startsWith('/4vs4/');
+  if (to === '/profile') return pathname === '/profile' || pathname.startsWith('/profile/') || pathname === '/settings';
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
 export default function BottomNav() {
   const { t } = useLocale();
+  const { pathname } = useLocation();
   const me = useAuthStore((s) => s.profile);
   const incomingQuery = useQuery({
     queryKey: ['battles-in', me?.id],
@@ -45,22 +53,22 @@ export default function BottomNav() {
       <div className="mx-auto grid max-w-2xl grid-cols-5">
         {tabs.map((tab) => {
           const n = badgeFor(tab);
+          const active = isTabActive(tab.to, pathname);
           return (
-            <NavLink
+            <Link
               key={tab.to}
               to={tab.to}
-              className={({ isActive }: { isActive: boolean }) =>
-                `relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-semibold ${isActive ? 'text-brand-400' : 'opacity-60'}`
-              }
+              aria-current={active ? 'page' : undefined}
+              className={`relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-xs font-semibold ${active ? 'text-brand-400' : 'opacity-60'}`}
             >
               <Icon name={tab.icon} className="h-6 w-6" />
               {t(tab.labelKey)}
               {n > 0 && (
-                <span className="absolute right-1/2 top-1 translate-x-4 rounded-full bg-accent-500 px-1.5 text-[10px] font-bold text-white">
+                <span className="absolute end-1 top-1 rounded-full bg-accent-600 px-1.5 text-[10px] font-bold text-white">
                   {n > 9 ? '9+' : n}
                 </span>
               )}
-            </NavLink>
+            </Link>
           );
         })}
       </div>

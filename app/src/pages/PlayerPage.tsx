@@ -15,7 +15,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Public player view — card, peer rating, challenge button.
 export default function PlayerPage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const { id } = useParams();
   const me = useAuthStore((s) => s.profile);
   const [msg, setMsg] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function PlayerPage() {
       setMsg(t('profile.rateThanks'));
       await ratingQuery.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -147,7 +147,7 @@ export default function PlayerPage() {
                       setAsking(false);
                       setGiftMsg('');
                     } catch (err) {
-                      setMsg(err instanceof Error ? err.message : 'Failed.');
+                      setMsg(tError(err));
                     } finally {
                       setBusy(false);
                     }

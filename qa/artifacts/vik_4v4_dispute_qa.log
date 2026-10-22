@@ -1,0 +1,8 @@
+PASS create active season with four approved squads
+PASS two squads submit lineups and reveal four duels
+PASS second dispute on the same duel is refused
+PASS participant opens a manual dispute, captain sees it, outsider cannot
+PASS squad captain can open a dispute before a result is reported
+PASS mismatched reports auto-open exactly one dispute
+
+4vs4 dispute QA: all checks passed

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { dictionaries, LOCALES, type Dict, type Locale } from './dictionaries';
+import { translateError } from './errors';
 
 const KEY = 'vik-locale';
 
@@ -16,6 +17,7 @@ interface LocaleCtx {
   dir: 'ltr' | 'rtl';
   setLocale: (l: Locale) => void;
   t: (key: keyof Dict, vars?: Record<string, string | number>) => string;
+  tError: (error: unknown) => string;
   fmtDate: (iso: string | null, withTime?: boolean) => string;
 }
 
@@ -44,11 +46,16 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     [locale],
   );
 
+  const tError = useCallback(
+    (error: unknown) => translateError(error, locale) ?? t('common.failed'),
+    [locale, t],
+  );
+
   const fmtDate = useCallback(
     (iso: string | null, withTime = true) => {
       if (!iso) return t('match.noDeadline');
       try {
-        return new Date(iso).toLocaleString(locale, withTime ? undefined : { dateStyle: 'medium' });
+        return new Intl.DateTimeFormat(locale, withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' }).format(new Date(iso));
       } catch {
         return new Date(iso).toLocaleString();
       }
@@ -56,7 +63,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     [locale, t],
   );
 
-  const value = useMemo(() => ({ locale, dir, setLocale, t, fmtDate }), [locale, dir, setLocale, t, fmtDate]);
+  const value = useMemo(() => ({ locale, dir, setLocale, t, tError, fmtDate }), [locale, dir, setLocale, t, tError, fmtDate]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

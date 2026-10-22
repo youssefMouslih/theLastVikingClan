@@ -12,7 +12,7 @@ import { createLeagueTeam, findMyLeagueTeam } from '../services/leagueTeamServic
 import { useAuthStore } from '../stores/authStore';
 
 export default function LeagueCreateTeamPage() {
-  const { t } = useLocale();
+  const { t, tError } = useLocale();
   const nav = useNavigate();
   const queryClient = useQueryClient();
   const me = useAuthStore((state) => state.profile);
@@ -95,7 +95,7 @@ export default function LeagueCreateTeamPage() {
           <p className="mt-1">{season.roster_min}–{season.roster_max} {t('league4.players')}</p>
           <p className="mt-1">{t('league4.captainAfterCreate')}</p>
         </div>
-        {mutation.isError && <p role="alert" className="text-sm text-red-400">{mutation.error.message}</p>}
+        {mutation.isError && <p role="alert" className="text-sm text-red-400">{tError(mutation.error)}</p>}
         <button type="submit" disabled={mutation.isPending || name.trim().length < 2} className="btn-primary h-11">
           {mutation.isPending ? t('league4.creating') : t('league4.createSquad')}
         </button>

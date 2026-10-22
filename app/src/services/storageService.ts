@@ -160,8 +160,9 @@ export async function getBadgeTemplateUrl(type: string): Promise<string | null> 
 // Forged badge PNG. Bucket: clan-assets (private). Path: badges/{file}.
 export async function uploadBadgeImage(file: File | Blob, fileName: string): Promise<string> {
   const path = `badges/${fileName}`;
+  const contentType = file instanceof File && ALLOWED.includes(file.type) ? file.type : 'image/png';
   const { error } = await supabase.storage.from('clan-assets').upload(path, file, {
-    contentType: 'image/png',
+    contentType,
     upsert: false,
   });
   if (error) throw new Error(`Badge upload failed: ${error.message}`);
@@ -176,8 +177,40 @@ export async function getBadgeImageUrl(path: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
+// 4vs4 squad logo. Bucket: league-assets (private).
+// Path: league/{team_id}/logo-{timestamp}.{ext}; 0045 validates it.
+const LEAGUE_LOGO_ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+const LEAGUE_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const LEAGUE_LOGO_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+
+export async function uploadLeagueTeamLogo(file: File, teamId: string): Promise<string> {
+  if (!LEAGUE_LOGO_ALLOWED.includes(file.type)) throw new Error('Squad logo must be JPG, PNG or WEBP.');
+  if (file.size > LEAGUE_LOGO_MAX_BYTES) throw new Error('Squad logo must be under 2 MB.');
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) throw new Error('You must be signed in to upload a squad logo.');
+  const ext = LEAGUE_LOGO_EXT[file.type] ?? 'webp';
+  const path = `league/${auth.user.id}/${teamId}/logo-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('league-assets').upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) throw new Error(`Logo upload failed: ${error.message}`);
+  return path;
+}
+
+export async function getLeagueTeamLogoUrl(filePath: string | null): Promise<string | null> {
+  if (!filePath) return null;
+  const { data, error } = await supabase.storage.from('league-assets').createSignedUrl(filePath, 7 * 24 * 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
 // Delete a single stored file (best-effort: missing bucket/policy never throws).
-export async function deleteStoredFile(bucket: 'avatars' | 'match-evidence' | 'clan-assets', path: string): Promise<void> {
+export async function deleteStoredFile(bucket: 'avatars' | 'match-evidence' | 'clan-assets' | 'league-assets', path: string): Promise<void> {
   try {
     await supabase.storage.from(bucket).remove([path]);
   } catch (e) {
@@ -230,4 +263,4 @@ export async function purgeRoundEvidence(competitionId: string, roundId: string)
   return purgeEvidenceForMatchIds(ids);
 }
 
-export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadLeagueEvidence, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, deleteStoredFile, purgeCompletedEvidence, purgeRoundEvidence, client: supabase };
+export const storageService = { uploadMatchEvidence, getEvidenceSignedUrl, uploadBattleEvidence, getBattleEvidenceUrl, uploadLeagueEvidence, uploadAvatar, getAvatarUrl, uploadBanner, getBannerUrl, uploadBadgeImage, getBadgeImageUrl, badgeTemplatePath, uploadBadgeTemplate, getBadgeTemplateUrl, uploadLeagueTeamLogo, getLeagueTeamLogoUrl, deleteStoredFile, purgeCompletedEvidence, purgeRoundEvidence, client: supabase };

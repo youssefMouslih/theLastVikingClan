@@ -12,7 +12,7 @@ import CopyButton from '../ui/CopyButton';
 // means the admin reaches out — the candidate joins later through the normal
 // signup/invite flow.
 export default function TryoutsTab() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [prov, setProv] = useState<{ name: string; username: string; email: string; temp: string; contact: string } | null>(null);
@@ -33,7 +33,7 @@ export default function TryoutsTab() {
       }
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }
@@ -45,7 +45,7 @@ export default function TryoutsTab() {
       await resolveTryout(id, status);
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }
@@ -64,7 +64,7 @@ export default function TryoutsTab() {
       await assignTester(id, testerId);
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }

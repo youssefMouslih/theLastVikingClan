@@ -4,32 +4,41 @@ import { Link } from 'react-router';
 import AppBar from '../components/ui/AppBar';
 import Avatar from '../components/ui/Avatar';
 import BottomNav from '../components/ui/BottomNav';
+import CopyButton from '../components/ui/CopyButton';
 import Icon from '../components/ui/Icon';
+import QueryError from '../components/ui/QueryError';
 import { EmptyState, LoadingRegion } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import LeagueRoster from '../components/league4v4/LeagueRoster';
+import TeamLogo from '../components/league4v4/TeamLogo';
 import { useLocale } from '../i18n/LocaleContext';
+import { confirmDialog } from '../components/ui/confirm';
 import { leagueKeys } from '../services/leagueKeys';
 import { listLeagueSeasons, pickCurrentLeagueSeason } from '../services/leagueSeasonService';
 import {
   answerLeagueInvite,
+  clearLeagueTeamLogo,
   findMyLeagueTeam,
   inviteLeagueMember,
   leaveLeagueTeam,
   listIncomingLeagueInvites,
-  listInvitablePlayers,
+  listLeagueInviteCandidates,
   listTeamLeagueInvites,
   removeLeagueTeamMember,
+  revokeLeagueInvite,
+  saveLeagueTeamLogo,
+  setLeagueTeamBio,
   transferLeagueCaptain,
   updateLeagueTeam,
 } from '../services/leagueTeamService';
 import { useAuthStore } from '../stores/authStore';
 
 export default function LeagueMyTeamPage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const queryClient = useQueryClient();
   const me = useAuthStore((state) => state.profile);
   const [name, setName] = useState<string | null>(null);
+  const [bioDraft, setBioDraft] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -44,6 +53,12 @@ export default function LeagueMyTeamPage() {
   const team = teamQuery.data ?? null;
   const isCaptain = !!team && team.captain_id === me?.id;
   const canEditRoster = !!team && season?.status === 'REGISTRATION';
+  const canEditProfile = !!team && isCaptain
+    && (season?.status === 'REGISTRATION' || season?.status === 'ACTIVE')
+    && (team.status === 'PENDING' || team.status === 'APPROVED');
+  const logoStatusLocked = !!team && isCaptain
+    && (season?.status === 'REGISTRATION' || season?.status === 'ACTIVE')
+    && team.status !== 'PENDING' && team.status !== 'APPROVED';
   const incomingQuery = useQuery({
     queryKey: leagueKeys.incomingInvites(me?.id ?? 'none'),
     queryFn: () => listIncomingLeagueInvites(me!.id),
@@ -54,20 +69,20 @@ export default function LeagueMyTeamPage() {
     queryFn: () => listTeamLeagueInvites(team!.id),
     enabled: !!team && isCaptain && canEditRoster,
   });
-  const invitableQuery = useQuery({
-    queryKey: leagueKeys.invitablePlayers(season?.id ?? 'none', team?.id ?? 'none'),
-    queryFn: () => listInvitablePlayers(season!.id, team!.id, me?.id),
+  const candidatesQuery = useQuery({
+    queryKey: leagueKeys.inviteCandidates(season?.id ?? 'none', team?.id ?? 'none'),
+    queryFn: () => listLeagueInviteCandidates(season!.id, team!.id, me?.id),
     enabled: !!season && !!team && isCaptain && canEditRoster,
   });
   const incoming = incomingQuery.data ?? [];
   const sent = sentQuery.data ?? [];
   const candidates = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return (invitableQuery.data ?? []).filter((player) => {
+    return (candidatesQuery.data ?? []).filter((player) => {
       if (!query) return true;
       return player.username.toLowerCase().includes(query) || (player.display_name ?? '').toLowerCase().includes(query);
     });
-  }, [invitableQuery.data, search]);
+  }, [candidatesQuery.data, search]);
 
   async function run(key: string, action: () => Promise<void>, success: string) {
     setBusy(key); setErr(null); setMsg(null);
@@ -76,7 +91,7 @@ export default function LeagueMyTeamPage() {
       await queryClient.invalidateQueries({ queryKey: ['league'] });
       setMsg(success);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : t('league4.actionFailed'));
+      setErr(tError(error));
     } finally {
       setBusy(null);
     }
@@ -92,21 +107,40 @@ export default function LeagueMyTeamPage() {
     if (!team) return;
     void run(`invite-player-${playerId}`, () => inviteLeagueMember(team.id, playerId), t('league4.inviteSentTo', { name: playerName }));
   }
-  function removeMember(playerId: string, playerName: string) {
-    if (!team || !confirm(t('league4.removeConfirm', { name: playerName }))) return;
+
+  async function undoInvite(inviteId: string, playerName: string) {
+    if (!(await confirmDialog({ message: t('league4.undoInviteConfirm', { name: playerName }) }))) return;
+    void run(`revoke-invite-${inviteId}`, () => revokeLeagueInvite(inviteId), t('league4.inviteRevoked'));
+  }
+  async function removeMember(playerId: string, playerName: string) {
+    if (!team || !(await confirmDialog({ message: t('league4.removeConfirm', { name: playerName }), danger: true }))) return;
     void run(`remove-${playerId}`, () => removeLeagueTeamMember(team.id, playerId), t('league4.memberRemoved'));
   }
-  function transferCaptain(playerId: string, playerName: string) {
-    if (!team || !confirm(t('league4.transferConfirm', { name: playerName }))) return;
+  async function transferCaptain(playerId: string, playerName: string) {
+    if (!team || !(await confirmDialog({ message: t('league4.transferConfirm', { name: playerName }), danger: true }))) return;
     void run(`transfer-${playerId}`, () => transferLeagueCaptain(team.id, playerId), t('league4.captainTransferred'));
   }
-  function leaveTeam() {
-    if (!team || !confirm(t('league4.leaveConfirm'))) return;
+  async function leaveTeam() {
+    if (!team || !(await confirmDialog({ message: t('league4.leaveConfirm'), danger: true }))) return;
     void run('leave', () => leaveLeagueTeam(team.id), t('league4.leftSquad'));
+  }
+  function uploadLogo(file: File) {
+    if (!team) return;
+    void run('logo', async () => { await saveLeagueTeamLogo(team.id, file, team.logo_path); }, t('league4.logoUpdated'));
+  }
+  function removeLogo() {
+    if (!team) return;
+    void run('logo', () => clearLeagueTeamLogo(team.id, team.logo_path), t('league4.logoRemoved'));
   }
 
   if (seasonsQuery.isLoading || teamQuery.isLoading) {
     return <main className="page"><AppBar title={t('league4.mySquad')} /><LoadingRegion loading label={t('common.loading')} skeleton="card"><span /></LoadingRegion><BottomNav /></main>;
+  }
+  if (seasonsQuery.isError) {
+    return <main className="page"><AppBar title={t('league4.mySquad')} /><QueryError error={seasonsQuery.error} onRetry={() => void seasonsQuery.refetch()} /><BottomNav /></main>;
+  }
+  if (teamQuery.isError) {
+    return <main className="page"><AppBar title={t('league4.mySquad')} /><QueryError error={teamQuery.error} onRetry={() => void teamQuery.refetch()} /><BottomNav /></main>;
   }
   if (!season) {
     return <main className="page"><AppBar title={t('league4.mySquad')} /><EmptyState icon={<Icon name="trophy" />} title={t('league4.noSeason')} hint={t('league4.noSeasonHint')} /><BottomNav /></main>;
@@ -153,6 +187,7 @@ export default function LeagueMyTeamPage() {
   }
 
   const squadName = name ?? team.name;
+  const squadBio = bioDraft ?? team.bio ?? '';
 
   return (
     <main className="page">
@@ -164,11 +199,21 @@ export default function LeagueMyTeamPage() {
       </div>
 
       <section className="hero hero-glow mt-3">
-        <div className="flex items-center gap-2">
-          <Link to={`/4vs4/teams/${team.id}`} className="font-display min-w-0 flex-1 truncate text-2xl tracking-wide">{team.name}</Link>
-          <StatusBadge value={team.status} />
+        <div className="flex items-center gap-3">
+          <TeamLogo path={team.logo_path} name={team.name} className="h-16 w-16 text-2xl" rounded="rounded-2xl" />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Link to={`/4vs4/teams/${team.id}`} className="font-display min-w-0 flex-1 truncate text-2xl tracking-wide">{team.name}</Link>
+            <span className="shrink-0 rounded-full border border-[var(--border)] px-2 py-0.5 text-xs font-semibold tabular-nums" title={t('league4.roster')}>
+              {team.member_count}/{season.roster_max}
+            </span>
+            <StatusBadge value={team.status} />
+          </div>
         </div>
         <p className="mt-1 text-xs opacity-60">{t('league4.playersCount', { n: team.member_count })} · {t('league4.captain')}: {team.captain_profile?.display_name ?? team.captain_profile?.username ?? '—'}</p>
+        {team.bio && <p className="mt-2 text-sm opacity-80">{team.bio}</p>}
+        <div className="mt-2">
+          <CopyButton text={`${window.location.origin}/4vs4/teams/${team.id}`} label={t('common.inviteLink')} />
+        </div>
         {team.status === 'PENDING' && <p className="mt-2 rounded-lg border border-accent-500/40 p-2 text-xs opacity-80">{t('league4.awaitingApprovalHint')}</p>}
         {!canEditRoster && <p className="mt-2 rounded-lg border border-[var(--border)] p-2 text-xs opacity-70">{t('league4.rosterLocked')}</p>}
       </section>
@@ -190,8 +235,71 @@ export default function LeagueMyTeamPage() {
         </form>
       )}
 
+      {logoStatusLocked && (
+        <p className="mt-2 rounded-lg border border-[var(--border)] p-2 text-xs opacity-70">{t('league4.logoLocked')}</p>
+      )}
+
+      {canEditProfile && (
+        <section className="card mt-3">
+          <h2 className="card-title flex items-center gap-1"><Icon name="camera" className="h-4 w-4 text-brand-400" /> {t('league4.squadLogo')}</h2>
+          <p className="mt-1 text-xs opacity-60">{t('league4.logoHint')}</p>
+          <div className="mt-2 flex items-center gap-3">
+            <TeamLogo path={team.logo_path} name={team.name} className="h-14 w-14 text-xl" rounded="rounded-2xl" />
+            <label className={`btn-ghost h-10 cursor-pointer px-3 text-sm ${busy !== null ? 'pointer-events-none opacity-60' : ''}`}>
+              {team.logo_path ? t('league4.changeLogo') : t('league4.uploadLogo')}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={busy !== null}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = '';
+                  if (file) uploadLogo(file);
+                }}
+              />
+            </label>
+            {team.logo_path && (
+              <button type="button" disabled={busy !== null} onClick={removeLogo} className="btn-danger h-10 px-3 text-sm">
+                {t('league4.removeLogo')}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {canEditProfile && (
+        <form
+          className="card mt-3 flex flex-col gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run('bio', async () => {
+              await setLeagueTeamBio(team.id, squadBio);
+              setBioDraft(null);
+            }, t('league4.bioUpdated'));
+          }}
+        >
+          <h2 className="card-title flex items-center gap-1"><Icon name="pencil" className="h-4 w-4 text-brand-400" /> {t('league4.squadBio')}</h2>
+          <p className="text-xs opacity-60">{t('league4.bioHint')}</p>
+          <textarea
+            rows={3}
+            maxLength={160}
+            value={squadBio}
+            onChange={(event) => setBioDraft(event.target.value)}
+            placeholder={t('league4.bioPlaceholder')}
+            className="input resize-none text-sm"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] opacity-50">{squadBio.length}/160</span>
+            <button type="submit" disabled={busy === 'bio' || squadBio.trim().length > 160} className="btn-primary h-10 px-4 text-sm">{t('league4.saveBio')}</button>
+          </div>
+        </form>
+      )}
+
       <section className="card mt-3">
-        <h2 className="card-title flex items-center gap-1"><Icon name="users" className="h-4 w-4 text-brand-400" /> {t('league4.roster')}</h2>
+        <h2 className="card-title flex items-center gap-1"><Icon name="users" className="h-4 w-4 text-brand-400" /> {t('league4.roster')}
+          <span className="ms-auto rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold tabular-nums">{team.member_count}/{season.roster_max}</span>
+        </h2>
         <div className="mt-2">
           <LeagueRoster
             members={team.members}
@@ -211,7 +319,9 @@ export default function LeagueMyTeamPage() {
 
       {isCaptain && canEditRoster && (
         <section className="card mt-3">
-          <h2 className="card-title flex items-center gap-1"><Icon name="plus" className="h-4 w-4 text-brand-400" /> {t('league4.invitePlayers')}</h2>
+          <h2 className="card-title flex items-center gap-1"><Icon name="plus" className="h-4 w-4 text-brand-400" /> {t('league4.invitePlayers')}
+            <span className="ms-auto rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold tabular-nums">{team.member_count}/{season.roster_max}</span>
+          </h2>
           <p className="mt-1 text-xs opacity-60">{t('league4.invitePlayersHint', { min: season.roster_min, max: season.roster_max })}</p>
           <div className="relative mt-2">
             <Icon name="search" className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
@@ -220,15 +330,35 @@ export default function LeagueMyTeamPage() {
           <div className="mt-2 flex max-h-72 flex-col gap-1 overflow-y-auto">
             {candidates.map((player) => {
               const playerName = player.display_name ?? player.username;
+              const statusLabel = player.squad_status === 'FREE'
+                ? t('league4.freeToJoin')
+                : player.squad_status === 'INVITED'
+                  ? t('league4.invitePending')
+                  : t('league4.playerInSquad');
+              const statusClass = player.squad_status === 'FREE'
+                ? 'text-brand-400'
+                : player.squad_status === 'INVITED'
+                  ? 'text-accent-400'
+                  : 'opacity-50';
               return (
                 <div key={player.id} className="flex items-center gap-2 rounded-lg p-1.5">
                   <Avatar path={player.avatar_url} name={playerName} className="h-9 w-9 text-sm" zoomable={false} />
-                  <span className="min-w-0 flex-1 truncate text-sm">{playerName}</span>
-                  <button type="button" disabled={busy === `invite-player-${player.id}`} onClick={() => invitePlayer(player.id, playerName)} className="btn-ghost h-9 px-3 text-xs">{t('league4.invite')}</button>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">{playerName}</p>
+                    <p className={`truncate text-[10px] font-medium ${statusClass}`} title={player.squad_name ?? undefined}>
+                      {statusLabel}{player.squad_name ? ` · ${player.squad_name}` : ''}
+                    </p>
+                  </div>
+                  {player.squad_status === 'FREE' && (
+                    <button type="button" disabled={busy === `invite-player-${player.id}`} onClick={() => invitePlayer(player.id, playerName)} className="btn-ghost h-9 px-3 text-xs">{t('league4.invite')}</button>
+                  )}
+                  {player.squad_status === 'INVITED' && player.invite_id && (
+                    <button type="button" disabled={busy === `revoke-invite-${player.invite_id}`} onClick={() => undoInvite(player.invite_id!, playerName)} className="btn-ghost h-9 px-3 text-xs">{t('league4.undoInvite')}</button>
+                  )}
                 </div>
               );
             })}
-            {candidates.length === 0 && <p className="py-3 text-center text-xs opacity-60">{t('league4.noEligiblePlayers')}</p>}
+            {candidates.length === 0 && <p className="py-3 text-center text-xs opacity-60">{search.trim() ? t('league4.noSearchResults') : t('league4.noEligiblePlayers')}</p>}
           </div>
           {sent.length > 0 && (
             <div className="mt-3 border-t border-[var(--border)] pt-2">
@@ -239,6 +369,14 @@ export default function LeagueMyTeamPage() {
                     <Icon name="clock" className="h-3.5 w-3.5 opacity-50" />
                     <span className="min-w-0 flex-1 truncate">{invite.player?.display_name ?? invite.player?.username ?? invite.player_id.slice(0, 8)}</span>
                     <span className="text-xs opacity-60">{t('league4.pending')}</span>
+                    <button
+                      type="button"
+                      disabled={busy === `revoke-invite-${invite.id}`}
+                      onClick={() => undoInvite(invite.id, invite.player?.display_name ?? invite.player?.username ?? '?')}
+                      className="btn-ghost h-8 px-2 text-[10px]"
+                    >
+                      {t('league4.undoInvite')}
+                    </button>
                   </li>
                 ))}
               </ul>

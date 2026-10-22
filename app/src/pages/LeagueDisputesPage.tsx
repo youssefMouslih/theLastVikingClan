@@ -12,7 +12,7 @@ import { leagueKeys } from '../services/leagueKeys';
 import type { LeagueDisputeResolutionInput } from '../types/league4v4';
 
 export default function LeagueDisputesPage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function LeagueDisputesPage() {
       await queryClient.invalidateQueries({ queryKey: ['league'] });
       setMsg(t('league4.disputeResolved'));
     } catch (error) {
-      setErr(error instanceof Error ? error.message : t('league4.actionFailed'));
+      setErr(tError(error));
       throw error;
     } finally {
       setBusy(null);

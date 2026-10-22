@@ -18,7 +18,7 @@ export default function LeaguePenaltyPanel({
   teams: LeagueTeamSummary[];
   matchdays: LeagueMatchday[];
 }) {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate , tError} = useLocale();
   const queryClient = useQueryClient();
   const [teamId, setTeamId] = useState('');
   const [points, setPoints] = useState('');
@@ -63,7 +63,7 @@ export default function LeaguePenaltyPanel({
       setReason('');
       setMatchdayId('');
     } catch (error) {
-      setErr(error instanceof Error ? error.message : t('league4.actionFailed'));
+      setErr(tError(error));
     } finally {
       setBusy(false);
     }

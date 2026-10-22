@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useLocale } from '../../i18n/LocaleContext';
+import { confirmDialog } from '../ui/confirm';
 import { createAnnouncement, deleteAnnouncement, listActiveAnnouncements } from '../../services/announcementService';
 import { notify } from '../../services/notificationService';
 import { listActiveMembers } from '../../services/playerService';
@@ -9,7 +10,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 // Announcements management (§65). Publishing notifies all active members.
 export default function AnnouncementsTab() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [form, setForm] = useState({ title: '', content: '', priority: 'NORMAL' as AnnouncementPriority, expires: '' });
   const [msg, setMsg] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export default function AnnouncementsTab() {
       setForm({ title: '', content: '', priority: 'NORMAL', expires: '' });
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Publish failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -61,7 +62,7 @@ export default function AnnouncementsTab() {
             <p className="font-bold">{a.title} <span className="status-badge opacity-60">{a.priority}</span></p>
             <p className="opacity-80">{a.content}</p>
             <button
-              onClick={async () => { if (confirm(t('ann.deleteConfirm'))) { await deleteAnnouncement(a.id); query.refetch(); } }}
+              onClick={async () => { if (await confirmDialog({ message: t('ann.deleteConfirm'), danger: true })) { await deleteAnnouncement(a.id); query.refetch(); } }}
               className="mt-1 text-xs underline"
             >
               {t('ann.delete')}

@@ -1,0 +1,22 @@
+PASS create season
+PASS season opens for registration
+PASS admin writes and player reads season rules
+PASS four captains create squads
+PASS captain invite can be revoked
+PASS captains invite and players join (6 per squad)
+PASS captain sets squad bio
+PASS captain uploads squad logo and player can sign it
+PASS another player cannot upload into the captain folder
+PASS admin uploads winner badge and sets it on the season
+PASS award guard
+PASS winner badge cannot be awarded before completion
+PASS admin approves all four squads
+PASS fixture generation creates 6 matchdays / 12 fixtures
+PASS fixture regeneration with reset does not hit a duplicate key
+PASS no-reset guard
+PASS second generation without reset is refused cleanly
+PASS standings expose four squads
+PASS season activates with approved rosters and fixtures
+PASS cancel season deletes it and all child rows
+
+4vs4 smoke: all checks passed

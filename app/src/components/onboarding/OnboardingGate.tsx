@@ -16,7 +16,7 @@ export function needsOnboarding(profile: { display_name: string | null; known_na
 }
 
 export default function OnboardingGate() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const init = useAuthStore((s) => s.init);
   const { toast } = useToast();
@@ -69,7 +69,7 @@ export default function OnboardingGate() {
       await init();
       toast(t('onboard.reward', { n: ONBOARDING_REWARD_GP }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed.');
+      setError(tError(err));
     } finally {
       setBusy(false);
     }

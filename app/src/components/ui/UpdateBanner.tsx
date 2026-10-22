@@ -1,6 +1,7 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useEffect, useState } from 'react';
 import { useLocale } from '../../i18n/LocaleContext';
+import Icon from './Icon';
 
 const KEY = 'pwa-just-updated';
 const DISMISS_KEY = 'pwa-update-dismissed';
@@ -48,8 +49,8 @@ export default function UpdateBanner() {
         >
           {t('pwa.refresh')}
         </button>
-        <button type="button" onClick={dismiss} className="btn-ghost h-10 px-3 text-xs" aria-label={t('common.close')}>
-          ✕
+        <button type="button" onClick={dismiss} className="btn-ghost h-10 w-10 !px-0" aria-label={t('common.close')}>
+          <Icon name="x" className="h-5 w-5" />
         </button>
       </div>
     </div>

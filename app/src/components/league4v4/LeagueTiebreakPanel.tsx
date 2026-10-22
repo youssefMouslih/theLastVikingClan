@@ -23,7 +23,7 @@ export default function LeagueTiebreakPanel({
   seasonStatus: LeagueSeasonStatus;
   teams: LeagueTeamSummary[];
 }) {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate , tError} = useLocale();
   const queryClient = useQueryClient();
   const [draftOrder, setDraftOrder] = useState<string[] | null>(null);
   const [reason, setReason] = useState('');
@@ -64,7 +64,7 @@ export default function LeagueTiebreakPanel({
       setDraftOrder(order);
       setMsg(t('league4.tiebreakSaved'));
     } catch (error) {
-      setErr(error instanceof Error ? error.message : t('league4.actionFailed'));
+      setErr(tError(error));
     } finally {
       setBusy(false);
     }

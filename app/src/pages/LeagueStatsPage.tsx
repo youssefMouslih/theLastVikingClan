@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import LeagueSeasonSelect from '../components/league4v4/LeagueSeasonSelect';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { EmptyState, FadeIn, LoadingRegion } from '../components/ui/Motion';
+import QueryError from '../components/ui/QueryError';
 import { formatDiff } from '../competition/league4v4/standings';
 import { useLocale } from '../i18n/LocaleContext';
 import { leagueKeys } from '../services/leagueKeys';
@@ -16,12 +17,13 @@ type StatsTab = 'players' | 'teams';
 
 export default function LeagueStatsPage() {
   const { t } = useLocale();
-  const [selectedId, setSelectedId] = useState('');
+  const [params, setParams] = useSearchParams();
+  const [selectedId, setSelectedId] = useState(params.get('season') ?? '');
   const [tab, setTab] = useState<StatsTab>('players');
   const seasonsQuery = useQuery({ queryKey: leagueKeys.seasons, queryFn: listLeagueSeasons });
   const seasons = useMemo(() => seasonsQuery.data ?? [], [seasonsQuery.data]);
   const autoId = seasons.length > 0 ? pickCurrentLeagueSeason(seasons)?.id ?? seasons[0].id : '';
-  const activeId = selectedId || autoId;
+  const activeId = selectedId && seasons.some((item) => item.id === selectedId) ? selectedId : autoId;
   const season = seasons.find((item) => item.id === activeId) ?? null;
   const statsActive = season?.status === 'ACTIVE' || season?.status === 'COMPLETED';
   const playerQuery = useQuery({
@@ -52,11 +54,20 @@ export default function LeagueStatsPage() {
         <Link to="/4vs4/standings" className="btn-ghost h-10 px-3 text-xs">{t('league4.standings')}</Link>
       </div>
 
-      {seasons.length === 0 ? (
+      {seasonsQuery.isError ? (
+        <QueryError error={seasonsQuery.error} onRetry={() => void seasonsQuery.refetch()} />
+      ) : seasons.length === 0 ? (
         <EmptyState icon={<Icon name="chart" />} title={t('league4.noSeason')} hint={t('league4.noSeasonHint')} />
       ) : (
         <FadeIn>
-          <LeagueSeasonSelect seasons={seasons} value={activeId} onChange={setSelectedId} />
+          <LeagueSeasonSelect
+            seasons={seasons}
+            value={activeId}
+            onChange={(id) => {
+              setSelectedId(id);
+              setParams(id === autoId ? {} : { season: id }, { replace: true });
+            }}
+          />
 
           {!statsActive ? (
             <EmptyState icon={<Icon name="chart" />} title={t('league4.noStats')} hint={t('league4.noStatsHint')} />
@@ -73,6 +84,11 @@ export default function LeagueStatsPage() {
 
               {loading ? (
                 <LoadingRegion loading label={t('common.loading')} skeleton="card"><span /></LoadingRegion>
+              ) : (tab === 'players' ? playerQuery.isError : teamQuery.isError) ? (
+                <QueryError
+                  error={tab === 'players' ? playerQuery.error : teamQuery.error}
+                  onRetry={() => void (tab === 'players' ? playerQuery.refetch() : teamQuery.refetch())}
+                />
               ) : empty ? (
                 <EmptyState
                   icon={<Icon name="chart" />}

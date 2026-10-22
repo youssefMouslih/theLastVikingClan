@@ -13,6 +13,16 @@ export interface DisputeRow {
   reporter?: { username: string; display_name: string | null } | null;
 }
 
+export interface MatchDisputeRow {
+  id: string;
+  reason: string;
+  description: string | null;
+  status: string;
+  resolution: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
 // Admin dispute queue (§41-43). Every decision is audit-logged (§73).
 export async function listDisputes(openOnly = true): Promise<DisputeRow[]> {
   let q = supabase
@@ -34,6 +44,16 @@ export async function listDisputes(openOnly = true): Promise<DisputeRow[]> {
     }
   }
   return rows;
+}
+
+export async function listMatchDisputes(matchId: string): Promise<MatchDisputeRow[]> {
+  const { data, error } = await supabase
+    .from('disputes')
+    .select('id,reason,description,status,resolution,created_at,resolved_at')
+    .eq('match_id', matchId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as MatchDisputeRow[];
 }
 
 export type ResolveAction = 'confirm_submitted' | 'set_result' | 'forfeit_a' | 'forfeit_b' | 'reject';
@@ -72,4 +92,4 @@ export async function resolveDispute(
   await supabase.from('audit_logs').insert({ actor_id: adminId, action: 'ADMIN_RESOLVED_DISPUTE', entity_type: 'dispute', entity_id: dispute.id, new_data: { action, scoreA, scoreB }, reason: note ?? null });
 }
 
-export const disputeService = { listDisputes, resolveDispute, client: supabase };
+export const disputeService = { listDisputes, listMatchDisputes, resolveDispute, client: supabase };

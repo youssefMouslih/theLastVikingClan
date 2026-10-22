@@ -8,6 +8,7 @@ import { Countdown, Lightbox } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import { supabase } from '../lib/supabase';
+import { listMatchDisputes } from '../services/disputeService';
 import { adminRejectResult, adminSetResult, awardForfeit, claimForfeit, confirmResult, disputeResult, getMatch, submitResult } from '../services/matchService';
 import { getMember } from '../services/playerService';
 import { getEvidenceSignedUrl } from '../services/storageService';
@@ -26,7 +27,7 @@ const REASON_EN: Record<string, string> = {
 };
 
 export default function MatchPage() {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate, tError } = useLocale();
   const { id } = useParams();
   const me = useAuthStore((s) => s.profile);
   const isAdmin = me?.role === 'OWNER' || me?.role === 'ADMIN' || me?.role === 'MODERATOR';
@@ -83,14 +84,20 @@ export default function MatchPage() {
     },
   });
 
+  const disputesQuery = useQuery({
+    queryKey: ['match-disputes', id],
+    enabled: !!id,
+    queryFn: () => listMatchDisputes(id!),
+  });
+
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true); setMsg(null);
     try {
       await fn();
-      await Promise.all([matchQuery.refetch(), evidenceQuery.refetch()]);
+      await Promise.all([matchQuery.refetch(), evidenceQuery.refetch(), disputesQuery.refetch()]);
       setMsg(ok);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Action failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -101,6 +108,8 @@ export default function MatchPage() {
 
   const iAmParticipant = me && (me.id === m.player_a_id || me.id === m.player_b_id);
   const iAmOpponent = m.status === 'RESULT_SUBMITTED' && me && me.id !== m.submitted_by && (me.id === m.player_a_id || me.id === m.player_b_id);
+  const matchDisputes = disputesQuery.data ?? [];
+  const activeDispute = matchDisputes.find((d) => d.status === 'OPEN' || d.status === 'UNDER_REVIEW') ?? null;
   const deadlinePassed = m.deadline ? Date.now() > new Date(m.deadline).getTime() : false;
   // Claimed forfeit: evidence stays blurred for everyone except staff.
   const forfeitPending = !!m.forfeit_claimed_by;
@@ -139,6 +148,24 @@ export default function MatchPage() {
         <p role="alert" className="card mt-2 border-amber-400 text-sm">
           <span className="font-bold">{t('match.modNote')}: </span>{m.moderation_comment}
         </p>
+      )}
+      {m.status === 'DISPUTED' && iAmParticipant && (
+        <section className="card mt-3 border-amber-500/40">
+          <div className="flex items-center gap-2">
+            <h2 className="card-title min-w-0 flex-1">{t('match.disputeReviewTitle')}</h2>
+            <StatusBadge value={activeDispute?.status ?? 'DISPUTED'} />
+          </div>
+          <p className="mt-1 text-xs opacity-70">{t('match.disputeReviewHint')}</p>
+          {activeDispute && (
+            <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-amber-500">{t('match.disputeReviewReason')}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{activeDispute.reason}</p>
+              {activeDispute.description && (
+                <p className="mt-1 whitespace-pre-wrap text-xs opacity-70">{activeDispute.description}</p>
+              )}
+            </div>
+          )}
+        </section>
       )}
       {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} blurred={blurred} />}
 

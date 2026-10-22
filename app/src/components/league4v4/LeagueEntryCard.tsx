@@ -15,7 +15,6 @@ import StatusBadge from '../ui/StatusBadge';
 export default function LeagueEntryCard({ compact = false }: { compact?: boolean }) {
   const { t, fmtDate } = useLocale();
   const me = useAuthStore((state) => state.profile);
-  const canManage = me?.role === 'OWNER' || me?.role === 'ADMIN';
   const seasonsQuery = useQuery({ queryKey: leagueKeys.seasons, queryFn: listLeagueSeasons });
   const season = pickCurrentLeagueSeason(seasonsQuery.data ?? []);
   const visible = !!season && (season.status === 'ACTIVE' || season.status === 'REGISTRATION');
@@ -63,20 +62,7 @@ export default function LeagueEntryCard({ compact = false }: { compact?: boolean
     if (compact) return null;
     return <section className="card mt-3 text-sm opacity-70">{t('common.loading')}</section>;
   }
-  if (!visible) {
-    if (!compact && canManage) {
-      return (
-        <section className="card mt-3">
-          <h2 className="card-title flex items-center gap-1">
-            <Icon name="trophy" className="h-4 w-4 text-brand-400" /> {t('league4.title')}
-          </h2>
-          <p className="mt-1 text-sm opacity-70">{t('league4.noSeason')}</p>
-          <Link to="/4vs4/admin" className="btn-primary mt-2 h-11 text-sm">{t('league4.createSeason')}</Link>
-        </section>
-      );
-    }
-    return null;
-  }
+  if (!visible) return null;
 
   return (
     <section className="card mt-3 border-brand-500/40">

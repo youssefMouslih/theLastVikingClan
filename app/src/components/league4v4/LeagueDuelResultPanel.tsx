@@ -8,6 +8,7 @@ import {
   type ResultDraft,
 } from '../../competition/league4v4/result';
 import { useLocale } from '../../i18n/LocaleContext';
+import { confirmDialog } from '../ui/confirm';
 import type {
   LeagueDisputeWithOpener,
   LeagueDuelReportWithPlayer,
@@ -130,8 +131,8 @@ export default function LeagueDuelResultPanel({
           <button
             type="button"
             disabled={busy}
-            onClick={() => {
-              if (confirm(t('league4.resultConfirmAsk'))) void onConfirm().catch(() => {});
+            onClick={async () => {
+              if (await confirmDialog({ message: t('league4.resultConfirmAsk') })) void onConfirm().catch(() => {});
             }}
             className="btn-primary mt-2 h-10 w-full text-sm"
           >

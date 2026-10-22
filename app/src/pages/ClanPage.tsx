@@ -13,7 +13,7 @@ import { getClanTotals, getHallOfFame } from '../services/statisticsService';
 import { useAuthStore } from '../stores/authStore';
 
 export default function ClanPage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const canEdit = me?.role === 'OWNER' || me?.role === 'ADMIN';
   const [editing, setEditing] = useState(false);
@@ -52,7 +52,7 @@ export default function ClanPage() {
       await clanQuery.refetch();
       setEditing(false);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Save failed.');
+      setSaveError(tError(err));
     } finally {
       setSaving(false);
     }
@@ -120,7 +120,7 @@ export default function ClanPage() {
         {membersQuery.isLoading ? (
           <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={5} /></div>
         ) : membersQuery.isError ? (
-          <p role="alert" className="text-sm text-red-500">{t('clan.membersError')}{membersQuery.error instanceof Error ? ` (${membersQuery.error.message})` : ''}</p>
+          <p role="alert" className="text-sm text-red-500">{t('clan.membersError')}{` (${tError(membersQuery.error)})`}</p>
         ) : members.length === 0 ? (
           <p className="card text-sm opacity-70">{t('clan.noMembers')}</p>
         ) : (

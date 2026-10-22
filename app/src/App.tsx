@@ -1,11 +1,12 @@
 import { RouterProvider } from 'react-router';
 import { router } from './app/router';
 import { Providers } from './app/providers';
+import ConfirmHost from './components/ui/ConfirmDialog';
 import OfflineBanner from './components/ui/OfflineBanner';
 import UpdateBanner from './components/ui/UpdateBanner';
 import { ToastProvider } from './components/ui/Toast';
 import OnboardingGate from './components/onboarding/OnboardingGate';
-import { LocaleProvider } from './i18n/LocaleContext';
+import { LocaleProvider, useLocale } from './i18n/LocaleContext';
 import { ThemeProvider } from './theme';
 import './index.css';
 
@@ -19,23 +20,35 @@ function skipToContent(e: React.MouseEvent) {
   }
 }
 
+function SkipLink() {
+  const { t } = useLocale();
+  return (
+    <nav aria-label={t('a11y.skip')}>
+      <a
+        href="#main-content"
+        onClick={skipToContent}
+        className="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-[9999] focus:rounded-lg focus:bg-brand-500 focus:px-3 focus:py-2 focus:text-sm focus:font-bold focus:text-abyss-950"
+      >
+        {t('a11y.skip')}
+      </a>
+    </nav>
+  );
+}
+
 export default function App() {
   return (
     <LocaleProvider>
       <ThemeProvider>
         <Providers>
-          <a
-            href="#main-content"
-            onClick={skipToContent}
-            className="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-[9999] focus:rounded-lg focus:bg-brand-500 focus:px-3 focus:py-2 focus:text-sm focus:font-bold focus:text-white"
-          >
-            Skip to content
-          </a>
+          <SkipLink />
           <UpdateBanner />
           <OfflineBanner />
           <ToastProvider>
+            <ConfirmHost />
             <OnboardingGate />
-            <RouterProvider router={router} />
+            <div id="main-content" tabIndex={-1} className="focus:outline-none">
+              <RouterProvider router={router} />
+            </div>
           </ToastProvider>
         </Providers>
       </ThemeProvider>

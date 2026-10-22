@@ -28,8 +28,8 @@ export async function getLeagueFixtureDetail(fixtureId: string): Promise<LeagueF
   if (!fixture) return null;
 
   const [homeResult, awayResult, matchdayResult, seasonResult] = await Promise.all([
-    supabase.from('league_teams').select('id,name,status').eq('id', fixture.home_team_id).maybeSingle(),
-    supabase.from('league_teams').select('id,name,status').eq('id', fixture.away_team_id).maybeSingle(),
+    supabase.from('league_teams').select('id,name,status,logo_path').eq('id', fixture.home_team_id).maybeSingle(),
+    supabase.from('league_teams').select('id,name,status,logo_path').eq('id', fixture.away_team_id).maybeSingle(),
     supabase.from('league_matchdays').select('*').eq('id', fixture.matchday_id).maybeSingle(),
     supabase
       .from('league_seasons')

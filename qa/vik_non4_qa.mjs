@@ -148,7 +148,7 @@ await test('A3 duplicate warrior tag is rejected', async () => {
   await expectError('A3', () => p02.from('profiles').update({ known_name: `VIK QA01 ${suffix}` }).eq('id', id('p02')), /duplicate|unique|known_name/i);
 });
 await test('A4 player cannot escalate their own role via direct profile update', async () => {
-  await expectError('A4', () => p03.from('profiles').update({ role: 'ADMIN' }).eq('id', id('p03')), /Only staff/i);
+  await expectError('A4', () => p03.from('profiles').update({ role: 'ADMIN' }).eq('id', id('p03')), /cannot change your own role|Only staff/i);
 });
 await test('A5 onboard remaining QA players', async () => {
   for (let n = 2; n <= 17; n++) {
@@ -190,7 +190,7 @@ await test('A9 avatar upload, signed URL, and cross-user write guard', async () 
   await run(p01.from('profiles').update({ avatar_url: avatarPath }).eq('id', id('p01')));
 });
 await test('A10 unknown direct profile status updates stay server-controlled', async () => {
-  await expectError('A10', () => p04.from('profiles').update({ status: 'SUSPENDED' }).eq('id', id('p04')), /Only staff/i);
+  await expectError('A10', () => p04.from('profiles').update({ status: 'SUSPENDED' }).eq('id', id('p04')), /cannot change your own role|Only staff/i);
 });
 
 // ============ B. CLAN / ANNOUNCEMENTS / ADMIN ============
@@ -352,8 +352,17 @@ await test('C8 dispute → staff resolution with corrected score', async () => {
   const aClient = clientFor(m.player_a_id);
   const bClient = clientFor(m.player_b_id);
   await submitMatch(aClient, m.player_a_id, m, 1, 0, comp.id);
-  await run(bClient.from('disputes').insert({ match_id: m.id, created_by: m.player_b_id, reason: 'QA dispute', description: 'QA dispute body', status: 'OPEN' }));
-  await run(bClient.from('matches').update({ status: 'DISPUTED', updated_at: now() }).eq('id', m.id));
+  const disputeRpc = await bClient.rpc('dispute_match', {
+    p_match_id: m.id,
+    p_reason: 'QA dispute',
+    p_description: 'QA dispute body',
+  });
+  if (disputeRpc.error) {
+    if (disputeRpc.error.code !== 'PGRST202') throw new Error(disputeRpc.error.message);
+    // Pre-0053 fallback.
+    await run(bClient.from('disputes').insert({ match_id: m.id, created_by: m.player_b_id, reason: 'QA dispute', description: 'QA dispute body', status: 'OPEN' }));
+    await run(bClient.from('matches').update({ status: 'DISPUTED', updated_at: now() }).eq('id', m.id));
+  }
   const d = await run(staff.from('disputes').select('*').eq('match_id', m.id).single());
   assert(d.status === 'OPEN', 'dispute not open');
   await run(staff.rpc('admin_set_result', { p_match_id: m.id, p_score_a: 2, p_score_b: 2, p_reason: 'QA resolved' }));
@@ -554,7 +563,7 @@ await test('D7 gifts move Glory, enforce balance and decline path', async () => 
 await test('D8 quest progress + claim (first-blood, squire, caller) is idempotent', async () => {
   await run(p01.rpc('claim_quest', { p_quest_key: 'first-blood' }));
   await expectError('D8-again', () => p01.rpc('claim_quest', { p_quest_key: 'first-blood' }), /Already claimed/i);
-  await run(p02.rpc('claim_quest', { p_quest_key: 'squire' }));
+  await run(p05.rpc('claim_quest', { p_quest_key: 'squire' }));
   await run(p07.rpc('claim_quest', { p_quest_key: 'caller' }));
   const claims = await run(svc.from('quest_claims').select('quest_key').eq('player_id', id('p01')));
   assert(claims.filter((c) => c.quest_key === 'first-blood').length === 1, JSON.stringify(claims));
@@ -625,8 +634,8 @@ await test('E2 leader invite another member', async () => {
   const res = await p11.from('squad_members').insert({ squad_id: squad.id, player_id: id('p12'), role: 'MEMBER', status: 'PENDING' }).select('*');
   assert(!res.error && (res.data ?? []).length === 1, `BUG: squad leader cannot invite members (RLS): ${res.error?.message ?? '0 rows'}`);
 });
-await test('E3 request-to-join works but leader cannot accept it', async () => {
-  const r = await run(p12.from('squad_members').insert({ squad_id: squad.id, player_id: id('p12'), role: 'MEMBER', status: 'PENDING' }).select('*').single());
+await test('E3 request-to-join works and leader can accept it', async () => {
+  const r = await run(p13.from('squad_members').insert({ squad_id: squad.id, player_id: id('p13'), role: 'MEMBER', status: 'PENDING' }).select('*').single());
   created.squadMembers.push(r.id);
   assert(r.status === 'PENDING', JSON.stringify(r));
   const res = await p11.from('squad_members').update({ status: 'ACCEPTED' }).eq('id', r.id).select('id');

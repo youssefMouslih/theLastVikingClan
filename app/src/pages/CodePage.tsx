@@ -13,7 +13,7 @@ const OATH_KEYS = ['code.o1', 'code.o2', 'code.o3', 'code.o4', 'code.o5', 'code.
 
 // The Code: nine laws, the oath, the legacy.
 export default function CodePage() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const { sworn, swear } = useOath();
   const [params] = useSearchParams();
   const initialTab = params.get('tab') === 'oath' || params.get('tab') === 'legacy' ? params.get('tab') as 'oath' | 'legacy' : 'code';
@@ -29,7 +29,7 @@ export default function CodePage() {
       await swear();
       setMsg(t('code.oathSworn'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }

@@ -10,6 +10,7 @@ import BottomNav from '../components/ui/BottomNav';
 import Icon from '../components/ui/Icon';
 import { Countdown, EmptyState, LoadingRegion } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
+import TeamLogo from '../components/league4v4/TeamLogo';
 import { lineupLockReason, opponentLineupVisible, type LineupLockReason } from '../competition/league4v4/lineup';
 import { isOpenDisputeStatus, type ResultDraft } from '../competition/league4v4/result';
 import { useLocale } from '../i18n/LocaleContext';
@@ -34,7 +35,7 @@ import { useAuthStore } from '../stores/authStore';
 import type { LeagueLineupEntry } from '../types/league4v4';
 
 export default function LeagueMatchPage() {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate , tError} = useLocale();
   const { fixtureId } = useParams();
   const me = useAuthStore((state) => state.profile);
   const queryClient = useQueryClient();
@@ -131,7 +132,7 @@ export default function LeagueMatchPage() {
       await queryClient.invalidateQueries({ queryKey: ['league'] });
       setMsg(success);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : t('league4.actionFailed'));
+      setErr(tError(error));
       throw error;
     } finally {
       setBusy(null);
@@ -239,14 +240,16 @@ export default function LeagueMatchPage() {
 
       <section className="hero hero-glow mt-3">
         <div className="flex items-center gap-2">
-          <Link to={`/4vs4/teams/${fixture.home_team_id}`} className="min-w-0 flex-1 truncate text-end font-display text-lg font-bold">
-            {homeName}
+          <Link to={`/4vs4/teams/${fixture.home_team_id}`} className="flex min-w-0 flex-1 items-center justify-end gap-2 font-display text-lg font-bold">
+            <span className="truncate">{homeName}</span>
+            <TeamLogo path={fixture.home?.logo_path} name={homeName} className="h-9 w-9 text-sm" rounded="rounded-lg" />
           </Link>
           <span className="font-display shrink-0 text-xl font-bold tabular-nums">
             {finalScore ? `${fixture.home_duel_wins}–${fixture.away_duel_wins}` : 'vs'}
           </span>
-          <Link to={`/4vs4/teams/${fixture.away_team_id}`} className="min-w-0 flex-1 truncate font-display text-lg font-bold">
-            {awayName}
+          <Link to={`/4vs4/teams/${fixture.away_team_id}`} className="flex min-w-0 flex-1 items-center gap-2 font-display text-lg font-bold">
+            <TeamLogo path={fixture.away?.logo_path} name={awayName} className="h-9 w-9 text-sm" rounded="rounded-lg" />
+            <span className="truncate">{awayName}</span>
           </Link>
         </div>
         {finalScore && (

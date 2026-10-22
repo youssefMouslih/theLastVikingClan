@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
+import { confirmDialog } from '../ui/confirm';
 import { listDisputes, resolveDispute, type DisputeRow, type ResolveAction } from '../../services/disputeService';
 import { useAuthStore } from '../../stores/authStore';
 
 // Admin dispute queue (§43). Every decision audit-logged by the service.
 export default function DisputesTab() {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [scores, setScores] = useState<Record<string, { a: string; b: string; note: string }>>({});
   const [msg, setMsg] = useState<string | null>(null);
@@ -22,7 +23,7 @@ export default function DisputesTab() {
       setMsg(t('disputes.resolved', { action }));
       await query.refetch();
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Resolve failed.');
+      setMsg(tError(err));
     } finally {
       setBusyId(null);
     }
@@ -59,7 +60,7 @@ export default function DisputesTab() {
               <button disabled={busyId === d.id} onClick={() => run(d, 'set_result')} className="btn-ghost h-9 px-3 text-xs">{t('disputes.change')}</button>
               <button disabled={busyId === d.id} onClick={() => run(d, 'forfeit_a')} className="btn-ghost h-9 px-3 text-xs">{t('disputes.forfeitA')}</button>
               <button disabled={busyId === d.id} onClick={() => run(d, 'forfeit_b')} className="btn-ghost h-9 px-3 text-xs">{t('disputes.forfeitB')}</button>
-              <button disabled={busyId === d.id} onClick={() => { if (confirm(t('disputes.rejectConfirm'))) run(d, 'reject'); }} className="btn-ghost h-9 px-3 text-xs">{t('disputes.reject')}</button>
+              <button disabled={busyId === d.id} onClick={async () => { if (await confirmDialog({ message: t('disputes.rejectConfirm'), danger: true })) void run(d, 'reject'); }} className="btn-ghost h-9 px-3 text-xs">{t('disputes.reject')}</button>
             </div>
           </article>
         );

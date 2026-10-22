@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
+import { deleteStoredFile, uploadLeagueTeamLogo } from './storageService';
 import { listActiveMembers } from './playerService';
 import type {
+  LeagueInviteCandidate,
   LeagueInviteWithContext,
   LeagueMemberWithProfile,
   LeagueProfileRef,
@@ -34,7 +36,7 @@ function withProfiles(
 export async function listLeagueTeamRefs(seasonId: string): Promise<LeagueTeamRef[]> {
   const { data, error } = await supabase
     .from('league_teams')
-    .select('id,name,status')
+    .select('id,name,status,logo_path')
     .eq('season_id', seasonId)
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
@@ -146,7 +148,7 @@ export async function listIncomingLeagueInvites(playerId: string): Promise<Leagu
   const teamIds = [...new Set(invites.map((invite) => invite.team_id))];
   const seasonIds = [...new Set(invites.map((invite) => invite.season_id))];
   const [teamsResult, seasonsResult] = await Promise.all([
-    supabase.from('league_teams').select('id,name,status').in('id', teamIds),
+    supabase.from('league_teams').select('id,name,status,logo_path').in('id', teamIds),
     supabase.from('league_seasons').select('id,name,status').in('id', seasonIds),
   ]);
   if (teamsResult.error) throw new Error(teamsResult.error.message);
@@ -182,39 +184,63 @@ export async function listTeamLeagueInvites(teamId: string): Promise<LeagueInvit
   }));
 }
 
-export async function listInvitablePlayers(
+export async function listLeagueInviteCandidates(
   seasonId: string,
   teamId: string,
   excludePlayerId?: string,
-): Promise<LeagueProfileRef[]> {
-  const [profiles, membersResult, invitesResult] = await Promise.all([
+): Promise<LeagueInviteCandidate[]> {
+  const [profiles, membersResult, teamsResult, invitesResult] = await Promise.all([
     listActiveMembers(),
     supabase
       .from('league_team_members')
-      .select('player_id')
+      .select('player_id, team_id')
       .eq('season_id', seasonId)
       .eq('status', 'ACTIVE'),
     supabase
+      .from('league_teams')
+      .select('id, name')
+      .eq('season_id', seasonId),
+    supabase
       .from('league_team_invites')
-      .select('player_id')
+      .select('id, player_id')
       .eq('team_id', teamId)
       .eq('status', 'PENDING'),
   ]);
   if (membersResult.error) throw new Error(membersResult.error.message);
+  if (teamsResult.error) throw new Error(teamsResult.error.message);
   if (invitesResult.error) throw new Error(invitesResult.error.message);
-  const taken = new Set([
-    ...((membersResult.data ?? []) as { player_id: string }[]).map((row) => row.player_id),
-    ...((invitesResult.data ?? []) as { player_id: string }[]).map((row) => row.player_id),
-    ...(excludePlayerId ? [excludePlayerId] : []),
-  ]);
+  const teamNames = new Map(
+    ((teamsResult.data ?? []) as { id: string; name: string }[]).map((team) => [team.id, team.name]),
+  );
+  const memberTeams = new Map(
+    ((membersResult.data ?? []) as { player_id: string; team_id: string }[])
+      .map((row) => [row.player_id, row.team_id]),
+  );
+  const pendingInvites = new Map(
+    ((invitesResult.data ?? []) as { id: string; player_id: string }[])
+      .map((row) => [row.player_id, row.id]),
+  );
+  const rank: Record<LeagueInviteCandidate['squad_status'], number> = { FREE: 0, INVITED: 1, IN_SQUAD: 2 };
   return profiles
-    .filter((profile) => !taken.has(profile.id))
-    .map((profile) => ({
-      id: profile.id,
-      username: profile.username,
-      display_name: profile.display_name,
-      avatar_url: profile.avatar_url,
-    }));
+    .filter((profile) => profile.id !== excludePlayerId && memberTeams.get(profile.id) !== teamId)
+    .map((profile) => {
+      const otherTeamId = memberTeams.get(profile.id);
+      const inviteId = pendingInvites.get(profile.id) ?? null;
+      const squadStatus: LeagueInviteCandidate['squad_status'] = otherTeamId
+        ? 'IN_SQUAD'
+        : inviteId ? 'INVITED' : 'FREE';
+      return {
+        id: profile.id,
+        username: profile.username,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        squad_status: squadStatus,
+        squad_name: otherTeamId ? teamNames.get(otherTeamId) ?? null : null,
+        invite_id: otherTeamId ? null : inviteId,
+      };
+    })
+    .sort((a, b) => rank[a.squad_status] - rank[b.squad_status]
+      || (a.display_name ?? a.username).localeCompare(b.display_name ?? b.username));
 }
 
 export async function createLeagueTeam(seasonId: string, name: string): Promise<string> {
@@ -234,6 +260,45 @@ export async function updateLeagueTeam(teamId: string, name: string): Promise<vo
   if (error) throw new Error(error.message);
 }
 
+export async function setLeagueTeamBio(teamId: string, bio: string | null): Promise<void> {
+  const { error } = await supabase.rpc('league_set_team_bio', {
+    p_team_id: teamId,
+    p_bio: bio?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function setLeagueTeamLogo(teamId: string, logoPath: string | null): Promise<void> {
+  const { error } = await supabase.rpc('league_set_team_logo', {
+    p_team_id: teamId,
+    p_logo_path: logoPath,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function saveLeagueTeamLogo(
+  teamId: string,
+  file: File,
+  previousPath: string | null,
+): Promise<string> {
+  const path = await uploadLeagueTeamLogo(file, teamId);
+  try {
+    await setLeagueTeamLogo(teamId, path);
+  } catch (error) {
+    await deleteStoredFile('league-assets', path);
+    throw error;
+  }
+  if (previousPath && previousPath !== path) {
+    await deleteStoredFile('league-assets', previousPath);
+  }
+  return path;
+}
+
+export async function clearLeagueTeamLogo(teamId: string, previousPath: string | null): Promise<void> {
+  await setLeagueTeamLogo(teamId, null);
+  if (previousPath) await deleteStoredFile('league-assets', previousPath);
+}
+
 export async function inviteLeagueMember(teamId: string, playerId: string, message?: string | null): Promise<void> {
   const { error } = await supabase.rpc('league_invite_member', {
     p_team_id: teamId,
@@ -248,6 +313,11 @@ export async function answerLeagueInvite(inviteId: string, accept: boolean): Pro
     p_invite_id: inviteId,
     p_accept: accept,
   });
+  if (error) throw new Error(error.message);
+}
+
+export async function revokeLeagueInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase.rpc('league_revoke_invite', { p_invite_id: inviteId });
   if (error) throw new Error(error.message);
 }
 

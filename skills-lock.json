@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "building-accessible-interfaces": {
+      "source": "osmontero/opencode-skills",
+      "sourceType": "github",
+      "skillPath": "skills/building-accessible-interfaces/SKILL.md",
+      "computedHash": "f0a9e23166d820551677e7fe9cc7239e519a453ee193cd60c8dde32772bd5dde"
+    },
+    "designing-frontend-interfaces": {
+      "source": "osmontero/opencode-skills",
+      "sourceType": "github",
+      "skillPath": "skills/designing-frontend-interfaces/SKILL.md",
+      "computedHash": "03932bde6d8523fb0975848b839ad1c4b6d070ff7bb3ac6de60a5302de394bec"
+    },
+    "designing-user-experience": {
+      "source": "osmontero/opencode-skills",
+      "sourceType": "github",
+      "skillPath": "skills/designing-user-experience/SKILL.md",
+      "computedHash": "78db0278c8f026786c1c4f3152958b41ccdda10cc6fc7f61f214124796da56fc"
+    },
+    "reviewing-interface-quality": {
+      "source": "osmontero/opencode-skills",
+      "sourceType": "github",
+      "skillPath": "skills/reviewing-interface-quality/SKILL.md",
+      "computedHash": "ec2148c26668b534e3537224901832036eed9d737a7467b53229306ac271b982"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    },
+    "webapp-testing": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/webapp-testing/SKILL.md",
+      "computedHash": "ad5b1fc52807e9afa4635e59218a026b164dc58b6c3f41b0f7c644dcd6ccf572"
+    }
+  }
+}

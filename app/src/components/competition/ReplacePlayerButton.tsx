@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocale } from '../../i18n/LocaleContext';
+import { confirmDialog } from '../ui/confirm';
 import { listActiveMembers } from '../../services/playerService';
 import { replacePlayer } from '../../services/replacementService';
 import { useAuthStore } from '../../stores/authStore';
@@ -19,7 +20,7 @@ export default function ReplacePlayerButton({
   onDone: (msg: string) => void;
 }) {
   const me = useAuthStore((s) => s.profile);
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const [open, setOpen] = useState(false);
   const [candidates, setCandidates] = useState<{ id: string; username: string; display_name: string | null }[]>([]);
   const [replacementId, setReplacementId] = useState('');
@@ -35,14 +36,14 @@ export default function ReplacePlayerButton({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!replacementId || !reason.trim()) return;
-    if (!confirm(t('replace.confirmDialog', { name: originalName }))) return;
+    if (!(await confirmDialog({ message: t('replace.confirmDialog', { name: originalName }), danger: true }))) return;
     setBusy(true);
     try {
       const r = await replacePlayer({ competitionId, originalId, replacementId, reason: reason.trim(), adminId: me!.id });
       setOpen(false);
       onDone(t('replace.done', { n: r.transferred }));
     } catch (err) {
-      onDone(err instanceof Error ? err.message : 'Replace failed.');
+      onDone(tError(err));
     } finally {
       setBusy(false);
     }

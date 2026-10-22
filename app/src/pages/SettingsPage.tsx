@@ -17,7 +17,7 @@ const THEMES: { code: ThemePref; icon: 'swords' | 'clock' | 'check'; labelKey: '
 ];
 
 export default function SettingsPage() {
-  const { t, locale, setLocale } = useLocale();
+  const { t, locale, setLocale , tError} = useLocale();
   const { pref, setPref } = useTheme();
   const me = useAuthStore((s) => s.profile);
   const [push, setPush] = useState<'on' | 'off' | 'unsupported' | 'no-key' | 'install-first' | 'checking'>('checking');
@@ -46,11 +46,19 @@ export default function SettingsPage() {
         setPush('on');
       }
     } catch (err) {
-      setPushMsg(err instanceof Error ? err.message : 'Failed.');
+      setPushMsg(tError(err));
     } finally {
       setPushBusy(false);
     }
   }
+
+  const pushNote = push === 'no-key'
+    ? t('push.nokey')
+    : push === 'install-first'
+      ? t('push.needInstall')
+      : push === 'unsupported'
+        ? t('push.off')
+        : null;
 
   return (
     <main className="page">
@@ -94,14 +102,18 @@ export default function SettingsPage() {
         <h2 className="card-title flex items-center gap-1"><Icon name="bell" className="h-4 w-4" /> {t('push.title')}</h2>
         <p className="mt-1 text-xs opacity-70">{t('push.desc')}</p>
         {pushMsg && <p className="mt-1 text-xs">{pushMsg}</p>}
-        <button
-          disabled={pushBusy || push === 'checking' || push === 'unsupported' || push === 'no-key' || push === 'install-first'}
-          onClick={togglePush}
-          className={push === 'on' ? 'btn-ghost mt-2 h-11 w-full text-sm' : 'btn-primary mt-2 h-11 w-full text-sm'}
-        >
-          {pushBusy ? t('common.loading') : push === 'on' ? t('push.disable') : push === 'no-key' ? t('push.nokey') : push === 'install-first' ? t('push.needInstall') : push === 'unsupported' ? t('push.off') : t('push.enable')}
-        </button>
-        {push === 'on' && <p className="mt-1 text-xs font-bold text-green-400">{t('push.on')}</p>}
+        {pushNote ? (
+          <p role="status" className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs opacity-80">{pushNote}</p>
+        ) : (
+          <button
+            disabled={pushBusy || push === 'checking'}
+            onClick={togglePush}
+            className={push === 'on' ? 'btn-ghost mt-2 h-11 w-full text-sm' : 'btn-primary mt-2 h-11 w-full text-sm'}
+          >
+            {pushBusy || push === 'checking' ? t('common.loading') : push === 'on' ? t('push.disable') : t('push.enable')}
+          </button>
+        )}
+        {push === 'on' && <p className="mt-1 text-xs font-bold text-green-700 dark:text-green-400">{t('push.on')}</p>}
       </section>
 
       <section className="card mt-3" aria-label={t('install.title')}>

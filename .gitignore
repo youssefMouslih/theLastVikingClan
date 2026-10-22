@@ -1,3 +1,6 @@
 .DS_Store
 qa/tmp/
 app/supabase/.temp/
+
+# Large local UI review screenshots (kept out of git)
+qa/artifacts/uiux-*/

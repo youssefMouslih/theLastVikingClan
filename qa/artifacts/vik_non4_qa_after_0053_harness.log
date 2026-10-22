@@ -1,0 +1,52 @@
+PASS A1 onboarding reward is gated before name/tag/phone
+PASS A2 own profile gate fields save and onboarding pays +80 once
+PASS A3 duplicate warrior tag is rejected
+PASS A4 player cannot escalate their own role via direct profile update
+PASS A5 onboard remaining QA players
+PASS A6 oath is required before joining a competition
+PASS A7 oath timestamp saves on own profile
+PASS A8 profile details (efootball, bio, socials, banner colour) persist
+PASS A9 avatar upload, signed URL, and cross-user write guard
+PASS A10 unknown direct profile status updates stay server-controlled
+PASS B1 admin can edit clan settings; player cannot
+PASS B2 announcement create/read/delete with player write denial
+PASS B3 honour award/read/delete and player denial
+PASS B4 admin member role management and direct OWNER escalation guard
+PASS B5 admin can suspend/restore a member
+PASS C1 admin creates competition; player cannot create
+PASS C2 four players join; full competition returns COMPETITION_FULL; waitlist positions server-assigned
+PASS C3 member can leave before start; freed slot can be joined
+PASS C4 league fixture generation creates 3 rounds / 6 matches and activates competition
+PASS C5 player replacement transfers only future scheduled fixtures
+PASS C6 result submit + opponent confirm + XP
+PASS C7 round 1 completion auto-opens round 2
+PASS C8 dispute → staff resolution with corrected score
+PASS C9 forfeit claim → staff 3–0 walkover
+PASS C10 staff sends a submitted result back, then resubmission + confirm works
+PASS C11 final fixture, all rounds complete, competition FINISHED
+PASS C12 knockout 4-player bracket generation
+PASS C13 soft delete hides from players, restore brings it back
+PASS C14 two-person deletion request flag can be set and rejected
+PASS D1 friendly battle full flow + XP rewards + self-confirm denied
+PASS D2 decline path records DECLINED
+PASS D3 open mat: create, list, accept by first taker, finish
+PASS D4 expired open call is swept to CANCELLED by any viewer
+PASS D5 forced HEAD call requires 100 GP, cannot be declined, transfers bounty
+PASS D6 peer rating requires a shared completed match/battle and upserts
+PASS D7 gifts move Glory, enforce balance and decline path
+PASS D8 quest progress + claim (first-blood, squire, caller) is idempotent
+PASS D9 season board includes QA players and total XP reads
+PASS D10 throne crown → challenge → transfer → defense → pledge redirect, then restore
+PASS E1 squad create without invites works (leader auto-member)
+PASS E2 leader invite another member
+PASS E3 request-to-join works and leader can accept it
+PASS E4 leader disbands squad
+PASS F1 public tryout submission, admin listing, honeypot/duplicate guards
+PASS F2 tester assignment, tester verdict, tester cannot resolve, admin resolves
+PASS G1 notifications are private, mark-one and mark-all work
+PASS G2 career, head-to-head, recent matches and clan totals aggregate QA data
+PASS G3 read-only pages data: throne, announcements, members, competitions, XP board
+
+48/48 passed, 0 failed
+state: /Users/useraccount/Documents/the last viking/qa/tmp/vik_non4_qa_state.json
+results: /Users/useraccount/Documents/the last viking/qa/tmp/vik_non4_qa_results.json

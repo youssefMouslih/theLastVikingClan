@@ -9,7 +9,7 @@ import { useAuthStore } from '../stores/authStore';
 
 // Join through link (§23): /join/VIK7X92
 export default function JoinPage() {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate , tError} = useLocale();
   const { sworn, swear } = useOath();
   const { code } = useParams();
   const me = useAuthStore((s) => s.profile);
@@ -35,7 +35,7 @@ export default function JoinPage() {
       await joinCompetition(comp.join_code);
       nav(`/competitions/${comp.id}`);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Join failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -68,7 +68,7 @@ export default function JoinPage() {
             <Link to="/code" className="btn-ghost flex-1">{t('code.tabOath')}</Link>
             <button
               disabled={swearing}
-              onClick={async () => { setSwearing(true); try { await swear(); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setSwearing(false); } }}
+              onClick={async () => { setSwearing(true); try { await swear(); } catch (e) { setMsg(tError(e)); } finally { setSwearing(false); } }}
               className="btn-cta flex-1"
             >
               {t('code.oathSwear')}
@@ -76,7 +76,7 @@ export default function JoinPage() {
           </div>
         </div>
       ) : isFull ? (
-        <button onClick={async () => { setBusy(true); try { await joinWaitlist(comp.id, me!.id); setMsg(t('detail.waitlistAdded')); } catch (e) { setMsg(e instanceof Error ? e.message : 'Failed.'); } finally { setBusy(false); } }} disabled={busy} className="btn-primary mt-4 w-full">
+        <button onClick={async () => { setBusy(true); try { await joinWaitlist(comp.id, me!.id); setMsg(t('detail.waitlistAdded')); } catch (e) { setMsg(tError(e)); } finally { setBusy(false); } }} disabled={busy} className="btn-primary mt-4 w-full">
           {busy ? t('join.joining') : t('join.waitlist')}
         </button>
       ) : (

@@ -43,7 +43,26 @@
   --border: #c9cfdb;
   --text: #141a26;
   --muted: #5b6478;
+  /* Darker ink for gold/red text on paper surfaces. */
+  --color-brand-300: #6f4800;
+  --color-brand-400: #8a5a00;
+  --color-accent-400: #b91c1c;
+  --color-green-400: #15803d;
+  --color-red-400: #b91c1c;
+  --color-amber-400: #a16207;
+  --color-zinc-400: #52525b;
   color-scheme: light;
+}
+
+/* Forged-steel surfaces stay dark in light mode, so restore bright accents. */
+:root[data-theme='light'] :is(.hero, .fav-card, .efoot-banner, .rune-frame, .book-cover, .leather) {
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-accent-400: #f87171;
+  --color-green-400: #4ade80;
+  --color-red-400: #f87171;
+  --color-amber-400: #fbbf24;
+  --color-zinc-400: #a1a1aa;
 }
 
 html, body, #root {
@@ -96,6 +115,10 @@ button, a, [role="button"] {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 /* iOS callout bar: never let rapid taps select UI chrome */
@@ -171,8 +194,8 @@ input, textarea, select {
   }
   .btn-cta {
     @apply btn text-white;
-    background: linear-gradient(180deg, #f87171, #ef4444 60%, #dc2626);
-    box-shadow: 0 8px 24px -8px rgba(239, 68, 68, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+    background: linear-gradient(180deg, #dc2626, #b91c1c 60%, #991b1b);
+    box-shadow: 0 8px 24px -8px rgba(220, 38, 38, 0.55), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
   }
   .btn-cta:active {
     transform: translateY(1px) scale(0.99);
@@ -192,6 +215,15 @@ input, textarea, select {
   .btn-ghost:hover {
     background: color-mix(in srgb, #eab308 12%, transparent);
   }
+  /* Heroes always keep their forged-steel background, so ghost buttons must
+     stay light in both themes (light theme --text is dark and unreadable). */
+  .hero .btn-ghost {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+  .hero .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
   .btn-danger {
     @apply btn;
     background: transparent;
@@ -200,6 +232,13 @@ input, textarea, select {
   }
   .btn-danger:hover {
     background: rgba(239, 68, 68, 0.1);
+  }
+  :root[data-theme='light'] .btn-danger {
+    color: #b91c1c;
+    border-color: rgba(185, 28, 28, 0.45);
+  }
+  :root[data-theme='light'] .btn-danger:hover {
+    background: rgba(185, 28, 28, 0.08);
   }
   .input {
     height: 2.75rem;

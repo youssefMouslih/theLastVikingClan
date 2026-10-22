@@ -28,8 +28,11 @@ err('challenges',await svc.from('challenges').delete().or(`challenger_id.in.(${q
 const {data:comps}=await svc.from('competitions').select('id').ilike('name','QA %');
 const compIds=(comps??[]).map(x=>x.id);
 if(compIds.length){
-  err('disputes',await svc.from('disputes').delete().in('match_id',(await svc.from('matches').select('id').in('competition_id',compIds)).data?.map(x=>x.id)??[]));
-  err('evidence',await svc.from('match_evidence').delete().in('match_id',(await svc.from('matches').select('id').in('competition_id',compIds)).data?.map(x=>x.id)??[]));
+  const {data:qaMatches}=await svc.from('matches').select('id').in('competition_id',compIds);
+  const matchIds=(qaMatches??[]).map(x=>x.id);
+  if(matchIds.length) err('audit logs',await svc.from('audit_logs').delete().in('entity_id',matchIds));
+  err('disputes',await svc.from('disputes').delete().in('match_id',matchIds));
+  err('evidence',await svc.from('match_evidence').delete().in('match_id',matchIds));
   err('matches',await svc.from('matches').delete().in('competition_id',compIds));
   err('rounds',await svc.from('rounds').delete().in('competition_id',compIds));
   err('participants',await svc.from('competition_participants').delete().in('competition_id',compIds));

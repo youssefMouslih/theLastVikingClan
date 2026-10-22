@@ -19,7 +19,7 @@ export default function LeagueDisputeCard({
   busy?: boolean;
   onResolve: (input: LeagueDisputeResolutionInput) => Promise<void>;
 }) {
-  const { t, fmtDate } = useLocale();
+  const { t, fmtDate , tError} = useLocale();
   const homeName = dispute.home?.name ?? '—';
   const awayName = dispute.away?.name ?? '—';
   const suggested = dispute.reports[0] ? normalizedReportScore(dispute.reports[0]) : null;
@@ -84,7 +84,7 @@ export default function LeagueDisputeCard({
       resolution: resolution.trim(),
       forfeit,
     }).catch((failure: unknown) => {
-      setError(failure instanceof Error ? failure.message : t('league4.actionFailed'));
+      setError(tError(failure));
     });
   }
 

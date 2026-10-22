@@ -6,7 +6,7 @@ import { getClanSettings, updateClanSettings } from '../../services/clanService'
 // Admin platform access: one switch controls whether the Create account
 // button is shown on the login screen (no new accounts when hidden).
 export default function AccessTab() {
-  const { t } = useLocale();
+  const { t , tError} = useLocale();
   const qc = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +27,7 @@ export default function AccessTab() {
       await qc.invalidateQueries({ queryKey: ['clan-settings'] });
       setMsg(t('admin.accessSaved'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Save failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -44,7 +44,7 @@ export default function AccessTab() {
       await qc.invalidateQueries({ queryKey: ['clan-settings'] });
       setMsg(t('admin.accessSaved'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Save failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -56,7 +56,7 @@ export default function AccessTab() {
       await qc.invalidateQueries({ queryKey: ['clan-settings'] });
       setMsg(t('admin.accessSaved'));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : 'Save failed.');
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }

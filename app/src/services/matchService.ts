@@ -297,14 +297,61 @@ export async function adminRejectResult(match: Match, adminId: string, comment: 
 }
 
 export async function disputeResult(matchId: string, userId: string, reason: string, description: string) {
-  const { error: dErr } = await supabase.from('disputes').insert({ match_id: matchId, created_by: userId, reason, description, status: 'OPEN' });
-  if (dErr) throw new Error(dErr.message);
-  const { error } = await supabase.from('matches').update({ status: 'DISPUTED', updated_at: new Date().toISOString() }).eq('id', matchId);
-  if (error) throw new Error(error.message);
+  const cleanReason = reason.trim();
+  const cleanDescription = (description ?? '').trim() || null;
+  const { error } = await supabase.rpc('dispute_match', {
+    p_match_id: matchId,
+    p_reason: cleanReason,
+    p_description: cleanDescription,
+  });
+  if (error) {
+    // 0053 may not be applied yet on an older deployment. Keep the old path
+    // working there, but guard the same state rules client-side.
+    if (error.code !== 'PGRST202') throw new Error(error.message);
+    const { data: match, error: matchErr } = await supabase
+      .from('matches')
+      .select('status,player_a_id,player_b_id')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (matchErr) throw new Error(matchErr.message);
+    if (!match) throw new Error('Match not found.');
+    if (match.player_a_id !== userId && match.player_b_id !== userId) {
+      throw new Error('Only the two match players can open a dispute.');
+    }
+    if (match.status !== 'RESULT_SUBMITTED') {
+      throw new Error('A dispute can only be opened while a result is waiting for confirmation.');
+    }
+    const { data: open, error: openErr } = await supabase
+      .from('disputes')
+      .select('id')
+      .eq('match_id', matchId)
+      .in('status', ['OPEN', 'UNDER_REVIEW'])
+      .limit(1);
+    if (openErr) throw new Error(openErr.message);
+    if ((open ?? []).length > 0) {
+      throw new Error('This match already has an open dispute. Staff must resolve it first.');
+    }
+    const { data: dispute, error: dErr } = await supabase
+      .from('disputes')
+      .insert({ match_id: matchId, created_by: userId, reason: cleanReason, description: cleanDescription, status: 'OPEN' })
+      .select('id')
+      .single();
+    if (dErr) throw new Error(dErr.message);
+    const { data: updated, error: updateErr } = await supabase
+      .from('matches')
+      .update({ status: 'DISPUTED', updated_at: new Date().toISOString() })
+      .eq('id', matchId)
+      .eq('status', 'RESULT_SUBMITTED')
+      .select('id');
+    if (updateErr || (updated ?? []).length === 0) {
+      await supabase.from('disputes').delete().eq('id', dispute.id);
+      throw new Error(updateErr?.message ?? 'A dispute can only be opened while a result is waiting for confirmation.');
+    }
+  }
   // Notify staff (best-effort)
   const { data: staff } = await supabase.from('profiles').select('id').in('role', ['OWNER', 'ADMIN', 'MODERATOR']).eq('status', 'ACTIVE');
   for (const s of (staff ?? []) as { id: string }[]) {
-    if (s.id !== userId) await notify(s.id, 'RESULT_DISPUTED', 'New dispute', `${reason} — review needed.`, { type: 'match', id: matchId });
+    if (s.id !== userId) await notify(s.id, 'RESULT_DISPUTED', 'New dispute', `${cleanReason} — review needed.`, { type: 'match', id: matchId });
   }
 }
 

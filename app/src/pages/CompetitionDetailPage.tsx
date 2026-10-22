@@ -1,15 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import BracketView from '../components/competition/BracketView';
 import MatchCard from '../components/match/MatchCard';
 import ReplacePlayerButton from '../components/competition/ReplacePlayerButton';
 import StandingsTable from '../components/competition/StandingsTable';
 import Avatar from '../components/ui/Avatar';
 import BottomNav from '../components/ui/BottomNav';
 import CopyButton from '../components/ui/CopyButton';
+import { confirmDialog } from '../components/ui/confirm';
 import Icon from '../components/ui/Icon';
 import { Countdown, EmptyState, FadeIn, SkeletonList } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
+import { competitionTypeLabel } from '../i18n/competitionType';
 import { statusLabel, useLocale } from '../i18n/LocaleContext';
 import { useOath } from '../hooks/useOath';
 import { registrationState } from '../competition/deadlineEngine';
@@ -45,7 +48,7 @@ function toLocalInput(iso: string | null): string {
 }
 
 export default function CompetitionDetailPage() {
-  const { t, fmtDate } = useLocale();
+  const { t, tError, fmtDate } = useLocale();
   const { sworn, swear } = useOath();
   const { id } = useParams();
   const nav = useNavigate();
@@ -84,6 +87,24 @@ export default function CompetitionDetailPage() {
   for (const p of parts) names[p.player_id] = p.player?.display_name ?? p.player?.username ?? p.player_id.slice(0, 8);
   const avatars: Record<string, string | null> = {};
   for (const p of parts) avatars[p.player_id] = p.player?.avatar_url ?? null;
+  const formByPlayer = useMemo(() => {
+    const form: Record<string, ('W' | 'D' | 'L')[]> = {};
+    const finished = (matchesQuery.data ?? [])
+      .filter((m) => m.status === 'CONFIRMED' || m.status === 'FORFEIT')
+      .sort((a, b) => new Date(a.confirmed_at ?? a.deadline ?? 0).getTime() - new Date(b.confirmed_at ?? b.deadline ?? 0).getTime());
+    for (const match of finished) {
+      if (!match.player_a_id || !match.player_b_id) continue;
+      const winner = match.winner_id
+        ?? (match.score_a != null && match.score_b != null && match.score_a !== match.score_b
+          ? (match.score_a > match.score_b ? match.player_a_id : match.player_b_id)
+          : null);
+      const a: 'W' | 'D' | 'L' = winner === null ? 'D' : winner === match.player_a_id ? 'W' : 'L';
+      const b: 'W' | 'D' | 'L' = winner === null ? 'D' : winner === match.player_b_id ? 'W' : 'L';
+      (form[match.player_a_id] ??= []).push(a);
+      (form[match.player_b_id] ??= []).push(b);
+    }
+    return form;
+  }, [matchesQuery.data]);
 
   // Automatic lifecycle (§26, §99): close registration / finish / flag overdue on view.
   // Primary driver is the Auto-Jarl cron (0036, every 15 min); this stays as a
@@ -116,8 +137,7 @@ export default function CompetitionDetailPage() {
       await Promise.all([compQuery.refetch(), partsQuery.refetch(), matchesQuery.refetch(), standingsQuery.refetch()]);
       if (ok) setMsg(ok);
     } catch (err) {
-      const e = err as Error & { code?: string };
-      setMsg(e.message);
+      setMsg(tError(err));
     } finally {
       setBusy(false);
     }
@@ -225,7 +245,7 @@ export default function CompetitionDetailPage() {
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
           <StatusBadge value={comp.status} />
-          <StatusBadge value={comp.type} />
+          <span className="status-badge inline-block rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-400">{competitionTypeLabel(t, comp.type)}</span>
           <span className="opacity-80">{parts.length} / {comp.max_players} • {matches.length}</span>
         </div>
       </div>
@@ -245,7 +265,7 @@ export default function CompetitionDetailPage() {
           <p className="opacity-80">{ownRequest ? t('detail.ownRequest') : t('detail.pendingDesc')}</p>
           {!ownRequest && (
             <div className="mt-2 flex gap-2">
-              <button disabled={busy} onClick={() => { if (confirm(t('detail.approveConfirm'))) run(() => approveDeletion(comp, me!.id), t('detail.approved')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.approveDelete')}</button>
+              <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.approveConfirm'), danger: true })) run(() => approveDeletion(comp, me!.id), t('detail.approved')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.approveDelete')}</button>
               <button disabled={busy} onClick={() => run(() => rejectDeletion(comp.id, me!.id), t('detail.rejectedReq'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.rejectReq')}</button>
             </div>
           )}
@@ -290,7 +310,7 @@ export default function CompetitionDetailPage() {
               </button>
             )
           ) : (
-            <button disabled={busy} onClick={() => { if (confirm(t('detail.leaveConfirm'))) run(() => leaveCompetition(comp.id), t('detail.left')); }} className="btn-ghost">
+            <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.leaveConfirm'), danger: true })) run(() => leaveCompetition(comp.id), t('detail.left')); }} className="btn-ghost">
               {t('detail.leave')}
             </button>
           )}
@@ -382,10 +402,10 @@ export default function CompetitionDetailPage() {
               <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'ARCHIVED'), t('detail.archived'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.archive')}</button>
               {hasStarted ? (
                 !pendingDelete && (
-                  <button disabled={busy} onClick={() => { if (confirm(t('detail.requestConfirm'))) run(() => requestDeletion(comp.id, me!.id), t('detail.reqSent')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.requestDelete')}</button>
+                  <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.requestConfirm'), danger: true })) run(() => requestDeletion(comp.id, me!.id), t('detail.reqSent')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.requestDelete')}</button>
                 )
               ) : (
-                <button disabled={busy} onClick={() => { if (confirm(t('detail.deleteConfirm', { name: comp.name }))) run(() => softDeleteCompetition(comp.id, me!.id), t('detail.deleted')).then(() => nav('/competitions')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.delete')}</button>
+                <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.deleteConfirm', { name: comp.name }), danger: true })) run(() => softDeleteCompetition(comp.id, me!.id), t('detail.deleted')).then(() => nav('/competitions')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.delete')}</button>
               )}
             </div>
           )}
@@ -414,13 +434,13 @@ export default function CompetitionDetailPage() {
               {comp.end_date && <p>{t('detail.ends', { date: fmtDate(comp.end_date) })}</p>}
             </div>
             {standingsQuery.data && standingsQuery.data.length > 0 && (
-              <StandingsTable rows={standingsQuery.data.slice(0, 5)} names={names} />
+              <StandingsTable rows={standingsQuery.data.slice(0, 5)} names={names} form={formByPlayer} highlightPlayerId={me?.id ?? null} />
             )}
           </div>
         )}
         {tab === 'Standings' && (
           standingsQuery.isLoading ? <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={4} /></div> :
-          <StandingsTable rows={standingsQuery.data ?? []} names={names} />
+          <StandingsTable rows={standingsQuery.data ?? []} names={names} form={formByPlayer} highlightPlayerId={me?.id ?? null} />
         )}
         {tab === 'Matches' && (
           <div className="flex flex-col gap-2" aria-busy={matchesQuery.isLoading}>
@@ -432,10 +452,12 @@ export default function CompetitionDetailPage() {
         )}
         {tab === 'Bracket' && (
           <div className="flex flex-col gap-2" aria-busy={matchesQuery.isLoading}>
-            {roundsBar}
             {matchesQuery.isLoading && <SkeletonList rows={4} />}
             {!matchesQuery.isLoading && matches.length === 0 && <EmptyState icon={<Icon name="trophy" className="h-8 w-8" />} title={t('detail.tabBracket')} hint={t('detail.noBracket')} />}
-            {matches.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 50, 400)}><MatchCard match={m} names={names} avatars={avatars} compName={comp.name} /></FadeIn>)}
+            {!matchesQuery.isLoading && matches.length > 0 && (
+              roundsQuery.isLoading ? <SkeletonList rows={2} /> : <BracketView rounds={rounds} matches={matches} names={names} avatars={avatars} meId={me?.id ?? null} />
+            )}
+            {isStaff && rounds.length > 0 && <div className="flex flex-col gap-1.5"><p className="text-xs font-semibold uppercase tracking-wide opacity-60">{t('detail.roundStatus')}</p>{roundsBar}</div>}
           </div>
         )}
         {tab === 'Players' && (
