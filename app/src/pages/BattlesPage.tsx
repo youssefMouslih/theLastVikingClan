@@ -358,7 +358,7 @@ export default function BattlesPage() {
               {TYPES.map((ty) => <option key={ty} value={ty}>{t(`battle.t${ty}` as 'battle.tHEAD')}</option>)}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="label">{t('battle.conditions')}
               <select value={form.conditions} onChange={(e) => setForm({ ...form, conditions: e.target.value })} className="input text-sm">
                 {CONDS.map((c) => <option key={c} value={c}>{t(c)}</option>)}
