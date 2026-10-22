@@ -2,7 +2,7 @@ import { calculateStandings } from '../competition/standingsEngine';
 import { supabase } from '../lib/supabase';
 import type { Match } from '../types/database';
 
-export interface CareerStats {
+export interface CareerRecord {
   played: number;
   wins: number;
   draws: number;
@@ -11,19 +11,101 @@ export interface CareerStats {
   goals_against: number;
   clean_sheets: number;
   winRate: number;
-  form: ('W' | 'D' | 'L')[];
-  titles: number;
 }
 
-type CMatch = Pick<Match, 'player_a_id' | 'player_b_id' | 'score_a' | 'score_b' | 'status' | 'competition_id' | 'confirmed_at'>;
+export interface CareerBreakdown {
+  all: CareerRecord;
+  league: CareerRecord;
+  cup: CareerRecord;
+  friendly: CareerRecord;
+}
+
+export interface CareerYear {
+  year: number;
+  breakdown: CareerBreakdown;
+}
+
+export interface CareerStats extends CareerRecord {
+  form: ('W' | 'D' | 'L')[];
+  titles: number;
+  breakdown: CareerBreakdown;
+  years: CareerYear[];
+}
+
+type CMatch = Pick<Match, 'player_a_id' | 'player_b_id' | 'score_a' | 'score_b' | 'status' | 'competition_id' | 'confirmed_at' | 'submitted_at' | 'scheduled_at'>;
+
+export interface CareerResultRow {
+  kind: 'match' | 'battle';
+  mine: number;
+  theirs: number;
+  compType?: string | null;
+  year?: number | null;
+}
+
+const emptyRecord = (): CareerRecord => ({
+  played: 0,
+  wins: 0,
+  draws: 0,
+  losses: 0,
+  goals_for: 0,
+  goals_against: 0,
+  clean_sheets: 0,
+  winRate: 0,
+});
+
+function addResult(record: CareerRecord, mine: number, theirs: number): void {
+  record.played++;
+  record.goals_for += mine;
+  record.goals_against += theirs;
+  if (theirs === 0) record.clean_sheets++;
+  if (mine > theirs) record.wins++;
+  else if (mine < theirs) record.losses++;
+  else record.draws++;
+  record.winRate = Math.round((record.wins / record.played) * 100);
+}
+
+export function buildCareerBreakdown(rows: CareerResultRow[]): CareerBreakdown {
+  const breakdown: CareerBreakdown = {
+    all: emptyRecord(),
+    league: emptyRecord(),
+    cup: emptyRecord(),
+    friendly: emptyRecord(),
+  };
+  for (const row of rows) {
+    addResult(breakdown.all, row.mine, row.theirs);
+    if (row.kind === 'battle') addResult(breakdown.friendly, row.mine, row.theirs);
+    else if (row.compType === 'LEAGUE') addResult(breakdown.league, row.mine, row.theirs);
+    else if (row.compType === 'CUP') addResult(breakdown.cup, row.mine, row.theirs);
+  }
+  return breakdown;
+}
+
+function yearOf(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const year = new Date(value).getFullYear();
+  return Number.isNaN(year) ? null : year;
+}
+
+export function buildCareerYears(rows: CareerResultRow[]): CareerYear[] {
+  const byYear = new Map<number, CareerResultRow[]>();
+  for (const row of rows) {
+    if (row.year == null) continue;
+    const yearRows = byYear.get(row.year);
+    if (yearRows) yearRows.push(row);
+    else byYear.set(row.year, [row]);
+  }
+  return [...byYear.entries()]
+    .sort(([a], [b]) => b - a)
+    .map(([year, yearRows]) => ({ year, breakdown: buildCareerBreakdown(yearRows) }));
+}
 
 // Career stats (§59): all CONFIRMED/FORFEIT matches across competitions,
 // PLUS completed clan battles (score_a = challenger goals).
 export async function getPlayerCareer(playerId: string): Promise<CareerStats> {
-  const [{ data, error }, { data: battles }] = await Promise.all([
+  const [{ data, error }, { data: battles }, { data: competitions }] = await Promise.all([
     supabase
       .from('matches')
-      .select('player_a_id,player_b_id,score_a,score_b,status,competition_id,confirmed_at')
+      .select('player_a_id,player_b_id,score_a,score_b,status,competition_id,confirmed_at,submitted_at,scheduled_at')
       .or(`player_a_id.eq.${playerId},player_b_id.eq.${playerId}`)
       .in('status', ['CONFIRMED', 'FORFEIT'])
       .order('confirmed_at', { ascending: false }),
@@ -32,29 +114,41 @@ export async function getPlayerCareer(playerId: string): Promise<CareerStats> {
       .select('challenger_id,opponent_id,score_a,score_b,updated_at')
       .or(`challenger_id.eq.${playerId},opponent_id.eq.${playerId}`)
       .eq('status', 'COMPLETED'),
+    supabase.from('competitions').select('id,type'),
   ]);
   if (error) throw new Error(error.message);
   const ms = (data ?? []) as CMatch[];
-  let wins = 0, draws = 0, losses = 0, gf = 0, ga = 0, clean = 0;
+  const compTypes = new Map<string, string>(
+    ((competitions ?? []) as { id: string; type: string }[]).map((c) => [c.id, c.type]),
+  );
   const form: ('W' | 'D' | 'L')[] = [];
-  const tally = (mine: number, theirs: number) => {
-    gf += mine; ga += theirs;
-    if (theirs === 0) clean++;
-    const r = mine > theirs ? 'W' : mine < theirs ? 'L' : 'D';
-    if (form.length < 5) form.unshift(r);
-    if (r === 'W') wins++; else if (r === 'L') losses++; else draws++;
+  const breakdownRows: CareerResultRow[] = [];
+  const pushForm = (mine: number, theirs: number) => {
+    if (form.length < 5) form.unshift(mine > theirs ? 'W' : mine < theirs ? 'L' : 'D');
   };
   for (const m of ms) {
     if (m.score_a == null || m.score_b == null) continue;
-    tally(m.player_a_id === playerId ? m.score_a : m.score_b, m.player_a_id === playerId ? m.score_b : m.score_a);
+    const mine = m.player_a_id === playerId ? m.score_a : m.score_b;
+    const theirs = m.player_a_id === playerId ? m.score_b : m.score_a;
+    pushForm(mine, theirs);
+    breakdownRows.push({
+      kind: 'match',
+      mine,
+      theirs,
+      compType: compTypes.get(m.competition_id) ?? null,
+      year: yearOf(m.confirmed_at ?? m.submitted_at ?? m.scheduled_at),
+    });
   }
-  for (const b of ((battles ?? []) as { challenger_id: string; opponent_id: string | null; score_a: number | null; score_b: number | null }[])) {
+  for (const b of ((battles ?? []) as { challenger_id: string; opponent_id: string | null; score_a: number | null; score_b: number | null; updated_at: string | null }[])) {
     if (b.score_a == null || b.score_b == null || !b.opponent_id) continue;
-    tally(b.challenger_id === playerId ? b.score_a : b.score_b, b.challenger_id === playerId ? b.score_b : b.score_a);
+    const mine = b.challenger_id === playerId ? b.score_a : b.score_b;
+    const theirs = b.challenger_id === playerId ? b.score_b : b.score_a;
+    pushForm(mine, theirs);
+    breakdownRows.push({ kind: 'battle', mine, theirs, year: yearOf(b.updated_at) });
   }
   const { count } = await supabase.from('achievements').select('id', { count: 'exact', head: true }).eq('player_id', playerId).ilike('type', '%CHAMPION%');
-  const played = wins + draws + losses;
-  return { played, wins, draws, losses, goals_for: gf, goals_against: ga, clean_sheets: clean, winRate: played ? Math.round((wins / played) * 100) : 0, form, titles: count ?? 0 };
+  const breakdown = buildCareerBreakdown(breakdownRows);
+  return { ...breakdown.all, form, titles: count ?? 0, breakdown, years: buildCareerYears(breakdownRows) };
 }
 
 export async function getHeadToHead(a: string, b: string) {
