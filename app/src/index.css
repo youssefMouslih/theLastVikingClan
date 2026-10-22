@@ -475,9 +475,10 @@ input, textarea, select {
   flex: 1;
   min-height: 0;
 }
-.book-half { min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; }
+.book-half { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .book-half > * { flex: 1 0 auto; }
 .book-half > .book-page { flex: 1; }
+.book-cards { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-gutter: stable; }
 .book-spread-leaf { height: 100%; }
 /* Spine: central leather binding with stitching, compression + inner shadow.
    Pages disappear into it; every leaf hinge originates here. */
@@ -497,6 +498,9 @@ input, textarea, select {
 }
 .book-page {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 1.25rem 1.25rem 2.25rem;
   min-height: 26rem;
   background:
