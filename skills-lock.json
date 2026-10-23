@@ -19,12 +19,6 @@
       "skillPath": "skills/designing-user-experience/SKILL.md",
       "computedHash": "78db0278c8f026786c1c4f3152958b41ccdda10cc6fc7f61f214124796da56fc"
     },
-    "frontend-design": {
-      "source": "anthropics/skills",
-      "sourceType": "github",
-      "skillPath": "skills/frontend-design/SKILL.md",
-      "computedHash": "106acf230014cbb43ca34e6410371321b56ca742f9ee0442e8ec05bf02eb0384"
-    },
     "reviewing-interface-quality": {
       "source": "osmontero/opencode-skills",
       "sourceType": "github",

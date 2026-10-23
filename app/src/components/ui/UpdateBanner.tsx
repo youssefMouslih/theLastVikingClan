@@ -34,7 +34,7 @@ export default function UpdateBanner() {
 
   if (!show) return null;
   return (
-    <div role="status" className="relative z-[9999] mx-auto max-w-2xl p-3">
+    <div role="status" className="fixed inset-x-0 top-0 z-[9999] mx-auto max-w-2xl p-3" style={{ transform: 'translateZ(0)' }}>
       <div className="card flex items-center gap-2 p-3 text-sm">
         <p className="flex-1 font-bold">{t('pwa.update')}</p>
         <button
