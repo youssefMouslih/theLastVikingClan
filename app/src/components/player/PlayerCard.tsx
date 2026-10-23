@@ -31,6 +31,8 @@ export default function PlayerCard({
   const { t } = useLocale();
   const [shared, setShared] = useState(false);
   const [zoom, setZoom] = useState(false);
+  const [mode, setMode] = useState<'all' | 'league' | 'cup' | 'friendly'>('all');
+  const [year, setYear] = useState<number | 'all'>('all');
   const mainName = member.known_name ?? member.efootball_name ?? member.display_name ?? member.username;
   const avatarQuery = useQuery({
     queryKey: ['avatar', member.id, member.avatar_url],
@@ -80,6 +82,17 @@ export default function PlayerCard({
   const ig = socialLink('instagram', member.instagram);
   const tk = socialLink('tiktok', member.tiktok);
   const kk = socialLink('kick', member.kick);
+  const selectedYear = year === 'all' || career?.years.some((item) => item.year === year) ? year : 'all';
+  const selectedBreakdown = selectedYear === 'all'
+    ? career?.breakdown
+    : career?.years.find((item) => item.year === selectedYear)?.breakdown;
+  const modeRows = [
+    { key: 'all', label: t('player.allMatches'), record: selectedBreakdown?.all },
+    { key: 'league', label: t('status.LEAGUE'), record: selectedBreakdown?.league },
+    { key: 'cup', label: t('status.CUP'), record: selectedBreakdown?.cup },
+    { key: 'friendly', label: t('player.friendly'), record: selectedBreakdown?.friendly },
+  ] as const;
+  const activeRecord = modeRows.find((row) => row.key === mode)?.record;
 
   async function share() {
     const name = member.display_name ?? member.username;
@@ -239,27 +252,60 @@ export default function PlayerCard({
             <div className="grid flex-1 grid-cols-3 gap-1 text-center">
               <div>
                 <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="shield" className="h-3.5 w-3.5" />{t('player.cleanSheets')}</div>
-                <div className="font-display text-lg leading-tight">{career?.clean_sheets ?? '—'}</div>
+                <div className="font-display text-lg leading-tight">{activeRecord?.clean_sheets ?? '—'}</div>
               </div>
               <div>
                 <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="swords" className="h-3.5 w-3.5" />{t('player.goals')}</div>
-                <div className="font-display text-lg leading-tight">{career?.goals_for ?? '—'}</div>
+                <div className="font-display text-lg leading-tight">{activeRecord?.goals_for ?? '—'}</div>
               </div>
               <div>
                 <div className="flex items-center justify-center gap-1 text-[11px] opacity-60"><Icon name="chart" className="h-3.5 w-3.5" />{t('player.winRate')}</div>
-                <div className="font-display text-lg leading-tight text-accent-400">{career ? `${career.winRate}%` : '—'}</div>
+                <div className="font-display text-lg leading-tight text-accent-400">{activeRecord ? `${activeRecord.winRate}%` : '—'}</div>
               </div>
             </div>
           </div>
-          <div className="mt-2 flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${career?.wins ?? 0}W ${career?.draws ?? 0}D ${career?.losses ?? 0}L`}>
-            <div className="min-w-0 flex-1 bg-green-500 text-zinc-950">{t('player.wins')}</div>
-            <div className="min-w-0 flex-1 bg-zinc-500 text-white">{t('player.draws')}</div>
-            <div className="min-w-0 flex-1 bg-red-600 text-white">{t('player.losses')}</div>
-          </div>
-          <div className="mt-1 grid grid-cols-3 text-center text-sm">
-            <div className="font-display text-lg">{career?.wins ?? '—'}</div>
-            <div className="font-display text-lg">{career?.draws ?? '—'}</div>
-            <div className="font-display text-lg">{career?.losses ?? '—'}</div>
+          <div className="mt-3 border-t border-white/10 pt-2">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <label htmlFor={`career-year-${member.id}`} className="text-[10px] font-semibold uppercase tracking-wide opacity-60">
+                {t('player.year')}
+              </label>
+              <select
+                id={`career-year-${member.id}`}
+                value={selectedYear}
+                onChange={(event) => setYear(event.target.value === 'all' ? 'all' : Number(event.target.value))}
+                className="h-7 rounded-md border border-white/15 bg-zinc-900 px-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">{t('player.allTime')}</option>
+                {(career?.years ?? []).map((item) => (
+                  <option key={item.year} value={item.year}>{item.year}</option>
+                ))}
+              </select>
+            </div>
+            <div role="group" aria-label={t('player.recordByMode')} className="flex gap-1 rounded-lg bg-black/20 p-1">
+              {modeRows.map((row) => (
+                <button
+                  key={row.key}
+                  type="button"
+                  aria-pressed={mode === row.key}
+                  onClick={() => setMode(row.key)}
+                  className={`min-w-0 flex-1 rounded-md px-1 py-1.5 text-[10px] font-semibold leading-tight transition ${
+                    mode === row.key ? 'bg-brand-500 text-abyss-950' : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {row.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex h-7 overflow-hidden rounded-md text-center text-xs font-bold leading-7" role="img" aria-label={`${activeRecord?.wins ?? 0}W ${activeRecord?.draws ?? 0}D ${activeRecord?.losses ?? 0}L`}>
+              <div className="min-w-0 flex-1 bg-green-500 text-zinc-950">{t('player.wins')}</div>
+              <div className="min-w-0 flex-1 bg-zinc-500 text-white">{t('player.draws')}</div>
+              <div className="min-w-0 flex-1 bg-red-600 text-white">{t('player.losses')}</div>
+            </div>
+            <div className="mt-1 grid grid-cols-3 text-center text-sm">
+              <div className="font-display text-lg">{activeRecord?.wins ?? '—'}</div>
+              <div className="font-display text-lg">{activeRecord?.draws ?? '—'}</div>
+              <div className="font-display text-lg">{activeRecord?.losses ?? '—'}</div>
+            </div>
           </div>
         </div>
 

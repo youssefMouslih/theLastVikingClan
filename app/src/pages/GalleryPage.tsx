@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import Avatar from '../components/ui/Avatar';
 import BottomNav from '../components/ui/BottomNav';
@@ -9,16 +9,8 @@ import { useLocale } from '../i18n/LocaleContext';
 import { listActiveMembers } from '../services/playerService';
 import { getTotalXP } from '../services/sagaService';
 import { getAvatarUrl } from '../services/storageService';
-import { playBookOpen, playPageTurn } from '../utils/sfx';
+import { playBookOpen } from '../utils/sfx';
 import type { Profile } from '../types/database';
-
-// The Clan Member Book. Page-turn animation is parked for now: navigation
-// swaps spread content instantly (buttons, swipe, keys, index) until the
-// leaf animation is reworked.
-type Sheet =
-  | { kind: 'cover' }
-  | { kind: 'back' }
-  | { kind: 'grid'; members: Profile[] };
 
 function toRoman(n: number): string {
   if (n <= 0) return '–';
@@ -29,35 +21,29 @@ function toRoman(n: number): string {
   return out + (n > 39 ? '+' : '');
 }
 
+function useWideBook() {
+  const [wide, setWide] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia?.('(min-width: 768px)').matches === true,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia?.('(min-width: 768px)');
+    if (!mq) return;
+    const onChange = () => setWide(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return wide;
+}
+
 export default function GalleryPage() {
   const { t } = useLocale();
   const membersQuery = useQuery({ queryKey: ['active-members'], queryFn: listActiveMembers });
   const members = (membersQuery.data ?? []).filter((m) => m.status === 'ACTIVE');
-  // Card grids: 9 warriors per spread (5 left + 4 right on desktop,
-  // all 9 stacked on mobile). Search filters the directory, not the book.
-  const groups: Profile[][] = useMemo(() => {
-    const out: Profile[][] = [];
-    for (let i = 0; i < members.length; i += 9) out.push(members.slice(i, i + 9));
-    return out;
-  }, [members]);
-  const flatPages: Sheet[] = useMemo(() => [
-    ...groups.map((g): Sheet => ({ kind: 'grid', members: g })),
-    ...(groups.length > 0 ? [{ kind: 'back' } as Sheet] : []),
-  ], [groups]);
-  // Desktop spreads pair grid halves so facing pages always belong together.
-  // No open-book cover spread: opening the closed cover lands on members.
-  const spreads: [Sheet | undefined, Sheet | undefined][] = useMemo(() => {
-    const arr: [Sheet | undefined, Sheet | undefined][] = [];
-    for (const g of groups) {
-      arr.push([
-        { kind: 'grid', members: g.slice(0, 5) } as Sheet,
-        { kind: 'grid', members: g.slice(5) } as Sheet,
-      ]);
-    }
-    if (groups.length > 0) arr.push([{ kind: 'back' } as Sheet, undefined]);
-    return arr;
-  }, [groups]);
-  const [spread, setSpread] = useState(-1);
+  const wide = useWideBook();
+  const half = Math.ceil(members.length / 2);
+  const leftMembers = wide ? members.slice(0, half) : members;
+  const rightMembers = members.slice(half);
+  const [opened, setOpened] = useState(false);
   const [indexOpen, setIndexOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
@@ -68,32 +54,11 @@ export default function GalleryPage() {
       return [];
     }
   });
-  const spreadRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ startX: number } | null>(null);
-  const wide = typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 768px)').matches;
-  const maxSpread = Math.max(0, (wide ? spreads.length : flatPages.length) - 1);
-
-  // Spread -1 = closed book (front cover only). Opening goes to spread 0,
-  // going back past the cover closes it again.
-  const shown = Math.max(-1, Math.min(spread, maxSpread));
-  const canNext = shown < maxSpread;
-  const canPrev = shown > -1;
   const queryClient = useQueryClient();
 
-  // Warm the neighbors: prefetch adjacent spreads' avatars + levels so the
-  // destination spread is already loaded when navigation lands.
   useEffect(() => {
-    const near = [spreads[shown - 1], spreads[shown], spreads[shown + 1]].filter(Boolean);
-    const ids = new Set<string>();
-    for (const [l, r] of near) {
-      for (const s of [l, r]) {
-        if (s?.kind === 'grid') for (const m of s.members) ids.add(m.id);
-      }
-    }
-    const byId = new Map(members.map((m) => [m.id, m]));
-    for (const id of ids) {
-      const m = byId.get(id);
-      if (!m) continue;
+    const active = (membersQuery.data ?? []).filter((m) => m.status === 'ACTIVE');
+    for (const m of active) {
       if (m.avatar_url) {
         void queryClient.prefetchQuery({
           queryKey: ['avatar-path', m.avatar_url],
@@ -107,60 +72,20 @@ export default function GalleryPage() {
         staleTime: 300_000,
       });
     }
-  }, [shown, spreads, members, queryClient]);
-  const goTo = useCallback((to: number) => {
-    setSpread(Math.max(-1, Math.min(maxSpread, to)));
-  }, [maxSpread]);
-
-  const startTurn = useCallback((dir: 'next' | 'prev') => {
-    const ok = dir === 'next' ? canNext : canPrev;
-    if (!ok) return;
-    // Opening the closed book unsheathes swords; page moves flick paper.
-    if (shown < 0 && dir === 'next') playBookOpen();
-    else playPageTurn();
-    goTo(shown + (dir === 'next' ? 1 : -1));
-  }, [canNext, canPrev, goTo, shown]);
+  }, [membersQuery.data, queryClient]);
 
   useEffect(() => {
+    if (!indexOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (indexOpen) {
-        if (e.key === 'Escape') setIndexOpen(false);
-        return;
-      }
-      if (e.key === 'ArrowRight') startTurn('next');
-      if (e.key === 'ArrowLeft') startTurn('prev');
+      if (e.key === 'Escape') setIndexOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [startTurn, indexOpen]);
+  }, [indexOpen]);
 
-  // Swipe swaps content instantly past a small threshold (no animation for now).
-  function onPointerDown(e: React.PointerEvent) {
-    if ((e.target as HTMLElement).closest('button,a,input,select,textarea')) return;
-    drag.current = { startX: e.clientX };
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    const d = drag.current;
-    if (!d) return;
-    const dx = e.clientX - d.startX;
-    if (Math.abs(dx) < 60) return;
-    drag.current = null;
-    startTurn(dx < 0 ? 'next' : 'prev');
-  }
-  function endDrag() {
-    drag.current = null;
-  }
-
-  const clampIdx = (i: number) => Math.max(0, Math.min(maxSpread, i));
-  let leftSheet: Sheet | undefined;
-  let rightSheet: Sheet | undefined;
-  if (wide) {
-    const cur = spreads[clampIdx(shown)];
-    leftSheet = cur?.[0];
-    rightSheet = cur?.[1];
-  } else {
-    leftSheet = flatPages[shown];
-    rightSheet = undefined;
+  function openBook() {
+    playBookOpen();
+    setOpened(true);
   }
 
   function toggleBookmark(id: string) {
@@ -172,12 +97,13 @@ export default function GalleryPage() {
   }
 
   function jumpToMember(id: string) {
-    const gi = groups.findIndex((g) => g.some((m) => m.id === id));
-    if (gi < 0) return;
-    playPageTurn();
-    setSpread(gi);
     setIndexOpen(false);
     setQuery('');
+    window.setTimeout(() => {
+      const el = document.getElementById(`book-member-${id}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.querySelector<HTMLAnchorElement>('a')?.focus({ preventScroll: true });
+    }, 50);
   }
 
   const visibleMembers = members.filter((m) => {
@@ -192,58 +118,40 @@ export default function GalleryPage() {
       <div className="mb-2 flex items-center gap-2">
         <Link to="/clan" aria-label={t('nav.clan')} className="btn-ghost h-10 w-10 !px-0">‹</Link>
         <h1 className="font-display flex-1 text-xl tracking-wide">{t('gallery.title')}</h1>
-        {members.length > 0 && shown >= 0 && (
-          <span className="font-mono text-xs tabular-nums opacity-60" aria-live="polite">
-            {t('gallery.pageOf', { n: shown + 1, total: maxSpread + 1 })}
-          </span>
-        )}
       </div>
 
       <LoadingRegion loading={membersQuery.isLoading} label={t('common.loading')} skeleton="card">
         {members.length === 0 ? (
           <p className="card mt-3 text-sm opacity-70">{t('gallery.empty')}</p>
-        ) : shown < 0 ? (
+        ) : !opened ? (
           <div className="book-wrap">
-            <button type="button" onClick={() => startTurn('next')} className="book-closed" aria-label={`${t('gallery.title')} — ${t('gallery.next')}`}>
+            <button type="button" onClick={openBook} className="book-closed" aria-label={`${t('gallery.title')} — ${t('gallery.next')}`}>
               <img src="/book-cover.jpg" alt="" aria-hidden className="book-closed-img" />
             </button>
-            <button type="button" onClick={() => startTurn('next')} className="btn-ghost mt-3 flex h-11 w-full items-center justify-center text-sm">
+            <button type="button" onClick={openBook} className="btn-ghost mt-3 flex h-11 w-full items-center justify-center text-sm">
               {t('gallery.next')} ›
             </button>
           </div>
         ) : (
           <div className="book-wrap">
             <div
-              ref={spreadRef}
               role="region"
               aria-label={t('gallery.title')}
               aria-roledescription="book"
               className="book"
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={endDrag}
-              onPointerCancel={endDrag}
             >
               <div className="book-spread">
-                <div className="book-half cell-a"><PageView sheet={leftSheet} /></div>
+                <div className="book-half cell-a"><GridCards members={leftMembers} /></div>
                 <div className="book-spine" aria-hidden />
-                <div className="book-half cell-b"><PageView sheet={wide ? rightSheet : undefined} /></div>
+                {wide && <div className="book-half cell-b"><GridCards members={rightMembers} /></div>}
               </div>
               <div className="book-foreedge" aria-hidden />
-              <p className="book-folio" aria-hidden>{shown + 1} · {maxSpread + 1}</p>
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <button type="button" onClick={() => startTurn('prev')} disabled={!canPrev} className="btn-ghost h-11 flex-1 text-sm">
-                ‹ {t('gallery.prev')}
-              </button>
-              <button type="button" onClick={() => setIndexOpen(true)} className="btn-ghost h-11 px-4 text-sm" aria-label={t('gallery.index')} aria-haspopup="dialog">
-                <Icon name="scroll" className="h-5 w-5" />
-              </button>
-              <button type="button" onClick={() => startTurn('next')} disabled={!canNext} className="btn-ghost h-11 flex-1 text-sm">
-                {t('gallery.next')} ›
-              </button>
-            </div>
+            <button type="button" onClick={() => setIndexOpen(true)} className="btn-ghost mt-3 flex h-11 w-full items-center justify-center gap-2 text-sm" aria-label={t('gallery.index')} aria-haspopup="dialog">
+              <Icon name="scroll" className="h-5 w-5" />
+              {t('gallery.index')}
+            </button>
             <p className="mt-1 text-center text-xs opacity-50">{t('gallery.turnHint')}</p>
           </div>
         )}
@@ -312,14 +220,6 @@ function writeBookmarks(ids: string[]) {
     localStorage.setItem('vik-bookmarks', JSON.stringify(ids));
   } catch { /* ignore */ }
 }
-function PageView({ sheet }: {
-  sheet: Sheet | undefined;
-}) {
-  if (!sheet) return <div className="book-page parchment book-blank" aria-hidden />;
-  if (sheet.kind === 'cover') return <CoverPage />;
-  if (sheet.kind === 'back') return <BackPage />;
-  return <GridCards members={sheet.members} />;
-}
 
 function GridCards({ members }: {
   members: Profile[];
@@ -328,41 +228,20 @@ function GridCards({ members }: {
   if (members.length === 0) return <div className="book-page parchment book-blank" aria-hidden />;
   return (
     <section className="book-page parchment" aria-label={t('gallery.title')}>
-      <div className="grid flex-1 grid-cols-3 content-start gap-2.5" role="list">
+      <div className="book-cards grid flex-1 grid-cols-3 content-start gap-2.5" role="list">
         {members.map((m) => {
           const name = m.known_name ?? m.display_name ?? m.username;
           return (
-              <div key={m.id} role="listitem" className="war-card group relative rounded-xl p-2 text-center">
-                <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-[#6b5320]/70 transition group-hover:text-[#6b5320]">ᚱᚢᚾ</span>
-                <Link to={`/players/${m.id}`} className="flex h-full flex-col items-center gap-1.5" aria-label={name}>
-                  <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
-                  <span className="font-display w-full truncate text-xs tracking-wide">{name}</span>
-                </Link>
-              </div>
+            <div key={m.id} id={`book-member-${m.id}`} role="listitem" className="war-card group relative rounded-xl p-2 text-center">
+              <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-[#6b5320]/70 transition group-hover:text-[#6b5320]">ᚱᚢᚾ</span>
+              <Link to={`/players/${m.id}`} className="flex h-full flex-col items-center gap-1.5" aria-label={name}>
+                <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
+                <span className="font-display w-full truncate text-xs tracking-wide">{name}</span>
+              </Link>
+            </div>
           );
         })}
       </div>
-    </section>
-  );
-}
-
-function CoverPage() {
-  const { t } = useLocale();
-  return (
-    <section className="book-cover-art" aria-label={t('dir.title')}>
-      <img src="/book-cover.jpg" alt="The Last Vikings — clan book cover" className="book-cover-img" />
-    </section>
-  );
-}
-
-function BackPage() {
-  const { t } = useLocale();
-  return (
-    <section className="book-page leather items-center justify-center text-center" aria-label={t('dir.title')}>
-      <div aria-hidden className="leather-frame" />
-      <p className="doc-eyebrow text-[#e8d9b0]">{t('dir.org')}</p>
-      <p className="mt-3 text-xs uppercase tracking-[0.2em] text-[#e8d9b0]/75">{t('dir.taglineA')}</p>
-      <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[#e8d9b0]/75">{t('dir.taglineB')}</p>
     </section>
   );
 }
