@@ -7,6 +7,8 @@ import LeagueDraftList from '../components/league4v4/LeagueDraftList';
 import LeagueSeasonCreateForm from '../components/league4v4/LeagueSeasonCreateForm';
 import AppBar from '../components/ui/AppBar';
 import BottomNav from '../components/ui/BottomNav';
+import Icon from '../components/ui/Icon';
+import { SkeletonList } from '../components/ui/Motion';
 import QueryError from '../components/ui/QueryError';
 import { useLocale } from '../i18n/LocaleContext';
 import { getCompetitionByCode, listCompetitions, listParticipantCounts, createCompetition } from '../services/competitionService';
@@ -44,6 +46,9 @@ export default function CompetitionsPage() {
   const draftSeasons = (leagueSeasonsQuery.data ?? [])
     .filter((season) => season.status === 'DRAFT')
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const competitions = query.data ?? [];
+  const openRegistrations = competitions.filter((competition) => competition.status === 'REGISTRATION_OPEN').length;
+  const activeCompetitions = competitions.filter((competition) => competition.status === 'ACTIVE').length;
 
   async function handleJoinCode(e: React.FormEvent) {
     e.preventDefault();
@@ -94,16 +99,47 @@ export default function CompetitionsPage() {
   const rosterValid = form.min_players >= 2 && form.max_players <= 32 && form.max_players >= form.min_players;
 
   return (
-    <main className="page">
+    <main className="page max-w-4xl">
       <AppBar title={t('comps.title')} />
       <LeagueEntryCard />
-      {canCreate && (
-        <div className="mt-2 flex justify-end">
-          <button onClick={() => setShowForm((s) => !s)} className="btn-primary h-10 px-4 text-sm">{t('comps.new')}</button>
+      <section aria-label={t('comps.title')} className="hero relative isolate mt-4 !p-4 sm:!p-6">
+        <Icon name="trophy" className="pointer-events-none absolute -end-3 -top-4 -z-10 h-32 w-32 rotate-12 text-brand-300 opacity-[0.08] sm:h-40 sm:w-40" />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-300">{t('nav.league')}</p>
+            <h2 className="font-display mt-1 text-xl tracking-wide sm:text-2xl">{t('comps.title')}</h2>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed opacity-75">{t('comps.standardHint')}</p>
+          </div>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => setShowForm((s) => !s)}
+              aria-expanded={showForm}
+              aria-controls="competition-create-form"
+              className="btn-primary h-11 shrink-0 px-4 text-sm"
+            >
+              <Icon name={showForm ? 'x' : 'plus'} className="h-4 w-4" />
+              {showForm ? t('common.close') : t('comps.new')}
+            </button>
+          )}
         </div>
-      )}
+        <div className="mt-4 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
+          <div className="border-e border-white/10 px-1">
+            <p className="font-display text-2xl tabular-nums">{query.isLoading || query.isError ? '—' : competitions.length}</p>
+            <p className="text-[11px] leading-tight opacity-70">{t('comps.title')}</p>
+          </div>
+          <div className="border-e border-white/10 px-1">
+            <p className="font-display text-2xl tabular-nums">{query.isLoading || query.isError ? '—' : openRegistrations}</p>
+            <p className="text-[11px] leading-tight opacity-70">{t('status.REGISTRATION_OPEN')}</p>
+          </div>
+          <div className="px-1">
+            <p className="font-display text-2xl tabular-nums">{query.isLoading || query.isError ? '—' : activeCompetitions}</p>
+            <p className="text-[11px] leading-tight opacity-70">{t('status.ACTIVE')}</p>
+          </div>
+        </div>
+      </section>
       {canCreate && showForm && (
-        <div className="mt-2 flex flex-col gap-2">
+        <div id="competition-create-form" className="mt-3 flex flex-col gap-2">
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-white/5 p-1">
             {(['STANDARD', '4VS4'] as const).map((kind) => (
               <button
@@ -190,25 +226,46 @@ export default function CompetitionsPage() {
         </div>
       )}
 
-      <form onSubmit={handleJoinCode} className="card mt-3 flex gap-2">
-        <input
-          aria-label={t('comps.joinCode')}
-          className="input h-12 flex-1 text-center font-mono text-lg tracking-widest uppercase"
-          placeholder="VIK7X92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
-          maxLength={12} required
-        />
-        <button type="submit" disabled={joining} className="btn-primary h-12 px-5">
+      <form onSubmit={handleJoinCode} className="card mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <label className="label min-w-0 flex-1">{t('comps.joinCode')}
+          <input
+            className="input h-12 w-full text-center font-mono text-lg tracking-widest uppercase"
+            placeholder="VIK7X92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+            maxLength={12} required autoComplete="off" dir="ltr"
+          />
+        </label>
+        <button type="submit" disabled={joining} className="btn-primary h-12 w-full px-5 sm:w-auto">
+          <Icon name="users" className="h-4 w-4" />
           {joining ? t('comps.joining') : t('comps.join')}
         </button>
       </form>
       {joinError && <p role="alert" className="mt-1 text-sm text-red-500">{joinError}</p>}
 
-      <div className="mt-3 flex flex-col gap-2">
-        {query.isLoading && <p className="text-sm">{t('comps.loading')}</p>}
-        {query.isError && <QueryError error={query.error} onRetry={() => void query.refetch()} compact />}
-        {query.data?.length === 0 && <p className="card text-sm opacity-70">{t('comps.empty')}</p>}
-        {query.data?.map((c) => <CompetitionCard key={c.id} comp={c} count={countsQuery.data?.[c.id]} />)}
-      </div>
+      <section aria-label={t('comps.title')} className="mt-5">
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <h2 className="card-title flex items-center gap-2">
+            <Icon name="calendar" className="h-4 w-4 text-brand-400" />
+            {t('comps.standard')}
+          </h2>
+          {!query.isLoading && !query.isError && competitions.length > 0 && (
+            <span className="text-xs tabular-nums opacity-60">{competitions.length}</span>
+          )}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {query.isLoading && <div className="sm:col-span-2" aria-busy="true" aria-label={t('comps.loading')}><SkeletonList rows={3} /></div>}
+          {query.isError && <div className="sm:col-span-2"><QueryError error={query.error} onRetry={() => void query.refetch()} compact /></div>}
+          {countsQuery.isError && !query.isError && <div className="sm:col-span-2"><QueryError error={countsQuery.error} onRetry={() => void countsQuery.refetch()} compact /></div>}
+          {!query.isLoading && !query.isError && competitions.length === 0 && (
+            <p className="card text-sm opacity-70 sm:col-span-2">{t('comps.empty')}</p>
+          )}
+          {!query.isLoading && !query.isError && competitions.map((c) => (
+            <CompetitionCard key={c.id} comp={c} count={countsQuery.data?.[c.id]} />
+          ))}
+        </div>
+        {countsQuery.isFetching && !countsQuery.isLoading && (
+          <p role="status" className="mt-2 text-xs opacity-60">{t('common.loading')}</p>
+        )}
+      </section>
       <BottomNav />
     </main>
   );

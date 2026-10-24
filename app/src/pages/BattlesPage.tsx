@@ -10,7 +10,7 @@ import { usePersistentTab } from '../hooks/usePersistentTab';
 import { Lightbox } from '../components/ui/Motion';
 import Icon from '../components/ui/Icon';
 import WhatsAppIcon from '../components/ui/WhatsAppIcon';
-import { EmptyState, FadeIn } from '../components/ui/Motion';
+import { EmptyState, FadeIn, SkeletonList } from '../components/ui/Motion';
 import StatusBadge from '../components/ui/StatusBadge';
 import { useLocale } from '../i18n/LocaleContext';
 import {
@@ -61,6 +61,18 @@ const COMMANDS = [
 
 function nameOf(p: { display_name: string | null; username: string } | null | undefined, fallback: string): string {
   return p?.display_name ?? p?.username ?? fallback;
+}
+
+function RetryNotice({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const { t, tError } = useLocale();
+  return (
+    <div role="alert" className="card flex flex-wrap items-center justify-between gap-3 border-accent-500/40 text-sm">
+      <span>{tError(error)}</span>
+      <button type="button" onClick={onRetry} className="btn-ghost h-11 px-4 text-sm">
+        {t('common.retry')}
+      </button>
+    </div>
+  );
 }
 
 export default function BattlesPage() {
@@ -209,12 +221,12 @@ export default function BattlesPage() {
     const iSubmit = ch.submitted_by === me?.id;
     const needsMyConfirm = ch.status === 'RESULT_SUBMITTED' && !iSubmit;
     return (
-      <article className="card p-3 text-sm">
-        <div className="flex items-center gap-2">
-          <Avatar path={other?.avatar_url} name={otherName} className="h-9 w-9 text-sm" />
-          <div className="flex-1">
-            <p className="font-bold">{otherName}</p>
-            <p className="text-xs opacity-70">{t(`battle.t${ch.type}` as 'battle.tHEAD')} • {ch.stakes}</p>
+      <article className={`card p-3 text-sm sm:p-4 ${needsMyConfirm || (isIn && ch.status === 'PENDING') ? 'border-brand-500/50' : ''}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Avatar path={other?.avatar_url} name={otherName} className="h-11 w-11 text-base" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-bold">{otherName}</p>
+            <p className="mt-0.5 text-xs opacity-70">{t(`battle.t${ch.type}` as 'battle.tHEAD')} <span aria-hidden>·</span> {ch.stakes}</p>
           </div>
           {ch.for_throne && <span className="status-badge rounded-full bg-accent-500/15 px-2 py-0.5 text-[11px] text-accent-400">{t('throne.title')}</span>}
           {ch.forced && <span className="status-badge rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] text-red-400">100 GP</span>}
@@ -224,7 +236,7 @@ export default function BattlesPage() {
           <p className="mt-1 text-xs font-bold text-red-400">{t('battle.must')}</p>
         )}
         {ch.score_a != null && (
-          <p className="font-display mt-1 text-center text-xl">{ch.score_a}–{ch.score_b}</p>
+          <p className="font-display my-3 text-center text-3xl tabular-nums">{ch.score_a}<span className="mx-3 text-brand-400">–</span>{ch.score_b}</p>
         )}
         {ch.xp_capped && (
           <p className="mt-1 text-center text-[11px] opacity-70">{t('battle.xpCapped')}</p>
@@ -316,23 +328,62 @@ export default function BattlesPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page max-w-3xl">
       <AppBar title={t('battle.title')} />
-      {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
+      {msg && <p role="status" aria-live="polite" className="mt-3 rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-sm font-medium">{msg}</p>}
 
-      <nav aria-label="Battles" className="mt-2 flex gap-1 overflow-x-auto border-b border-[var(--border)]">
+      <section aria-label={t('battle.title')} className="hero relative isolate mt-4 !p-4 sm:!p-5">
+        <Icon name="swords" className="pointer-events-none absolute -end-3 -top-4 -z-10 h-28 w-28 rotate-12 text-brand-300 opacity-[0.08] sm:h-36 sm:w-36" />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-300">{t('nav.arena')}</p>
+            <p className="mt-1 text-sm opacity-75">{t('battle.incoming')} · {incoming.length} <span aria-hidden>—</span> {t('battle.openMat')} · {openBattles.length}</p>
+          </div>
+          <button type="button" onClick={() => setTab('issue')} className="btn-cta h-11 px-4 text-sm">
+            <Icon name="swords" className="h-4 w-4" />
+            {t('battle.issue')}
+          </button>
+        </div>
+        <div className="mt-4 grid grid-cols-3 border-t border-white/10 pt-3 text-center">
+          <div className="border-e border-white/10 px-1">
+            <p className="font-display text-2xl tabular-nums">{incoming.length}</p>
+            <p className="text-[11px] leading-tight opacity-70">{t('battle.incoming')}</p>
+          </div>
+          <div className="border-e border-white/10 px-1">
+            <p className="font-display text-2xl tabular-nums">{openBattles.length}</p>
+            <p className="text-[11px] leading-tight opacity-70">{t('battle.openMat')}</p>
+          </div>
+          <div className="px-1">
+            <p className="font-display text-2xl tabular-nums">{history.length + outgoing.length}</p>
+            <p className="text-[11px] leading-tight opacity-70">{t('battle.history')}</p>
+          </div>
+        </div>
+      </section>
+
+      <nav aria-label={t('battle.title')} className="mt-4 flex gap-2 overflow-x-auto pb-1">
         {(['issue', 'incoming', 'open', 'history', 'commands'] as const).map((tb) => (
           <button
             key={tb}
+            type="button"
             onClick={() => setTab(tb)}
-            className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === tb ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}
+            aria-pressed={tab === tb}
+            className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors active:scale-[0.98] ${tab === tb ? 'border-brand-500/50 bg-brand-500/15 text-brand-300' : 'border-[var(--border)] bg-[var(--surface)] opacity-75 hover:opacity-100'}`}
           >
-            {tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? `${t('battle.incoming')}${incoming.length ? ` (${incoming.length})` : ''}` : tb === 'open' ? `${t('battle.openMat')}${openBattles.length ? ` (${openBattles.length})` : ''}` : tb === 'history' ? t('battle.history') : t('battle.commands')}
+            <Icon name={tb === 'issue' ? 'plus' : tb === 'incoming' || tb === 'open' ? 'swords' : tb === 'history' ? 'scroll' : 'mega'} className="h-4 w-4" />
+            <span>{tb === 'issue' ? t('battle.issue') : tb === 'incoming' ? t('battle.incoming') : tb === 'open' ? t('battle.openMat') : tb === 'history' ? t('battle.history') : t('battle.commands')}</span>
+            {tb === 'incoming' && incoming.length > 0 && <span className="rounded-full bg-accent-500/20 px-1.5 py-0.5 text-[11px] tabular-nums">{incoming.length}</span>}
+            {tb === 'open' && openBattles.length > 0 && <span className="rounded-full bg-brand-500/20 px-1.5 py-0.5 text-[11px] tabular-nums">{openBattles.length}</span>}
           </button>
         ))}
       </nav>
       {tab === 'issue' && (
-        <form onSubmit={issue} className="card mt-3 flex flex-col gap-2">
+        <form onSubmit={issue} className="card mt-3 flex flex-col gap-3 sm:p-5">
+          {membersQuery.isError ? (
+            <RetryNotice error={membersQuery.error} onRetry={() => membersQuery.refetch()} />
+          ) : membersQuery.isLoading ? (
+            <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={1} /></div>
+          ) : (
+          <>
           <label className="flex items-start gap-2 rounded-xl bg-white/5 p-2 text-sm">
             <input
               type="checkbox"
@@ -347,7 +398,7 @@ export default function BattlesPage() {
           </label>
           {!form.openCall && (
           <label className="label">{t('battle.opponent')}
-            <select required value={form.opponent_id} onChange={(e) => setForm({ ...form, opponent_id: e.target.value })} className="input text-sm">
+            <select required disabled={candidates.length === 0} value={form.opponent_id} onChange={(e) => setForm({ ...form, opponent_id: e.target.value })} className="input text-sm disabled:opacity-60">
               <option value="">{t('battle.selectOpp')}</option>
               {candidates.map((m) => <option key={m.id} value={m.id}>{m.display_name ?? m.username}</option>)}
             </select>
@@ -386,12 +437,20 @@ export default function BattlesPage() {
             </label>
           )}
           <button disabled={busy} className="btn-cta h-12">{busy ? t('battle.issuing') : t('battle.send')}</button>
+          </>
+          )}
         </form>
       )}
 
       {tab === 'open' && (
         <div className="mt-3 flex flex-col gap-2">
-          {openBattles.length === 0 && <p className="card text-sm opacity-70">{t('battle.emptyOpen')}</p>}
+          {openQuery.isLoading ? (
+            <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={3} /></div>
+          ) : openQuery.isError ? (
+            <RetryNotice error={openQuery.error} onRetry={() => openQuery.refetch()} />
+          ) : openBattles.length === 0 ? (
+            <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('battle.emptyOpen')} />
+          ) : null}
           {openBattles.map((ch) => (
             <article key={ch.id} className="card p-3 text-sm">
               <div className="flex items-center gap-2">
@@ -419,6 +478,15 @@ export default function BattlesPage() {
 
       {tab === 'incoming' && (
         <div className="mt-3 flex flex-col gap-2">
+          {(incomingQuery.isError || openQuery.isError) && (
+            <RetryNotice
+              error={incomingQuery.error ?? openQuery.error}
+              onRetry={() => { void Promise.all([incomingQuery.refetch(), openQuery.refetch()]); }}
+            />
+          )}
+          {(incomingQuery.isLoading || openQuery.isLoading) && (
+            <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={3} /></div>
+          )}
           {openBattles.length > 0 && (
             <>
               <h2 className="card-title">{t('battle.openMat')}</h2>
@@ -446,7 +514,7 @@ export default function BattlesPage() {
               ))}
             </>
           )}
-          {incoming.length === 0 && openBattles.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('battle.incoming')} hint={t('battle.emptyIn')} />}
+          {!incomingQuery.isLoading && !openQuery.isLoading && !incomingQuery.isError && !openQuery.isError && incoming.length === 0 && openBattles.length === 0 && <EmptyState icon={<Icon name="swords" className="h-8 w-8" />} title={t('battle.incoming')} hint={t('battle.emptyIn')} />}
           {incoming.map((ch, i) => <FadeIn key={ch.id} delay={Math.min(i * 60, 360)}><BattleCard ch={ch} incoming /></FadeIn>)}
         </div>
       )}
@@ -454,13 +522,22 @@ export default function BattlesPage() {
 
       {tab === 'history' && (
         <div className="mt-3 flex flex-col gap-2">
+          {(historyQuery.isError || outgoingQuery.isError) && (
+            <RetryNotice
+              error={historyQuery.error ?? outgoingQuery.error}
+              onRetry={() => { void Promise.all([historyQuery.refetch(), outgoingQuery.refetch()]); }}
+            />
+          )}
+          {(historyQuery.isLoading || outgoingQuery.isLoading) && (
+            <div aria-busy="true" aria-label={t('common.loading')}><SkeletonList rows={3} /></div>
+          )}
           {outgoing.length > 0 && (
             <>
               <h2 className="card-title">{t('battle.openTitle')}</h2>
               {outgoing.map((ch) => <BattleCard key={ch.id} ch={ch} incoming={false} />)}
             </>
           )}
-          {history.length === 0 && outgoing.length === 0 && <EmptyState icon={<Icon name="scroll" className="h-8 w-8" />} title={t('battle.history')} hint={t('battle.emptyHist')} />}
+          {!historyQuery.isLoading && !outgoingQuery.isLoading && !historyQuery.isError && !outgoingQuery.isError && history.length === 0 && outgoing.length === 0 && <EmptyState icon={<Icon name="scroll" className="h-8 w-8" />} title={t('battle.history')} hint={t('battle.emptyHist')} />}
           {history.map((ch, i) => <FadeIn key={ch.id} delay={Math.min(i * 60, 360)}><BattleCard ch={ch} incoming={false} /></FadeIn>)}
         </div>
       )}

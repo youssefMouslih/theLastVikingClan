@@ -35,8 +35,8 @@ export default function HomePage() {
   const announcementsQuery = useQuery({ queryKey: ['announcements'], queryFn: listActiveAnnouncements });
   const notifQuery = useQuery({ queryKey: ['notifications'], queryFn: () => listNotifications(me!.id, 20), enabled: !!me });
   const compsQuery = useQuery({ queryKey: ['competitions'], queryFn: () => listCompetitions() });
-  const throneQuery = useQuery({ queryKey: ['throne'], queryFn: () => getCurrentReign().catch(() => null) });
-  const reignsQuery = useQuery({ queryKey: ['throne-history'], queryFn: () => getReignHistory(5).catch(() => []) });
+  const throneQuery = useQuery({ queryKey: ['throne'], queryFn: getCurrentReign });
+  const reignsQuery = useQuery({ queryKey: ['throne-history'], queryFn: () => getReignHistory(5) });
   const clan = clanQuery.data;
   const next = upcomingQuery.data?.[0];
   const unread = (notifQuery.data ?? []).filter((n) => !n.read_at).length;
@@ -46,14 +46,18 @@ export default function HomePage() {
   const actionGifts = (pendingGifts.data ?? []).length;
 
   return (
-    <main className="page">
-      <header className="flex items-center gap-3">
-        <img src="/logo.png" alt="" width={40} height={40} aria-hidden className="h-10 w-10 rounded-xl object-cover shadow-lg shadow-brand-500/40" />
-        <div className="flex-1">
-          <h1 className="font-display text-sm tracking-wide">{clan?.name ?? 'VIK Clan'} {clan?.tag ? `[${clan.tag}]` : ''}</h1>
-          <p className="text-xs opacity-70">{t('home.greeting', { name: me?.display_name ?? me?.username ?? 'Player' })}</p>
+    <main className="page max-w-4xl">
+      <header className="hero relative isolate flex items-center gap-4 !p-5 sm:!p-7">
+        <img src="/logo.png" alt="" width={56} height={56} aria-hidden className="relative z-10 h-14 w-14 shrink-0 rounded-xl object-cover shadow-lg shadow-brand-500/30" />
+        <div className="relative z-10 min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-300">{t('nav.hall')}</p>
+          <h1 className="font-display mt-1 truncate text-2xl tracking-wide sm:text-3xl">
+            {clan?.name ?? 'VIK Clan'} {clan?.tag ? `[${clan.tag}]` : ''}
+          </h1>
+          <p className="mt-1 text-sm opacity-75">{t('home.greeting', { name: me?.display_name ?? me?.username ?? 'Player' })}</p>
         </div>
-        <Link to="/notifications" aria-label={`${t('notif.title')}${unread ? `, ${unread}` : ''}`} className="btn-ghost relative h-11 w-11 !px-0">
+        <Icon name="shield" className="pointer-events-none absolute -end-5 -bottom-8 z-0 h-36 w-36 rotate-12 text-brand-300 opacity-[0.08]" />
+        <Link to="/notifications" aria-label={`${t('notif.title')}${unread ? `, ${unread}` : ''}`} className="btn-ghost relative z-10 h-11 w-11 shrink-0 !px-0">
           <Icon name="bell" className="h-5 w-5" />
           {unread > 0 && <span className="absolute -end-1 -top-1 rounded-full bg-accent-600 px-1.5 text-[11px] font-bold text-white">{unread}</span>}
         </Link>
@@ -114,41 +118,83 @@ export default function HomePage() {
         )}
       </section>
 
-      <section aria-label={t('throne.title')} className="card mt-3">
-        <h2 className="card-title flex items-center gap-1"><Icon name="trophy" className="h-4 w-4 text-brand-400" /> {t('throne.title')}</h2>
-        {throneQuery.data?.holder ? (
-          <div className="mt-2">
-            <div className="flex items-center gap-3">
-              <Link to={`/players/${throneQuery.data.holder_id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                <Avatar path={throneQuery.data.holder.avatar_url} name={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username} className="h-12 w-12 text-lg" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-display truncate text-lg leading-tight underline decoration-brand-500/60 underline-offset-2">{throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}</p>
-                  <p className="text-xs opacity-70">
-                    {t('throne.reignSince', { date: fmtDate(throneQuery.data.started_at, false) })} • {t('throne.defenses', { n: throneQuery.data.defenses })}
-                  </p>
-                </div>
-              </Link>
-            </div>
+      <section aria-label={t('throne.title')} className="hero relative mt-4 border-brand-500/40">
+        <div className="flex items-center gap-2 text-brand-300">
+          <Icon name="crown" className="h-5 w-5" />
+          <h2 className="text-xs font-bold uppercase tracking-[0.2em]">{t('throne.title')}</h2>
+        </div>
+        {throneQuery.isLoading ? (
+          <div role="status" className="mt-4 flex items-center gap-3" aria-label={t('common.loading')}>
+            <span aria-hidden className="skeleton h-16 w-16 !rounded-full" />
+            <span aria-hidden className="skeleton h-10 flex-1" />
+          </div>
+        ) : throneQuery.isError ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p role="alert" className="text-sm">{t('common.failed')}</p>
+            <button type="button" onClick={() => throneQuery.refetch()} className="btn-ghost h-11 px-4 text-sm">
+              {t('common.retry')}
+            </button>
+          </div>
+        ) : throneQuery.data?.holder ? (
+          <div className="relative mt-4">
+            <Icon name="trophy" className="pointer-events-none absolute -end-2 -top-2 h-24 w-24 text-brand-300 opacity-[0.08]" />
+            <Link to={`/players/${throneQuery.data.holder_id}`} className="relative flex min-w-0 items-center gap-4">
+              <span className="rounded-full border border-brand-400/50 bg-brand-500/10 p-1">
+                <Avatar
+                  path={throneQuery.data.holder.avatar_url}
+                  name={throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}
+                  className="h-16 w-16 text-2xl sm:h-20 sm:w-20"
+                />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-brand-300">{t('throne.holder')}</span>
+                <span className="font-display mt-1 block truncate text-xl leading-tight sm:text-2xl">
+                  {throneQuery.data.holder.display_name ?? throneQuery.data.holder.username}
+                </span>
+                <span className="mt-2 block text-xs leading-relaxed opacity-75">
+                  {t('throne.reignSince', { date: fmtDate(throneQuery.data.started_at, false) })}
+                  <span aria-hidden> · </span>
+                  {t('throne.defenses', { n: throneQuery.data.defenses })}
+                </span>
+              </span>
+              <Icon name="chevronRight" className="h-5 w-5 shrink-0 text-brand-300" />
+            </Link>
             {throneQuery.data.holder_id !== me?.id && (
-              <Link to={`/battles?opponent=${throneQuery.data.holder_id}&throne=1`} className="btn-cta mt-2 w-full text-sm">
+              <Link to={`/battles?opponent=${throneQuery.data.holder_id}&throne=1`} className="btn-cta mt-4 w-full text-sm">
                 {t('throne.challenge')}
               </Link>
             )}
-            {(reignsQuery.data ?? []).length > 1 && (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs underline">{t('throne.history')}</summary>
-                <ul className="mt-1 flex flex-col gap-1 text-xs opacity-80">
-                  {(reignsQuery.data ?? []).slice(1).map((r) => (
-                    <li key={r.id}>
-                      {(r.holder?.display_name ?? r.holder?.username ?? '?')} • {t('throne.defenses', { n: r.defenses })}
+            {reignsQuery.isError ? (
+              <p role="alert" className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3 text-xs">
+                <span>{t('common.failed')}</span>
+                <button type="button" onClick={() => reignsQuery.refetch()} className="font-semibold text-brand-300 underline underline-offset-2">
+                  {t('common.retry')}
+                </button>
+              </p>
+            ) : reignsQuery.isLoading ? (
+              <p role="status" className="mt-4 border-t border-white/10 pt-3 text-xs opacity-70">{t('common.loading')}</p>
+            ) : (reignsQuery.data ?? []).length > 1 ? (
+              <details className="mt-4 border-t border-white/10 pt-3">
+                <summary className="min-h-11 cursor-pointer py-2 text-xs font-semibold text-brand-300 underline underline-offset-2">
+                  {t('throne.history')}
+                </summary>
+                <ol className="mt-2 flex flex-col gap-2">
+                  {(reignsQuery.data ?? []).slice(1).map((r, i) => (
+                    <li key={r.id} className="flex items-center gap-3 border-s border-brand-400/40 py-1 ps-3 text-sm">
+                      <span className="font-display text-xs text-brand-300" aria-label={`#${i + 2}`}>{String(i + 2).padStart(2, '0')}</span>
+                      <span className="min-w-0 flex-1 truncate font-semibold">{r.holder?.display_name ?? r.holder?.username ?? '?'}</span>
+                      <span className="shrink-0 text-xs opacity-70">{t('throne.defenses', { n: r.defenses })}</span>
                     </li>
                   ))}
-                </ul>
+                </ol>
               </details>
-            )}
+            ) : null}
           </div>
         ) : (
-          <p className="mt-1 text-sm opacity-70">{t('throne.vacant')}</p>
+          <p className="mt-3 flex items-start gap-3 text-sm leading-relaxed opacity-80">
+            <Icon name="crown" className="mt-0.5 h-5 w-5 shrink-0 text-brand-300" />
+            {t('throne.vacant')}
+          </p>
         )}
       </section>
 
