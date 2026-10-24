@@ -11,6 +11,7 @@ import CopyButton from '../components/ui/CopyButton';
 import { confirmDialog } from '../components/ui/confirm';
 import Icon from '../components/ui/Icon';
 import { Countdown, EmptyState, FadeIn, SkeletonList } from '../components/ui/Motion';
+import QueryError from '../components/ui/QueryError';
 import StatusBadge from '../components/ui/StatusBadge';
 import { competitionTypeLabel } from '../i18n/competitionType';
 import { statusLabel, useLocale } from '../i18n/LocaleContext';
@@ -79,6 +80,7 @@ export default function CompetitionDetailPage() {
     ? [t('detail.tabOverview'), t('detail.tabBracket'), t('detail.tabMatches'), t('detail.tabPlayers'), t('detail.tabStats')]
     : [t('detail.tabOverview'), t('detail.tabStandings'), t('detail.tabMatches'), t('detail.tabPlayers'), t('detail.tabStats')];
   const TAB_KEYS = comp && comp.type !== 'LEAGUE' ? ['Overview', 'Bracket', 'Matches', 'Players', 'Stats'] : ['Overview', 'Standings', 'Matches', 'Players', 'Stats'];
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const state = comp ? registrationState(Date.now(), comp.registration_start, comp.registration_deadline, parts.length, comp.max_players) : null;
   const stateLabel = state ? statusLabel(t, state) : '';
   const isRegistered = parts.some((p) => p.player_id === me?.id);
@@ -216,7 +218,8 @@ export default function CompetitionDetailPage() {
 
   const started = comp && ['ACTIVE', 'FINISHED', 'ARCHIVED'].includes(comp.status);
 
-  if (compQuery.isLoading) return <main className="page text-sm">{t('common.loading')}</main>;
+  if (compQuery.isLoading) return <main className="page" aria-busy="true"><SkeletonList rows={4} /></main>;
+  if (compQuery.isError) return <main className="page"><QueryError error={compQuery.error} onRetry={() => void compQuery.refetch()} /></main>;
   if (!comp || (comp.is_deleted && !isAdmin)) return <main className="page text-sm">{t('detail.notFound')}</main>;
   const hasStarted = matches.length > 0 || ['ACTIVE', 'FINISHED', 'ARCHIVED'].includes(comp.status);
   const pendingDelete = !!comp.delete_requested_by && !comp.is_deleted;
@@ -224,32 +227,46 @@ export default function CompetitionDetailPage() {
 
   return (
     <main className="page">
-      <div className="flex items-center gap-2">
-        <Link to="/competitions" className="flex-1 text-sm font-medium text-brand-400">{t('detail.back')}</Link>
+      <div className="mb-3 flex items-center gap-2">
+        <Link to="/competitions" className="flex min-h-11 flex-1 items-center gap-2 text-sm font-semibold text-brand-400">
+          <Icon name="back" className="h-4 w-4" /> {t('detail.back')}
+        </Link>
         <button
           type="button"
           aria-label={t('common.refresh')}
           onClick={() => run(async () => {}, '')}
           disabled={busy}
-          className="btn-ghost h-9 w-9 !px-0 text-xs"
+          className="btn-ghost h-11 w-11 px-0!"
         >
-          ⟳
+          <Icon name="refresh" className="h-4 w-4" />
         </button>
       </div>
-      <div className="hero mt-2">
-        <div className="flex items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+      <header className="hero">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10">
             <Icon name={comp.type === 'LEAGUE' ? 'trophy' : 'swords'} className="h-6 w-6" />
           </span>
-          <h1 className="font-display flex-1 text-xl tracking-wide">{comp.name}</h1>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-300">{competitionTypeLabel(t, comp.type)}</p>
+            <h1 className="font-display mt-1 wrap-break-word text-xl tracking-wide sm:text-2xl">{comp.name}</h1>
+          </div>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        {comp.description && <p className="mt-3 max-w-prose text-sm leading-relaxed text-white/75">{comp.description}</p>}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <StatusBadge value={comp.status} />
-          <span className="status-badge inline-block rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-400">{competitionTypeLabel(t, comp.type)}</span>
-          <span className="opacity-80">{parts.length} / {comp.max_players} • {matches.length}</span>
+          <span className="rounded-full bg-brand-500/15 px-2.5 py-1 text-[11px] font-bold text-brand-300">{stateLabel}</span>
         </div>
-      </div>
-      {comp.description && <p className="mt-2 text-sm opacity-80">{comp.description}</p>}
+        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-white/10 pt-3 text-sm">
+          <div>
+            <dt className="text-xs text-white/60">{t('detail.tabPlayers')}</dt>
+            <dd className="mt-0.5 font-semibold tabular-nums">{parts.length} <span className="font-normal text-white/60">/ {comp.max_players}</span></dd>
+          </div>
+          <div>
+            <dt className="text-xs text-white/60">{t('detail.tabMatches')}</dt>
+            <dd className="mt-0.5 font-semibold tabular-nums">{matches.length}</dd>
+          </div>
+        </dl>
+      </header>
       {needsReview && (
         <p role="alert" className="card mt-2 border-amber-400 text-sm">{t('detail.needsReview')}</p>
       )}
@@ -272,22 +289,35 @@ export default function CompetitionDetailPage() {
         </div>
       )}
 
-      <section aria-label="Registration" className="card mt-3">
-        <h2 className="card-title">{t('detail.registration', { state: stateLabel })}</h2>
-        <p className="mt-1 text-sm opacity-80">
-          {comp.registration_deadline ? `${t('detail.closes', { date: fmtDate(comp.registration_deadline) })} ` : ''}
-          {isFull ? t('detail.full') : t('detail.slotsLeft', { n: comp.max_players - parts.length })}
-        </p>
+      <section aria-label={t('detail.registration', { state: stateLabel })} className="card mt-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="card-title">{t('detail.registration', { state: stateLabel })}</h2>
+            <p className="mt-1 text-sm opacity-80">
+              {comp.registration_deadline ? `${t('detail.closes', { date: fmtDate(comp.registration_deadline) })} ` : ''}
+              {isFull ? t('detail.full') : t('detail.slotsLeft', { n: comp.max_players - parts.length })}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full border border-(--border) bg-(--surface-2) px-2.5 py-1 text-xs font-bold tabular-nums">
+            {parts.length}/{comp.max_players}
+          </span>
+        </div>
+        <progress
+          className="mt-3 block h-2 w-full overflow-hidden rounded-full accent-brand-500"
+          value={Math.min(parts.length, comp.max_players)}
+          max={comp.max_players}
+          aria-label={`${parts.length} / ${comp.max_players} ${t('detail.tabPlayers')}`}
+        />
         {state === 'OPEN' && comp.registration_deadline && (
           <p className="mt-1.5 flex items-center gap-1.5 text-sm">
             <span className="live-dot" aria-hidden /> <Countdown deadline={comp.registration_deadline} urgentHours={12} />
           </p>
         )}
-        {msg && <p className="mt-1 text-sm font-medium">{msg}</p>}
+        {msg && <p role="status" aria-live="polite" className="mt-2 rounded-lg bg-(--surface-2) px-3 py-2 text-sm font-medium">{msg}</p>}
         <div className="mt-2 flex flex-wrap gap-2">
           {!isRegistered ? (
             !sworn ? (
-              <div className="flex w-full flex-col gap-2 rounded-xl bg-white/5 p-3 text-sm">
+              <div className="flex w-full flex-col gap-2 rounded-xl border border-(--border) bg-(--surface-2) p-3 text-sm">
                 <p className="font-bold">{t('code.oathGate')}</p>
                 <div className="flex gap-2">
                   <Link to="/code" className="btn-ghost flex-1">{t('code.tabOath')}</Link>
@@ -315,12 +345,12 @@ export default function CompetitionDetailPage() {
             </button>
           )}
         </div>
-        <p className="mt-2 text-xs opacity-70">{t('detail.joinLink')} <code>/join/{comp.join_code}</code>{comp.join_enabled ? '' : ` ${t('detail.disabled')}`}</p>
+        <p className="mt-3 break-all text-xs opacity-70">{t('detail.joinLink')} <code className="font-mono text-(--text)">/join/{comp.join_code}</code>{comp.join_enabled ? '' : ` ${t('detail.disabled')}`}</p>
         {parts.length > 0 && (
-          <div className="mt-2 flex items-center gap-1" aria-label={t('detail.tabPlayers')}>
+          <div className="mt-3 flex items-center gap-2" aria-label={t('detail.tabPlayers')}>
             <div className="flex -space-x-2">
               {parts.slice(0, 8).map((p) => (
-                <Avatar key={p.player_id} path={p.player?.avatar_url} name={names[p.player_id]} className="h-7 w-7 border-2 border-[var(--surface)] text-[10px]" />
+                <Avatar key={p.player_id} path={p.player?.avatar_url} name={names[p.player_id]} className="h-7 w-7 border-2 border-(--surface) text-[10px]" />
               ))}
             </div>
             {parts.length > 8 && <span className="text-xs opacity-70">+{parts.length - 8}</span>}
@@ -332,10 +362,10 @@ export default function CompetitionDetailPage() {
         <section aria-label={t('detail.admin')} className="card mt-3">
           <div className="flex items-center gap-2">
             <h2 className="card-title flex-1">{t('detail.admin')}</h2>
-            {!editing && <button onClick={startEdit} className="btn-ghost h-9 px-3 text-xs">{t('common.edit')}</button>}
+            {!editing && <button onClick={startEdit} className="btn-ghost h-11 px-4 text-xs">{t('common.edit')}</button>}
           </div>
-          <p className="mt-1 font-mono text-sm">{t('detail.code')} {comp.join_code}</p>
-          <div className="mt-1 flex flex-wrap gap-2">
+          <p className="mt-3 font-mono text-sm">{t('detail.code')} <span className="font-bold tracking-wider">{comp.join_code}</span></p>
+          <div className="mt-2 flex flex-wrap gap-2">
             <CopyButton text={comp.join_code} label={t('common.copy')} />
             <CopyButton text={`${window.location.origin}/join/${comp.join_code}`} label={t('common.inviteLink')} />
           </div>
@@ -357,17 +387,18 @@ export default function CompetitionDetailPage() {
                   {t('detail.override')}
                 </label>
               )}
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button type="submit" disabled={busy} className="btn-primary flex-1">{t('common.save')}</button>
                 <button type="button" onClick={() => setEditing(false)} className="btn-ghost">{t('common.cancel')}</button>
               </div>
             </form>
           ) : (
-            <div className="mt-2 flex flex-wrap gap-2 text-sm">
-              <button disabled={busy} onClick={() => run(() => comp.type === 'LEAGUE' ? generateLeagueFixtures(comp.id).then((n) => setMsg(t('detail.fixturesLeague', { n }))) : generateKnockoutFixtures(comp.id).then((n) => setMsg(t('detail.fixturesCup', { n }))), '')} className="btn-dark h-10 px-3 text-xs">
+            <div className="mt-3 flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2">
+              <button disabled={busy} onClick={() => run(() => comp.type === 'LEAGUE' ? generateLeagueFixtures(comp.id).then((n) => setMsg(t('detail.fixturesLeague', { n }))) : generateKnockoutFixtures(comp.id).then((n) => setMsg(t('detail.fixturesCup', { n }))), '')} className="btn-dark h-11 px-3 text-xs">
                 {comp.type === 'LEAGUE' ? t('detail.generateLeague') : t('detail.generateCup')}
               </button>
-              <button disabled={busy} onClick={() => run(() => markOverdue(comp.id).then((n) => setMsg(t('detail.overdueMarked', { n }))), '')} className="btn-ghost h-10 px-3 text-xs">{t('detail.checkDeadlines')}</button>
+              <button disabled={busy} onClick={() => run(() => markOverdue(comp.id).then((n) => setMsg(t('detail.overdueMarked', { n }))), '')} className="btn-ghost h-11 px-3 text-xs">{t('detail.checkDeadlines')}</button>
               <button
                 disabled={busy}
                 onClick={() =>
@@ -376,15 +407,17 @@ export default function CompetitionDetailPage() {
                     setMsg(t('detail.purged', { n }));
                   }, '')
                 }
-                className="btn-ghost h-10 px-3 text-xs"
+                className="btn-ghost h-11 px-3 text-xs"
               >
                 {t('detail.freeStorage')}
               </button>
-              <button disabled={busy} onClick={() => run(async () => { const c = await regenerateJoinCode(comp.id); setMsg(t('detail.newCode', { code: c })); }, '')} className="btn-ghost h-10 px-3 text-xs">{t('detail.regenCode')}</button>
-              <button disabled={busy} onClick={() => run(() => setJoinEnabled(comp.id, !comp.join_enabled), t('detail.joinToggled'))} className="btn-ghost h-10 px-3 text-xs">{comp.join_enabled ? t('detail.disableJoin') : t('detail.enableJoin')}</button>
-              <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'REGISTRATION_CLOSED'), t('detail.regClosed'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.closeReg')}</button>
+              <button disabled={busy} onClick={() => run(async () => { const c = await regenerateJoinCode(comp.id); setMsg(t('detail.newCode', { code: c })); }, '')} className="btn-ghost h-11 px-3 text-xs">{t('detail.regenCode')}</button>
+              </div>
+              <div className="flex flex-wrap gap-2 border-t border-(--border) pt-3">
+              <button disabled={busy} onClick={() => run(() => setJoinEnabled(comp.id, !comp.join_enabled), t('detail.joinToggled'))} className="btn-ghost h-11 px-3 text-xs">{comp.join_enabled ? t('detail.disableJoin') : t('detail.enableJoin')}</button>
+              <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'REGISTRATION_CLOSED'), t('detail.regClosed'))} className="btn-ghost h-11 px-3 text-xs">{t('detail.closeReg')}</button>
               {(comp.status === 'REGISTRATION_CLOSED' || comp.status === 'DRAFT') && (
-                <button disabled={busy} onClick={() => run(() => reopenRegistration(comp).then((note) => setMsg(note)), '')} className="btn-ghost h-10 px-3 text-xs">{t('detail.reopenReg')}</button>
+                <button disabled={busy} onClick={() => run(() => reopenRegistration(comp).then((note) => setMsg(note)), '')} className="btn-ghost h-11 px-3 text-xs">{t('detail.reopenReg')}</button>
               )}
               <button
                 disabled={busy}
@@ -395,44 +428,71 @@ export default function CompetitionDetailPage() {
                     setMsg(`${t('detail.finished')} ${t('detail.purged', { n })}`);
                   }, '')
                 }
-                className="btn-ghost h-10 px-3 text-xs"
+                className="btn-ghost h-11 px-3 text-xs"
               >
                 {t('detail.finish')}
               </button>
-              <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'ARCHIVED'), t('detail.archived'))} className="btn-ghost h-10 px-3 text-xs">{t('detail.archive')}</button>
+              <button disabled={busy} onClick={() => run(() => setCompetitionStatus(comp.id, 'ARCHIVED'), t('detail.archived'))} className="btn-ghost h-11 px-3 text-xs">{t('detail.archive')}</button>
               {hasStarted ? (
                 !pendingDelete && (
-                  <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.requestConfirm'), danger: true })) run(() => requestDeletion(comp.id, me!.id), t('detail.reqSent')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.requestDelete')}</button>
+                  <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.requestConfirm'), danger: true })) run(() => requestDeletion(comp.id, me!.id), t('detail.reqSent')); }} className="btn-danger h-11 px-3 text-xs">{t('detail.requestDelete')}</button>
                 )
               ) : (
-                <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.deleteConfirm', { name: comp.name }), danger: true })) run(() => softDeleteCompetition(comp.id, me!.id), t('detail.deleted')).then(() => nav('/competitions')); }} className="btn-danger h-10 px-3 text-xs">{t('detail.delete')}</button>
+                <button disabled={busy} onClick={async () => { if (await confirmDialog({ message: t('detail.deleteConfirm', { name: comp.name }), danger: true })) run(() => softDeleteCompetition(comp.id, me!.id), t('detail.deleted')).then(() => nav('/competitions')); }} className="btn-danger h-11 px-3 text-xs">{t('detail.delete')}</button>
               )}
+              </div>
             </div>
           )}
         </section>
       )}
 
-      <nav aria-label="Competition tabs" className="mt-3 flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/10">
+      <div role="tablist" aria-label={t('comps.title')} aria-orientation="horizontal" className="mt-4 flex gap-1 overflow-x-auto border-b border-black/10 dark:border-white/10">
         {TABS.map((label, i) => {
           const key = TAB_KEYS[i];
           const count = key === 'Players' ? ` (${parts.length})` : key === 'Matches' || key === 'Bracket' ? ` (${matches.length})` : '';
           return (
-            <button key={key} onClick={() => setTab(key)} className={`h-11 shrink-0 px-3 text-sm font-semibold ${tab === key ? 'border-b-2 border-brand-500 text-brand-400' : 'opacity-60'}`}>{label}{count}</button>
+            <button
+              key={key}
+              ref={(element) => { tabRefs.current[i] = element; }}
+              id={`competition-tab-${key}`}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              aria-controls="competition-tab-panel"
+              tabIndex={tab === key ? 0 : -1}
+              onClick={() => setTab(key)}
+              onKeyDown={(event) => {
+                const rtl = document.documentElement.dir === 'rtl';
+                const direction = event.key === 'ArrowRight' ? (rtl ? -1 : 1) : event.key === 'ArrowLeft' ? (rtl ? 1 : -1) : 0;
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? TAB_KEYS.length - 1 : direction ? (i + direction + TAB_KEYS.length) % TAB_KEYS.length : -1;
+                if (next >= 0) {
+                  event.preventDefault();
+                  setTab(TAB_KEYS[next]);
+                  tabRefs.current[next]?.focus();
+                }
+              }}
+              className={`h-12 shrink-0 border-b-2 px-3 text-sm font-semibold transition-colors ${tab === key ? 'border-brand-500 text-brand-400' : 'border-transparent opacity-60 hover:opacity-100'}`}
+            >
+              {label}{count}
+            </button>
           );
         })}
-      </nav>
+      </div>
 
-      <section className="mt-3">
+      <section id="competition-tab-panel" role="tabpanel" tabIndex={0} aria-labelledby={`competition-tab-${tab}`} className="mt-4 focus-visible:rounded-xl">
         {tab === 'Overview' && (
-          <div className="flex flex-col gap-2">
-            <div className="card text-sm">
-              <p>{t('detail.format')} {comp.format ?? '—'}</p>
-              <p className="opacity-70">{comp.type === 'LEAGUE' ? t('admin.typeLeague') : comp.type === 'CUP' ? t('admin.typeCup') : comp.type === 'TOURNAMENT' ? t('admin.typeTournament') : t('admin.typeSpecial')}</p>
-              <p>{t('detail.matchDeadline', { h: comp.match_deadline_hours })}</p>
-              <p>{t('detail.points', { w: comp.points_win, d: comp.points_draw, l: comp.points_loss })}</p>
-              {comp.start_date && <p>{t('detail.starts', { date: fmtDate(comp.start_date) })}</p>}
-              {comp.end_date && <p>{t('detail.ends', { date: fmtDate(comp.end_date) })}</p>}
+          <div className="flex flex-col gap-3">
+            <div className="card">
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+                <p>{t('detail.format')} <span className="font-semibold">{comp.format ?? '—'}</span></p>
+                <p className="text-(--muted)">{comp.type === 'LEAGUE' ? t('admin.typeLeague') : comp.type === 'CUP' ? t('admin.typeCup') : comp.type === 'TOURNAMENT' ? t('admin.typeTournament') : t('admin.typeSpecial')}</p>
+                <p>{t('detail.matchDeadline', { h: comp.match_deadline_hours })}</p>
+                <p className="font-semibold tabular-nums">{t('detail.points', { w: comp.points_win, d: comp.points_draw, l: comp.points_loss })}</p>
+                {comp.start_date && <p>{t('detail.starts', { date: fmtDate(comp.start_date) })}</p>}
+                {comp.end_date && <p>{t('detail.ends', { date: fmtDate(comp.end_date) })}</p>}
+              </div>
             </div>
+            {standingsQuery.isError && <QueryError error={standingsQuery.error} onRetry={() => void standingsQuery.refetch()} compact />}
             {standingsQuery.data && standingsQuery.data.length > 0 && (
               <StandingsTable rows={standingsQuery.data.slice(0, 5)} names={names} form={formByPlayer} highlightPlayerId={me?.id ?? null} />
             )}

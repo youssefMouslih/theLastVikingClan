@@ -174,23 +174,185 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="page">
-      <h1 className="sr-only">{t('profile.title')}</h1>
-      <div className="mb-2 flex justify-end">
-        <Link to="/settings" aria-label={t('settings.title')} className="btn-ghost h-10 w-10 !px-0">
-          <Icon name="sliders" className="h-5 w-5" />
+    <main className="page max-w-5xl">
+      <header className="mb-5 flex items-center justify-between gap-3 border-b border-(--border) pb-4">
+        <div className="min-w-0">
+          <p className="mb-1 truncate text-xs font-bold uppercase tracking-[0.2em] text-brand-400">{me.username}</p>
+          <h1 className="font-display flex items-center gap-2 text-2xl tracking-wide">
+            <Icon name="user" className="h-6 w-6 text-brand-400" /> {t('profile.title')}
+          </h1>
+        </div>
+        <Link to="/settings" className="btn-ghost shrink-0 gap-2 text-sm">
+          <Icon name="gear" className="h-4 w-4" /> {t('settings.title')}
         </Link>
+      </header>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+        <div className="min-w-0">
+          <PlayerCard
+            member={me}
+            career={careerQuery.data ?? null}
+            onAvatarClick={() => avatarInput.current?.click()}
+            action={
+              <button type="button" onClick={startEdit} aria-label={t('common.edit')} className="btn-ghost h-10 w-10 px-0! text-white">
+                <Icon name="pencil" className="h-5 w-5" />
+              </button>
+            }
+          />
+          {careerQuery.isPending && (
+            <p role="status" className="mt-2 text-sm text-(--muted)">{t('common.loading')}</p>
+          )}
+          {careerQuery.isError && (
+            <div role="alert" className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-(--border) bg-(--surface) p-3 text-sm">
+              <span>{tError(careerQuery.error)}</span>
+              <button type="button" onClick={() => void careerQuery.refetch()} className="btn-ghost gap-2 text-xs">
+                <Icon name="refresh" className="h-4 w-4" /> {t('common.retry')}
+              </button>
+            </div>
+          )}
+          {msg && !editing && <p role="alert" className="mt-2 text-sm">{msg}</p>}
+
+          {!me.known_name && !editing && (
+            <button
+              type="button"
+              onClick={startEdit}
+              className="card mt-3 flex w-full items-center justify-center gap-2 border-brand-500/50 p-3 text-sm font-bold text-brand-300"
+            >
+              {t('profile.setKnownCta')}
+            </button>
+          )}
+        </div>
+
+        <div className="min-w-0">
+          {editing && (
+            <form onSubmit={save} className="card flex flex-col gap-5" aria-labelledby="profile-editor-title">
+              <div className="border-b border-(--border) pb-3">
+                <h2 id="profile-editor-title" className="font-display text-lg font-bold tracking-wide">{t('common.edit')} {t('profile.title')}</h2>
+              </div>
+              <section className="flex flex-col gap-3" aria-labelledby="profile-about-title">
+                <h3 id="profile-about-title" className="card-title">{t('profile.about')}</h3>
+                <label className="label">{t('profile.avatar')}
+                  <span className="file-upload text-xs">
+                    <span>{t('profile.uploadImage')}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
+                    {avatarFile && <span className="file-name">{avatarFile.name}</span>}
+                  </span>
+                </label>
+                <label className="label">{t('profile.realName')}
+                  <input className="input" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder={t('profile.realNameHint')} />
+                  <span className="text-xs font-normal opacity-60">{t('profile.realNameHint')}</span>
+                </label>
+                <label className="label">{t('profile.knownName')}
+                  <input className="input" value={form.known_name} onChange={(e) => setForm({ ...form, known_name: e.target.value })} placeholder="VIK Pride" dir="ltr" />
+                  <span className="text-xs font-normal opacity-60">{t('profile.knownNameHint')}</span>
+                </label>
+              </section>
+
+              <section className="flex flex-col gap-3 border-t border-(--border) pt-4" aria-labelledby="profile-game-title">
+                <h3 id="profile-game-title" className="card-title">{t('profile.efootballName')}</h3>
+                <label className="label">{t('profile.efootballName')}
+                  <input className="input" value={form.efootball_name} onChange={(e) => setForm({ ...form, efootball_name: e.target.value })} />
+                  <span className="text-xs font-normal opacity-60">{t('profile.efootballNameHint')}</span>
+                </label>
+                <label className="label">{t('profile.efootballId')}<input className="input" value={form.efootball_id} onChange={(e) => setForm({ ...form, efootball_id: e.target.value })} /></label>
+                <label className="label">{t('profile.country')}
+                  <select value={parseCountry(form.country)?.code ?? ''} onChange={(e) => setForm({ ...form, country: e.target.value })} className="input">
+                    <option value="">—</option>
+                    {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
+                  </select>
+                </label>
+                <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
+              </section>
+
+              <section className="flex flex-col gap-3 border-t border-(--border) pt-4" aria-labelledby="profile-social-title">
+                <h3 id="profile-social-title" className="card-title">{t('profile.social')}</h3>
+                <label className="label">{t('profile.instagram')}<input className="input" value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} placeholder="@handle" dir="ltr" /></label>
+                <label className="label">{t('profile.tiktok')}<input className="input" value={form.tiktok} onChange={(e) => setForm({ ...form, tiktok: e.target.value })} placeholder="@handle" dir="ltr" /></label>
+                <label className="label">{t('profile.kick')}<input className="input" value={form.kick} onChange={(e) => setForm({ ...form, kick: e.target.value })} placeholder="channel" dir="ltr" /></label>
+                <label className="label">{t('profile.whatsapp')}<input type="tel" inputMode="tel" className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value.replace(/[^\d+]/g, '').slice(0, 20) })} placeholder="+212600000000" dir="ltr" /></label>
+              </section>
+
+              <section className="flex flex-col gap-3 border-t border-(--border) pt-4" aria-labelledby="profile-banner-title">
+                <h3 id="profile-banner-title" className="card-title">{t('profile.bannerColor')}</h3>
+                <div>
+                  <p className="text-sm font-semibold">{t('profile.bannerColor')}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      type="color"
+                      aria-label={t('profile.bannerCustom')}
+                      value={/^#[0-9a-fA-F]{6}$/.test(form.banner_color) ? form.banner_color : '#d4af37'}
+                      onChange={(e) => setForm({ ...form, banner_color: e.target.value })}
+                      className="h-11 w-14 cursor-pointer rounded-lg border border-(--border) bg-transparent p-1"
+                    />
+                    <div aria-hidden className="h-9 w-9 rounded-lg border border-(--border)" style={{ background: form.banner_color || 'linear-gradient(115deg,#ffe500 20%,#2540ff 60%,#0f0f23)' }} />
+                    {form.banner_color && (
+                      <button type="button" onClick={() => setForm({ ...form, banner_color: '' })} className="btn-ghost px-2 text-xs">
+                        {t('profile.bannerDefault')}
+                      </button>
+                    )}
+                  </div>
+                  {eyeDropperSupported && (
+                    <button type="button" onClick={pickFromScreen} className="btn-ghost mt-2 px-2 text-xs">
+                      {t('profile.eyedropper')}
+                    </button>
+                  )}
+                </div>
+                <label className="label">{t('profile.bannerImage')}
+                  <span className="file-upload text-xs">
+                    <span>{t('profile.uploadImage')}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} />
+                    {bannerFile && <span className="file-name">{bannerFile.name}</span>}
+                  </span>
+                </label>
+              </section>
+              {msg && <p role="alert" className="text-sm">{msg}</p>}
+              <div className="sticky-actions flex gap-2">
+                <button type="submit" disabled={busy} className="btn-primary h-12 flex-1">
+                  {busy ? t('profile.saving') : t('profile.save')}
+                </button>
+                <button type="button" onClick={() => setEditing(false)} className="btn-ghost h-12 px-4">{t('common.cancel')}</button>
+              </div>
+            </form>
+          )}
+
+          {(me.role === 'OWNER' || me.role === 'ADMIN') && (
+            <Link to="/admin" className="btn-primary mb-3 flex w-full items-center justify-center gap-2">
+              <Icon name="shield" className="h-5 w-5" /> {t('admin.title')}
+            </Link>
+          )}
+          <section className="card" aria-labelledby="profile-security-title">
+            {!pwOpen ? (
+              <div>
+                <h2 id="profile-security-title" className="card-title mb-3">{t('profile.changePassword')}</h2>
+                <button type="button" onClick={() => { setPwOpen(true); setPwMsg(null); }} className="btn-ghost w-full text-sm">
+                  <Icon name="lock" className="h-4 w-4" /> {t('profile.changePassword')}
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={changePassword} className="flex flex-col gap-3" aria-labelledby="profile-security-title">
+                <h2 id="profile-security-title" className="card-title">{t('profile.changePassword')}</h2>
+                <label className="label">{t('profile.currentPassword')}
+                  <input type="password" required autoComplete="current-password" className="input" value={pw0} onChange={(e) => setPw0(e.target.value)} />
+                </label>
+                <label className="label">{t('profile.newPassword')}
+                  <input type="password" required minLength={6} autoComplete="new-password" className="input" value={pw1} onChange={(e) => setPw1(e.target.value)} />
+                </label>
+                <label className="label">{t('profile.confirmPassword')}
+                  <input type="password" required minLength={6} autoComplete="new-password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+                </label>
+                {pwMsg && <p role="alert" className="text-sm">{pwMsg}</p>}
+                <div className="flex gap-2">
+                  <button type="submit" disabled={pwBusy} className="btn-primary flex-1 text-sm">
+                    {pwBusy ? t('profile.saving') : t('common.save')}
+                  </button>
+                  <button type="button" onClick={() => setPwOpen(false)} className="btn-ghost px-4 text-sm">{t('common.cancel')}</button>
+                </div>
+              </form>
+            )}
+            {!pwOpen && pwMsg && <p role="status" className="mt-2 text-center text-sm text-green-500">{pwMsg}</p>}
+          </section>
+          <button onClick={async () => { if (await confirmDialog({ message: `${t('profile.logout')}?`, danger: true })) logout(); }} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
+        </div>
       </div>
-      <PlayerCard
-        member={me}
-        career={careerQuery.data ?? null}
-        onAvatarClick={() => avatarInput.current?.click()}
-        action={
-          <button type="button" onClick={startEdit} aria-label={t('common.edit')} className="btn-ghost h-10 w-10 !px-0 text-white">
-            <Icon name="pencil" className="h-5 w-5" />
-          </button>
-        }
-      />
 
       <input
         ref={avatarInput}
@@ -206,143 +368,6 @@ export default function ProfilePage() {
         }}
       />
 
-      {msg && !editing && <p role="status" className="mt-2 text-sm">{msg}</p>}
-
-      {!me.known_name && !editing && (
-        <button
-          type="button"
-          onClick={startEdit}
-          className="card mt-3 flex w-full items-center justify-center gap-2 border-brand-500/50 p-3 text-sm font-bold text-brand-300"
-        >
-          {t('profile.setKnownCta')}
-        </button>
-      )}
-
-      {editing && (
-        <form onSubmit={save} className="card mt-3 flex flex-col gap-2">
-          <label className="label">{t('profile.avatar')}
-            <span className="file-upload text-xs">
-              <span>{t('profile.uploadImage')}</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)} />
-              {avatarFile && <span className="file-name">{avatarFile.name}</span>}
-            </span>
-          </label>
-          <label className="label">{t('profile.realName')}
-            <input className="input" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder={t('profile.realNameHint')} />
-            <span className="text-xs font-normal opacity-60">{t('profile.realNameHint')}</span>
-          </label>
-          <label className="label">{t('profile.knownName')}
-            <input className="input" value={form.known_name} onChange={(e) => setForm({ ...form, known_name: e.target.value })} placeholder='VIK Pride' dir="ltr" />
-            <span className="text-xs font-normal opacity-60">{t('profile.knownNameHint')}</span>
-          </label>
-          <label className="label">{t('profile.efootballName')}
-            <input className="input" value={form.efootball_name} onChange={(e) => setForm({ ...form, efootball_name: e.target.value })} />
-            <span className="text-xs font-normal opacity-60">{t('profile.efootballNameHint')}</span>
-          </label>
-          <label className="label">{t('profile.efootballId')}<input className="input" value={form.efootball_id} onChange={(e) => setForm({ ...form, efootball_id: e.target.value })} /></label>
-          <label className="label">{t('profile.country')}
-            <select value={parseCountry(form.country)?.code ?? ''} onChange={(e) => setForm({ ...form, country: e.target.value })} className="input">
-              <option value="">—</option>
-              {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.name}</option>)}
-            </select>
-          </label>
-          <label className="label">{t('profile.bio')}<textarea className="input h-auto py-2" rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} /></label>
-          <div>
-            <p className="text-sm font-semibold">{t('profile.social')}</p>
-            <div className="mt-1 grid grid-cols-1 gap-2">
-              <label className="label">{t('profile.instagram')}<input className="input" value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} placeholder="@handle" dir="ltr" /></label>
-              <label className="label">{t('profile.tiktok')}<input className="input" value={form.tiktok} onChange={(e) => setForm({ ...form, tiktok: e.target.value })} placeholder="@handle" dir="ltr" /></label>
-              <label className="label">{t('profile.kick')}<input className="input" value={form.kick} onChange={(e) => setForm({ ...form, kick: e.target.value })} placeholder="channel" dir="ltr" /></label>
-              <label className="label">{t('profile.whatsapp')}<input type="tel" inputMode="tel" className="input" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value.replace(/[^\d+]/g, '').slice(0, 20) })} placeholder="+212600000000" dir="ltr" /></label>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="text-sm font-semibold">{t('profile.bannerColor')}</p>
-              {/* Native color well: on macOS this is the NSColorWell expanded
-                  control (swatch + quick color-grid popover with eyedropper,
-                  caret opens the full color panel). */}
-              <div className="mt-1 flex items-center gap-2">
-                <input
-                  type="color"
-                  aria-label={t('profile.bannerCustom')}
-                  value={/^#[0-9a-fA-F]{6}$/.test(form.banner_color) ? form.banner_color : '#d4af37'}
-                  onChange={(e) => setForm({ ...form, banner_color: e.target.value })}
-                  className="h-11 w-14 cursor-pointer rounded-lg border border-[var(--border)] bg-transparent p-1"
-                />
-                <div
-                  aria-hidden
-                  className="h-9 w-9 rounded-lg border border-[var(--border)]"
-                  style={{ background: form.banner_color || 'linear-gradient(115deg,#ffe500 20%,#2540ff 60%,#0f0f23)' }}
-                />
-                {form.banner_color && (
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, banner_color: '' })}
-                    className="btn-ghost h-9 px-2 text-xs"
-                  >
-                    {t('profile.bannerDefault')}
-                  </button>
-                )}
-              </div>
-              {eyeDropperSupported && (
-                <button type="button" onClick={pickFromScreen} className="btn-ghost mt-1 h-9 px-2 text-xs">
-                  {t('profile.eyedropper')}
-                </button>
-              )}
-            </div>
-            <label className="label">{t('profile.bannerImage')}
-              <span className="file-upload text-xs">
-                <span>{t('profile.uploadImage')}</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)} />
-                {bannerFile && <span className="file-name">{bannerFile.name}</span>}
-              </span>
-            </label>
-          </div>
-          {msg && <p className="text-sm opacity-80">{msg}</p>}
-          <div className="sticky-actions flex gap-2">
-            <button type="submit" disabled={busy} className="btn-primary h-12 flex-1">
-              {busy ? t('profile.saving') : t('profile.save')}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} className="btn-ghost h-12 px-4">{t('common.cancel')}</button>
-          </div>
-        </form>
-      )}
-
-      {(me.role === 'OWNER' || me.role === 'ADMIN') && (
-        <Link to="/admin" className="btn-primary mt-3 flex w-full items-center justify-center gap-2">
-          <Icon name="shield" className="h-5 w-5" /> {t('admin.title')}
-        </Link>
-      )}
-      <div className="card mt-3 p-3">
-        {!pwOpen ? (
-          <button type="button" onClick={() => { setPwOpen(true); setPwMsg(null); }} className="btn-ghost h-11 w-full text-sm">
-            {t('profile.changePassword')}
-          </button>
-        ) : (
-          <form onSubmit={changePassword} className="flex flex-col gap-2">
-            <h2 className="font-bold">{t('profile.changePassword')}</h2>
-            <label className="label">{t('profile.currentPassword')}
-              <input type="password" required autoComplete="current-password" className="input" value={pw0} onChange={(e) => setPw0(e.target.value)} />
-            </label>
-            <label className="label">{t('profile.newPassword')}
-              <input type="password" required minLength={6} autoComplete="new-password" className="input" value={pw1} onChange={(e) => setPw1(e.target.value)} />
-            </label>
-            <label className="label">{t('profile.confirmPassword')}
-              <input type="password" required minLength={6} autoComplete="new-password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />
-            </label>
-            {pwMsg && <p className="text-sm opacity-80">{pwMsg}</p>}
-            <div className="flex gap-2">
-              <button type="submit" disabled={pwBusy} className="btn-primary h-11 flex-1 text-sm">
-                {pwBusy ? t('profile.saving') : t('common.save')}
-              </button>
-              <button type="button" onClick={() => setPwOpen(false)} className="btn-ghost h-11 px-4 text-sm">{t('common.cancel')}</button>
-            </div>
-          </form>
-        )}
-        {!pwOpen && pwMsg && <p className="mt-1 text-center text-sm text-green-500">{pwMsg}</p>}
-      </div>
-      <button onClick={async () => { if (await confirmDialog({ message: `${t('profile.logout')}?`, danger: true })) logout(); }} className="btn-steel mt-3 w-full">{t('profile.logout')}</button>
       <BottomNav />
     </main>
   );

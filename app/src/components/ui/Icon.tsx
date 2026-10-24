@@ -134,6 +134,25 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8" />
     </>
   ),
+  monitor: (
+    <>
+      <rect x="3" y="4" width="18" height="13" rx="1.5" />
+      <path d="M8 21h8M12 17v4" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+      <path d="M5 16v4h14v-4" />
+    </>
+  ),
+  moon: <path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2.5 12h2m15 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </>
+  ),
   sliders: (
     <>
       <path d="M4 7h16M4 12h16M4 17h16" />

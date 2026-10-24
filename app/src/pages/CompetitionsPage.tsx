@@ -171,57 +171,96 @@ export default function CompetitionsPage() {
               <button type="button" onClick={() => setShowForm(false)} className="btn-ghost h-10 text-sm">{t('common.close')}</button>
             </section>
           ) : (
-              <form onSubmit={handleCreate} className="card flex flex-col gap-2 p-3">
-                <h2 className="font-bold">{t('comps.createTitle')}</h2>
-                <label className="label">{t('detail.editName')}
-                  <input required className="input text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={80} />
-                </label>
-                <label className="label">{t('admin.type')}
-                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as CompetitionType })} className="input text-sm">
-                    <option value="LEAGUE">{t('comps.typeLeague')}</option>
-                    <option value="CUP">{t('comps.typeCup')}</option>
-                    <option value="TOURNAMENT">{t('comps.typeTournament')}</option>
-                    <option value="SPECIAL_EVENT">{t('comps.typeSpecial')}</option>
-                  </select>
-                </label>
-                <p className="text-xs opacity-60">{typeHint}</p>
-                <label className="label">{t('detail.editDesc')}
-                  <textarea className="input h-auto py-2 text-sm" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={280} />
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <label className="label">{t('detail.editMin')}
-                    <input type="number" min={2} max={32} className="input text-sm" value={form.min_players} onChange={(e) => setForm({ ...form, min_players: Number(e.target.value) })} />
-                  </label>
-                  <label className="label">{t('detail.editMax')}
-                    <input type="number" min={2} max={32} className="input text-sm" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: Number(e.target.value) })} />
-                  </label>
-                  <label className="label">{t('detail.editMatchHours')}
-                    <input type="number" min={1} max={336} className="input text-sm" value={form.match_deadline_hours} onChange={(e) => setForm({ ...form, match_deadline_hours: Number(e.target.value) })} />
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="label">{t('detail.editDeadline')}
-                    <input type="datetime-local" className="input text-sm" value={form.registration_deadline} onChange={(e) => setForm({ ...form, registration_deadline: e.target.value })} />
-                  </label>
-                  <label className="label">{t('detail.editStart')}
-                    <input type="datetime-local" className="input text-sm" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
-                  </label>
-                </div>
-                {!rosterValid && <p role="alert" className="text-sm text-red-500">{t('comps.rosterInvalid')}</p>}
-                {form.name.trim() && (
-                  <div className="rounded-xl border border-[var(--border)] p-2 text-xs opacity-80">
-                    <p className="font-semibold opacity-60">{t('comps.preview')}</p>
-                    <p className="mt-0.5">{form.name.trim()} · {typeText} · {form.min_players}–{form.max_players} {t('league4.players')}</p>
+            <div className="overflow-hidden rounded-2xl border border-(--border) bg-(--surface)">
+              <header className="hero relative overflow-hidden rounded-none border-0 p-4! sm:p-5!">
+                <Icon name={form.type === 'LEAGUE' ? 'trophy' : 'swords'} className="pointer-events-none absolute -inset-e-2 -top-3 h-28 w-28 rotate-12 text-brand-300 opacity-[0.08]" />
+                <div className="relative flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10">
+                    <Icon name={form.type === 'LEAGUE' ? 'trophy' : 'swords'} className="h-6 w-6 text-brand-300" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-300">{t('comps.createTitle')}</p>
+                    <h2 className="font-display mt-1 wrap-break-word text-xl tracking-wide sm:text-2xl">
+                      {form.name.trim() || t('detail.editName')}
+                    </h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full bg-brand-500/15 px-2.5 py-1 font-semibold text-brand-300">{typeText}</span>
+                      <span className="text-white/75">{form.min_players}–{form.max_players} {t('league4.players')}</span>
+                      <span className="text-white/75">{form.match_deadline_hours}h</span>
+                    </div>
                   </div>
-                )}
-                {createError && <p role="alert" className="text-sm text-red-500">{createError}</p>}
-                <div className="flex gap-2">
-                  <button type="submit" disabled={creating || !rosterValid || !form.name.trim()} className="btn-primary h-11 flex-1 text-sm">
+                  <button type="button" onClick={() => setShowForm(false)} aria-label={t('common.close')} className="btn-ghost relative h-10 w-10 shrink-0 px-0!">
+                    <Icon name="x" className="h-4 w-4" />
+                  </button>
+                </div>
+                {form.description.trim() && <p className="relative mt-3 max-w-2xl text-sm leading-relaxed text-white/80">{form.description}</p>}
+              </header>
+
+              <form onSubmit={handleCreate} className="flex flex-col gap-4 p-4 sm:p-5">
+                <section className="flex flex-col gap-3">
+                  <label className="label">{t('detail.editName')}
+                    <input required className="input text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} maxLength={80} />
+                  </label>
+                  <label className="label">{t('admin.type')}
+                    <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as CompetitionType })} className="input text-sm">
+                      <option value="LEAGUE">{t('comps.typeLeague')}</option>
+                      <option value="CUP">{t('comps.typeCup')}</option>
+                      <option value="TOURNAMENT">{t('comps.typeTournament')}</option>
+                      <option value="SPECIAL_EVENT">{t('comps.typeSpecial')}</option>
+                    </select>
+                    <span className="text-xs font-normal text-(--muted)">{typeHint}</span>
+                  </label>
+                  <label className="label">{t('detail.editDesc')}
+                    <textarea className="input h-auto py-2 text-sm" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} maxLength={280} />
+                  </label>
+                </section>
+
+                <section className="flex flex-col gap-3 border-t border-(--border) pt-4" aria-labelledby="competition-roster-heading">
+                  <h3 id="competition-roster-heading" className="card-title flex items-center gap-2">
+                    <Icon name="users" className="h-4 w-4 text-brand-400" /> {t('detail.tabPlayers')}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <label className="label">{t('detail.editMin')}
+                      <input type="number" min={2} max={32} className="input text-sm" value={form.min_players} onChange={(e) => setForm({ ...form, min_players: Number(e.target.value) })} />
+                    </label>
+                    <label className="label">{t('detail.editMax')}
+                      <input type="number" min={2} max={32} className="input text-sm" value={form.max_players} onChange={(e) => setForm({ ...form, max_players: Number(e.target.value) })} />
+                    </label>
+                    <label className="label col-span-2 sm:col-span-1">{t('detail.editMatchHours')}
+                      <input type="number" min={1} max={336} className="input text-sm" value={form.match_deadline_hours} onChange={(e) => setForm({ ...form, match_deadline_hours: Number(e.target.value) })} />
+                    </label>
+                  </div>
+                  {!rosterValid && <p role="alert" className="text-sm text-red-400">{t('comps.rosterInvalid')}</p>}
+                </section>
+
+                <section className="flex flex-col gap-3 border-t border-(--border) pt-4" aria-labelledby="competition-schedule-heading">
+                  <h3 id="competition-schedule-heading" className="card-title flex items-center gap-2">
+                    <Icon name="calendar" className="h-4 w-4 text-brand-400" /> {t('league4.schedule')}
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="label">{t('detail.editDeadline')}
+                      <input type="datetime-local" className="input text-sm" value={form.registration_deadline} onChange={(e) => setForm({ ...form, registration_deadline: e.target.value })} />
+                    </label>
+                    <label className="label">{t('detail.editStart')}
+                      <input type="datetime-local" className="input text-sm" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
+                    </label>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-(--border) bg-(--surface-2) p-3" aria-label={t('comps.preview')}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-(--muted)">{t('comps.preview')}</p>
+                  <p className="mt-1 font-semibold">{form.name.trim() || t('detail.editName')}</p>
+                  <p className="mt-1 text-sm text-(--muted)">{typeText} · {form.min_players}–{form.max_players} {t('league4.players')} · {form.match_deadline_hours}h</p>
+                </section>
+                {createError && <p role="alert" className="rounded-lg border border-red-500/40 p-3 text-sm text-red-400">{createError}</p>}
+                <div className="sticky-actions flex gap-2">
+                  <button type="submit" disabled={creating || !rosterValid || !form.name.trim()} className="btn-primary h-12 flex-1 text-sm">
                     {creating ? t('comps.creating') : t('comps.create')}
                   </button>
-                  <button type="button" onClick={() => setShowForm(false)} className="btn-ghost h-11 px-4 text-sm">{t('common.cancel')}</button>
+                  <button type="button" onClick={() => setShowForm(false)} className="btn-ghost h-12 px-4 text-sm">{t('common.cancel')}</button>
                 </div>
               </form>
+            </div>
           )}
         </div>
       )}
