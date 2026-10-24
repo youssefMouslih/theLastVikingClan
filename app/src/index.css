@@ -387,6 +387,80 @@ input, textarea, select {
   animation: vik-fade 250ms ease;
 }
 
+.login-shell {
+  --login-video-blur: 8px;
+  --login-veil: rgb(5 6 7 / 58%);
+  --login-glass: rgb(8 9 10 / 82%);
+  --login-glass-border: rgb(252 211 77 / 22%);
+  --login-radius: 1rem;
+  --login-shadow: 0 24px 80px rgb(0 0 0 / 48%);
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-brand-500: #eab308;
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background-color: #050607;
+  color: #f1f5f9;
+}
+
+.login-background-video,
+.login-background-veil {
+  position: fixed;
+  inset: -1rem;
+  z-index: -2;
+  width: calc(100% + 2rem);
+  height: calc(100% + 2rem);
+  pointer-events: none;
+}
+
+.login-background-video {
+  object-fit: cover;
+  filter: blur(var(--login-video-blur)) brightness(0.56) saturate(0.76);
+  transform: scale(1.04);
+}
+
+.login-background-veil {
+  z-index: -1;
+  background: linear-gradient(145deg, rgb(5 6 7 / 70%), var(--login-veil) 55%, rgb(5 6 7 / 76%));
+}
+
+.login-content {
+  width: min(100%, 24rem);
+}
+
+.login-panel {
+  border: 1px solid var(--login-glass-border);
+  border-radius: var(--login-radius);
+  padding: 1.25rem;
+  background: var(--login-glass);
+  box-shadow: var(--login-shadow);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.login-panel .card {
+  border-color: rgb(255 255 255 / 16%);
+  background: rgb(8 9 10 / 54%);
+}
+
+.login-panel .input {
+  border-color: rgb(255 255 255 / 24%);
+  background: rgb(5 6 7 / 58%);
+  color: #f8fafc;
+}
+
+.login-panel .btn-ghost {
+  border-color: rgb(255 255 255 / 26%);
+  color: #f8fafc;
+}
+
+@media (max-height: 48rem) {
+  .login-shell {
+    justify-content: flex-start;
+  }
+}
+
 .anim-rise {
   animation: vik-rise 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--rise-delay, 0ms);

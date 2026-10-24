@@ -52,6 +52,7 @@ const en = {
   'settings.back': 'Back to profile',
 
   'auth.tagline': 'Private clan access — invite only, no public signup.',
+  'auth.videoUnavailable': 'Background video could not be played.',
   'auth.offline': 'Backend not configured — copy .env.example to .env and add your Supabase URL + anon key, then restart npm run dev.',
   'auth.email': 'Email',
   'auth.password': 'Password',
@@ -1392,6 +1393,7 @@ const fr: Dict = {
   'settings.back': 'Retour au profil',
 
   'auth.tagline': 'Accès privé du clan — sur invitation uniquement.',
+  'auth.videoUnavailable': 'La vidéo d’arrière-plan n’a pas pu être lue.',
   'auth.offline': 'Backend non configuré — copiez .env.example vers .env, ajoutez l’URL Supabase + clé anon, puis relancez npm run dev.',
   'auth.email': 'E-mail',
   'auth.password': 'Mot de passe',
@@ -2730,6 +2732,7 @@ const ar: Dict = {
   'settings.back': 'عودة للحساب',
 
   'auth.tagline': 'دخول خاص بالعشيرة — بالدعوة فقط.',
+  'auth.videoUnavailable': 'تعذر تشغيل فيديو الخلفية.',
   'auth.offline': 'الخادم غير مُعد — انسخ .env.example إلى .env وأضف رابط Supabase والمفتاح، ثم أعد تشغيل npm run dev.',
   'auth.email': 'البريد الإلكتروني',
   'auth.password': 'كلمة المرور',

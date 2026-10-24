@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router';
 import { FadeIn } from '../components/ui/Motion';
 import { LOCALES } from '../i18n/dictionaries';
@@ -10,9 +10,25 @@ import { submitTryout } from '../services/tryoutService';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+function subscribeToReducedMotion(onChange: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  const preference = window.matchMedia(REDUCED_MOTION_QUERY);
+  preference.addEventListener('change', onChange);
+  return () => preference.removeEventListener('change', onChange);
+}
+
+function getReducedMotionPreference() {
+  return typeof window !== 'undefined' && window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
 export default function LoginPage() {
   const { t, locale, setLocale , tError} = useLocale();
   const nav = useNavigate();
+  const backgroundVideo = useRef<HTMLVideoElement>(null);
+  const reducedMotion = useSyncExternalStore(subscribeToReducedMotion, getReducedMotionPreference, () => false);
+  const [videoError, setVideoError] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -53,6 +69,16 @@ export default function LoginPage() {
   const [tBusy, setTBusy] = useState(false);
   const [tSent, setTSent] = useState(false);
   const [tErr, setTErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const video = backgroundVideo.current;
+    if (!video) return;
+    if (reducedMotion) {
+      video.pause();
+      return;
+    }
+    void video.play().catch(() => setVideoError(true));
+  }, [reducedMotion]);
 
   async function handleTryout(e: React.FormEvent) {
     e.preventDefault();
@@ -152,8 +178,27 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-svh max-w-sm flex-col justify-center p-4">
+    <main className="login-shell mx-auto flex min-h-svh w-full flex-col items-center justify-center p-4">
+      <video
+        ref={backgroundVideo}
+        className="login-background-video"
+        autoPlay={!reducedMotion}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+        tabIndex={-1}
+        onPlay={() => setVideoError(false)}
+        onError={() => setVideoError(true)}
+      >
+        <source src="/login-background.mp4" type="video/mp4" />
+      </video>
+      <div className="login-background-veil" aria-hidden="true" />
       <FadeIn>
+      <div className="login-content">
+      {videoError && <p role="status" className="mb-2 text-end text-xs">{t('auth.videoUnavailable')}</p>}
+      <section className="login-panel">
       <div className="mb-6 text-center">
         <img src="/logo.png" alt="VIK Clan logo" width={96} height={96} className="mx-auto h-24 w-24 rounded-3xl object-cover shadow-xl shadow-brand-500/30" />
         <h1 className="font-display mt-3 bg-gradient-to-r from-brand-400 via-brand-500 to-accent-400 bg-clip-text text-3xl tracking-wide text-transparent">VIK CLAN</h1>
@@ -338,6 +383,7 @@ export default function LoginPage() {
           </div>
         )}
       </div>
+      </section>
 
       <div className="mt-6 flex justify-center gap-1 text-xs" role="group" aria-label="Language">
         {LOCALES.map((l) => (
@@ -350,6 +396,7 @@ export default function LoginPage() {
             {l.label}
           </button>
         ))}
+      </div>
       </div>
       </FadeIn>
     </main>
