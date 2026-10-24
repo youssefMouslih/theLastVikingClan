@@ -57,7 +57,7 @@ export async function awardXP(playerId: string, amount: number, reason: string, 
 
 export async function getTotalXP(playerId: string): Promise<number> {
   const { data, error } = await supabase.from('xp_ledger').select('amount').eq('player_id', playerId);
-  if (error) return 0;
+  if (error) throw new Error(error.message);
   return ((data ?? []) as { amount: number }[]).reduce((s, r) => s + r.amount, 0);
 }
 
@@ -71,14 +71,15 @@ export interface BoardEntry {
 
 export async function getSeasonBoard(limit = 20): Promise<BoardEntry[]> {
   const { data, error } = await supabase.from('xp_ledger').select('player_id,amount').eq('season', currentSeason());
-  if (error) return [];
+  if (error) throw new Error(error.message);
   const totals = new Map<string, number>();
   for (const r of (data ?? []) as { player_id: string; amount: number }[]) {
     totals.set(r.player_id, (totals.get(r.player_id) ?? 0) + r.amount);
   }
   const top = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
   if (top.length === 0) return [];
-  const { data: profs } = await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', top.map(([id]) => id));
+  const { data: profs, error: profileError } = await supabase.from('profiles').select('id,username,display_name,avatar_url').in('id', top.map(([id]) => id));
+  if (profileError) throw new Error(profileError.message);
   const map = new Map(((profs ?? []) as { id: string; username: string; display_name: string | null; avatar_url: string | null }[]).map((p) => [p.id, p]));
   return top.map(([id, xp]) => ({
     player_id: id,
@@ -180,6 +181,8 @@ async function getUserEvents(userId: string, since: number): Promise<UserEvents>
       .in('status', ['CONFIRMED', 'FORFEIT']),
     supabase.from('challenges').select('id,challenger_id,opponent_id,type,created_at').or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`),
   ]);
+  if (matches.error) throw new Error(matches.error.message);
+  if (challenges.error) throw new Error(challenges.error.message);
   const verifiedSince: UserEvents['verifiedSince'] = [];
   let confirmedSince = 0;
   for (const m of ((matches.data ?? []) as { player_a_id: string; player_b_id: string; submitted_by: string | null; confirmed_by: string | null; confirmed_at: string | null }[])) {
@@ -203,9 +206,10 @@ export async function questProgress(userId: string, quest: QuestDef): Promise<{ 
   const since = quest.kind === 'daily' ? dayStart() : weekStart();
   const period = periodFor(quest.kind);
   const [events, claim] = await Promise.all([
-    getUserEvents(userId, since).catch(() => ({ verifiedSince: [], challengedSince: 0, confirmedSince: 0, rematchSince: 0 }) as UserEvents),
+    getUserEvents(userId, since),
     supabase.from('quest_claims').select('id').eq('player_id', userId).eq('quest_key', quest.key).eq('period', period).maybeSingle(),
   ]);
+  if (claim.error) throw new Error(claim.error.message);
   let done = 0;
   switch (quest.key) {
     case 'first-blood': done = Math.min(1, events.verifiedSince.length); break;
