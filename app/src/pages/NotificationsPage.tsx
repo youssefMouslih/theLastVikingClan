@@ -18,7 +18,7 @@ export default function NotificationsPage() {
 
   const items = query.data ?? [];
   const unread = items.filter((n) => !n.read_at);
-  const linkLabel = (entityType: string | null) => entityType?.startsWith('league_')
+  const linkLabel = (entityType: string | null, path: string) => entityType?.startsWith('league_')
     ? t('notif.viewLeague')
     : entityType === 'match'
       ? t('notif.viewMatch')
@@ -28,7 +28,11 @@ export default function NotificationsPage() {
           ? t('notif.viewBattle')
           : entityType === 'tryout'
             ? t('notif.viewTryouts')
-            : t('notif.viewHome');
+            : path.startsWith('/saga')
+              ? t('gift.title')
+              : path.startsWith('/battles?tab=commands')
+                ? t('squad.title')
+                : t('notif.viewHome');
 
   useEffect(() => {
     if (me && !query.isLoading) void syncAppBadge(me.id);
@@ -69,21 +73,19 @@ export default function NotificationsPage() {
       </LoadingRegion>
       <div className="mt-3 flex flex-col gap-2">
         {items.map((n) => {
-          const path = notificationPath(n.entity_type, n.entity_id);
+          const path = notificationPath(n.entity_type, n.entity_id, n.type, n.title) ?? '/home';
           return (
           <article key={n.id} className={`card p-3 text-sm ${n.read_at ? 'opacity-70' : ''}`}>
             <div className="flex items-center gap-2">
               <span className="status-badge rounded-full bg-brand-500/15 px-2 py-0.5 text-[11px] text-brand-400">{n.type.replace(/_/g, ' ')}</span>
               <span className="ms-auto shrink-0 whitespace-nowrap text-[11px] opacity-60">{fmtDate(n.created_at)}</span>
             </div>
-            <p className="mt-1 font-bold">{n.title}</p>
-            <p className="opacity-80">{n.message}</p>
+            <Link to={path} className="mt-1 block rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400">
+              <p className="font-bold">{n.title}</p>
+              <p className="opacity-80">{n.message}</p>
+            </Link>
             <div className="mt-1 flex gap-3 text-xs">
-              {path ? (
-                <Link to={path} className="inline-flex min-h-11 items-center font-semibold text-brand-400">{linkLabel(n.entity_type)}</Link>
-              ) : n.entity_type !== 'battle' ? (
-                <Link to="/home" className="inline-flex min-h-11 items-center font-semibold text-brand-400">{t('notif.viewHome')}</Link>
-              ) : null}
+              <Link to={path} className="inline-flex min-h-11 items-center font-semibold text-brand-400">{linkLabel(n.entity_type, path)}</Link>
               {!n.read_at && (
                 <button onClick={async () => { await markRead(n.id); query.refetch(); }} className="inline-flex min-h-11 items-center underline">{t('notif.markRead')}</button>
               )}

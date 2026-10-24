@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
 import { listMyTesterTasks, submitVerdict } from '../../services/tryoutService';
 import { useAuthStore } from '../../stores/authStore';
@@ -8,6 +9,7 @@ import WhatsAppIcon from '../ui/WhatsAppIcon';
 // Trial matches assigned to me: play, then report pass/fail with the score.
 export default function TesterTasks() {
   const { t , tError} = useLocale();
+  const location = useLocation();
   const me = useAuthStore((s) => s.profile);
   const [scores, setScores] = useState<Record<string, { a: string; b: string; note: string }>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -15,6 +17,12 @@ export default function TesterTasks() {
   const query = useQuery({ queryKey: ['tester-tasks', me?.id], queryFn: () => listMyTesterTasks(me!.id), enabled: !!me });
 
   const rows = (query.data ?? []).filter((r) => !r.verdict);
+
+  useEffect(() => {
+    if (!query.data || !location.hash.startsWith('#tester-task-')) return;
+    document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: 'center' });
+  }, [location.hash, query.data]);
+
   if (!me || rows.length === 0) return null;
 
   const get = (id: string) => scores[id] ?? { a: '', b: '', note: '' };
@@ -47,7 +55,7 @@ export default function TesterTasks() {
           const s = get(r.id);
           const digits = r.contact.replace(/[^\d]/g, '');
           return (
-            <div key={r.id} className="rounded-xl bg-white/5 p-2.5 text-sm">
+            <div id={`tester-task-${r.id}`} key={r.id} className="scroll-mt-4 rounded-xl bg-white/5 p-2.5 text-sm">
               <div className="flex items-center gap-2">
                 <span className="flex-1 truncate font-bold">{r.name}</span>
                 {digits && (

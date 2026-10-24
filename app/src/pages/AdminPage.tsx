@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import DisputesTab from '../components/admin/DisputesTab';
 import AnnouncementsTab from '../components/admin/AnnouncementsTab';
 import HonoursTab from '../components/admin/HonoursTab';
@@ -26,7 +26,9 @@ export default function AdminPage() {
   const { t, tError } = useLocale();
   const me = useAuthStore((s) => s.profile);
   const isAdmin = me?.role === 'OWNER' || me?.role === 'ADMIN';
-  const [tab, setTab] = usePersistentTab('vik-tab-admin', 'members' as Tab, ['members', 'disputes', 'announcements', 'honours', 'access', 'tryouts'] as const);
+  const [params] = useSearchParams();
+  const requestedTab = TABS.find((candidate) => candidate === params.get('tab'));
+  const [tab, setTab] = usePersistentTab('vik-tab-admin', requestedTab ?? 'members', TABS, requestedTab !== undefined);
   const [setup, setSetup] = useState<SetupCheckResult[] | null>(null);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);

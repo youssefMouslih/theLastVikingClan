@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import Avatar from '../ui/Avatar';
 import { useLocale } from '../../i18n/LocaleContext';
 import { listActiveMembers } from '../../services/playerService';
@@ -10,6 +11,8 @@ import { useAuthStore } from '../../stores/authStore';
 // request (bottom-up); both sides accept.
 export default function SquadsTab() {
   const { t, fmtDate } = useLocale();
+  const [params] = useSearchParams();
+  const requestedSquad = params.get('squad');
   const me = useAuthStore((s) => s.profile);
   const [form, setForm] = useState({ name: '', size: 4 as 3 | 4, invites: [] as string[], opponent_label: '', match_at: '' });
   const [msg, setMsg] = useState<string | null>(null);
@@ -17,6 +20,11 @@ export default function SquadsTab() {
   const query = useQuery({ queryKey: ['squads'], queryFn: listSquads });
   const membersQuery = useQuery({ queryKey: ['active-members'], queryFn: listActiveMembers });
   const candidates = (membersQuery.data ?? []).filter((m) => m.id !== me?.id);
+
+  useEffect(() => {
+    if (!requestedSquad || !query.data) return;
+    document.getElementById(`squad-${requestedSquad}`)?.scrollIntoView({ block: 'center' });
+  }, [query.data, requestedSquad]);
 
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true); setMsg(null);
@@ -76,13 +84,14 @@ export default function SquadsTab() {
       </form>
 
       {(query.data ?? []).map((s) => (
-        <SquadCard key={s.id} squad={s} busy={busy} run={run} fmtDate={(iso: string | null) => (iso ? fmtDate(iso) : '—')} />
+        <SquadCard id={`squad-${s.id}`} key={s.id} squad={s} busy={busy} run={run} fmtDate={(iso: string | null) => (iso ? fmtDate(iso) : '—')} />
       ))}
     </div>
   );
 }
 
-function SquadCard({ squad: s, busy, run, fmtDate }: {
+function SquadCard({ id, squad: s, busy, run, fmtDate }: {
+  id: string;
   squad: SquadDetail;
   busy: boolean;
   run: (fn: () => Promise<unknown>, ok: string) => Promise<void>;
@@ -98,7 +107,7 @@ function SquadCard({ squad: s, busy, run, fmtDate }: {
   const inSquad = !!myRow && myRow.status !== 'DECLINED';
 
   return (
-    <article className="card p-3 text-sm">
+    <article id={id} className="card scroll-mt-4 p-3 text-sm">
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <p className="font-display tracking-wide">{s.name}</p>

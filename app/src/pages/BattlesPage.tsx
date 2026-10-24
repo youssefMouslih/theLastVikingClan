@@ -79,8 +79,9 @@ export default function BattlesPage() {
   const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [params] = useSearchParams();
-  const initialTab = (['issue', 'incoming', 'open', 'history', 'commands'] as const).find((tb) => tb === params.get('tab')) ?? 'issue';
-  const [tab, setTab] = usePersistentTab('vik-tab-battles', initialTab, ['issue', 'incoming', 'open', 'history', 'commands'] as const);
+  const battleTabs = ['issue', 'incoming', 'open', 'history', 'commands'] as const;
+  const requestedTab = battleTabs.find((tb) => tb === params.get('tab'));
+  const [tab, setTab] = usePersistentTab('vik-tab-battles', requestedTab ?? 'issue', battleTabs, requestedTab !== undefined);
   const [form, setForm] = useState({ opponent_id: params.get('opponent') ?? '', type: 'HEAD' as ChallengeType, conditions: 'battle.cSTD', stakes: 'battle.sNONE', for_throne: false, forced: false, openCall: false });
   const [rivalId, setRivalId] = useState('');
   const [scores, setScores] = useState<Record<string, { a: string; b: string }>>({});

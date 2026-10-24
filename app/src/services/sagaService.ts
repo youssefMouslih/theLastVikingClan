@@ -257,14 +257,14 @@ const GIFT_WITH = '*,requester:profiles!gp_requests_requester_id_fkey(id,usernam
 export async function askGift(giverId: string, requesterId: string, amount: number, message?: string | null): Promise<void> {
   if (giverId === requesterId) throw new Error('You cannot ask yourself.');
   if (!Number.isInteger(amount) || amount < 5 || amount > 500) throw new Error('Ask between 5 and 500 GP.');
-  const { error } = await supabase.from('gp_requests').insert({
+  const { data, error } = await supabase.from('gp_requests').insert({
     requester_id: requesterId,
     giver_id: giverId,
     amount,
     message: message?.trim() || null,
-  });
+  }).select('id').single();
   if (error) throw new Error(error.message);
-  await notify(giverId, 'COMPETITION_INVITATION', 'Glory requested', `A brother asks you for ${amount} GP as a favor.`);
+  await notify(giverId, 'COMPETITION_INVITATION', 'Glory requested', `A brother asks you for ${amount} GP as a favor.`, { type: 'gift', id: data.id });
 }
 
 export async function listIncomingGifts(giverId: string): Promise<GiftRequest[]> {

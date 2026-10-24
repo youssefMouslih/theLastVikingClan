@@ -54,7 +54,7 @@ export async function createSquad(input: { name: string; size: 3 | 4; inviteIds:
   const { error: mErr } = await supabase.from('squad_members').insert(rows);
   if (mErr) throw new Error(mErr.message);
   for (const id of input.inviteIds.filter((pid) => pid !== leaderId)) {
-    await notify(id, 'COMPETITION_INVITATION', `War Council: ${input.name.trim()}`, 'A squad leader calls you to battle. Accept or decline.');
+    await notify(id, 'COMPETITION_INVITATION', `War Council: ${input.name.trim()}`, 'A squad leader calls you to battle. Accept or decline.', { type: 'squad', id: squadId });
   }
   return squadId;
 }
@@ -67,7 +67,7 @@ export async function requestToJoin(squadId: string, playerId: string): Promise<
   }
   const { data: squad } = await supabase.from('squads').select('leader_id').eq('id', squadId).single();
   const leader = (squad as { leader_id: string } | null)?.leader_id;
-  if (leader && leader !== playerId) await notify(leader, 'COMPETITION_INVITATION', 'Squad request', 'A warrior requests to join your squad.');
+  if (leader && leader !== playerId) await notify(leader, 'COMPETITION_INVITATION', 'Squad request', 'A warrior requests to join your squad.', { type: 'squad', id: squadId });
 }
 
 export async function answerSquadMember(memberId: string, accept: boolean): Promise<void> {

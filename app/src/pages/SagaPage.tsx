@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import BottomNav from '../components/ui/BottomNav';
 import Avatar from '../components/ui/Avatar';
 import CoinImg from '../components/ui/CoinImg';
@@ -18,7 +19,10 @@ export default function SagaPage() {
   const { t, tError } = useLocale();
   const queryClient = useQueryClient();
   const me = useAuthStore((s) => s.profile);
-  const [tab, setTab] = usePersistentTab('vik-tab-saga', 'quests' as 'quests' | 'ranks' | 'gifts', ['quests', 'ranks', 'gifts'] as const);
+  const [params] = useSearchParams();
+  const sagaTabs = ['quests', 'ranks', 'gifts'] as const;
+  const requestedTab = sagaTabs.find((candidate) => candidate === params.get('tab'));
+  const [tab, setTab] = usePersistentTab('vik-tab-saga', requestedTab ?? 'quests', sagaTabs, requestedTab !== undefined);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [feedback, setFeedback] = useState<{ message: string; isError: boolean } | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -34,6 +38,12 @@ export default function SagaPage() {
   const { level, next, progress } = levelFor(xp);
   const tabs = ['quests', 'ranks', 'gifts'] as const;
   const incomingGifts = giftsInQuery.data ?? [];
+
+  useEffect(() => {
+    const giftId = params.get('gift');
+    if (!giftId || !giftsInQuery.data) return;
+    document.getElementById(`gift-request-${giftId}`)?.scrollIntoView({ block: 'center' });
+  }, [giftsInQuery.data, params]);
 
   return (
     <main className="page">
@@ -165,7 +175,7 @@ export default function SagaPage() {
             {giftsInQuery.isError && <QueryError error={giftsInQuery.error} onRetry={() => void giftsInQuery.refetch()} compact />}
             {!giftsInQuery.isLoading && !giftsInQuery.isError && incomingGifts.length === 0 && <p className="card text-sm opacity-70">{t('gift.emptyIn')}</p>}
           {(giftsInQuery.data ?? []).map((g) => (
-            <article key={g.id} className="card mt-2 grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 p-3 text-sm">
+            <article id={`gift-request-${g.id}`} key={g.id} className="card mt-2 scroll-mt-4 grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 p-3 text-sm">
               <Avatar path={g.requester?.avatar_url} name={g.requester?.display_name ?? g.requester?.username ?? '?'} className="h-10 w-10 text-sm" />
               <div className="min-w-0">
                 <p className="truncate font-bold">{g.requester?.display_name ?? g.requester?.username}</p>

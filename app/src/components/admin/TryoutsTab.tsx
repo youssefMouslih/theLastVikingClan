@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
 import { listTryouts, resolveTryout, assignTester, acceptWithAccount } from '../../services/tryoutService';
 import { listActiveMembers } from '../../services/playerService';
@@ -13,6 +14,8 @@ import CopyButton from '../ui/CopyButton';
 // signup/invite flow.
 export default function TryoutsTab() {
   const { t , tError} = useLocale();
+  const [params] = useSearchParams();
+  const requestId = params.get('request');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [prov, setProv] = useState<{ name: string; username: string; email: string; temp: string; contact: string } | null>(null);
@@ -20,6 +23,11 @@ export default function TryoutsTab() {
   const query = useQuery({ queryKey: ['tryouts'], queryFn: listTryouts });
   const membersQuery = useQuery({ queryKey: ['tryout-testers'], queryFn: listActiveMembers });
   const names = Object.fromEntries((membersQuery.data ?? []).map((m) => [m.id, m.display_name ?? m.username]));
+
+  useEffect(() => {
+    if (!requestId || !query.data) return;
+    document.getElementById(`tryout-request-${requestId}`)?.scrollIntoView({ block: 'center' });
+  }, [query.data, requestId]);
 
   async function accept(r: (typeof rows)[number]) {
     setBusyId(r.id); setMsg(null); setProv(null);
@@ -76,7 +84,7 @@ export default function TryoutsTab() {
     const stLabel = r.status === 'PENDING' ? t('tryout.stPending') : r.status === 'ACCEPTED' ? t('tryout.stAccepted') : t('tryout.stDeclined');
     const testerName = r.assigned_tester_id ? (names[r.assigned_tester_id] ?? '…') : null;
     return (
-      <div key={r.id} className="card flex flex-col gap-1.5 p-3 text-sm">
+      <div id={`tryout-request-${r.id}`} key={r.id} className="card flex scroll-mt-4 flex-col gap-1.5 p-3 text-sm">
         <div className="flex items-center gap-2">
           <span className="flex-1 truncate font-bold">{r.name}</span>
           <span className={`text-xs font-bold ${stColor}`}>{stLabel}</span>
