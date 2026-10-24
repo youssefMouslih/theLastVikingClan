@@ -75,6 +75,8 @@ const PATHS: Record<string, React.ReactNode> = {
   check: <path d="m4.5 12.5 5 5 10-11" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   back: <path d="M14.5 5 8 12l6.5 7" />,
+  chevronLeft: <path d="m14.5 5-8 7 8 7" />,
+  chevronRight: <path d="m9.5 5 8 7-8 7" />,
   mega: (
     <>
       <path d="M4 10v5h3l8 5V5L7 10Z" />

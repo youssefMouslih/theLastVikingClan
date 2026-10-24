@@ -8,6 +8,7 @@ import { listMembers, manageMember } from '../../services/playerService';
 import { crownHolder, getCurrentReign, vacateThrone } from '../../services/throneService';
 import type { MemberStatus, Profile, Role } from '../../types/database';
 import { useAuthStore } from '../../stores/authStore';
+import Pagination, { PAGE_SIZE } from '../ui/Pagination';
 
 const EDITABLE_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN'];
 // No REMOVED — members can be suspended/left but never deleted from here.
@@ -20,6 +21,7 @@ export default function MembersTab() {
   const me = useAuthStore((s) => s.profile);
   const [drafts, setDrafts] = useState<Record<string, { role: Role; status: MemberStatus }>>({});
   const [filter, setFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   // Ownership transfer (OWNER only): typed username confirmation + atomic swap.
@@ -92,6 +94,9 @@ export default function MembersTab() {
       (m.efootball_name ?? '').toLowerCase().includes(q) ||
       (m.known_name ?? '').toLowerCase().includes(q),
     );
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = rows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="mt-3 flex flex-col gap-2">
@@ -147,13 +152,13 @@ export default function MembersTab() {
       )}
       <input
         value={filter}
-        onChange={(e) => setFilter(e.target.value)}
+        onChange={(e) => { setFilter(e.target.value); setPage(1); }}
         placeholder={t('members.search')}
         aria-label={t('members.search')}
         className="input text-sm"
       />
       {msg && <p className="text-sm font-medium">{msg}</p>}
-      {rows.map((m) => {
+      {pageRows.map((m) => {
         const d = drafts[m.id] ?? { role: m.role, status: m.status };
         const set = (patch: Partial<typeof d>) => setDrafts({ ...drafts, [m.id]: { ...d, ...patch } });
         const dirty = d.role !== m.role || d.status !== m.status;
@@ -207,6 +212,7 @@ export default function MembersTab() {
           </div>
         );
       })}
+      <Pagination page={safePage} pageCount={pageCount} onChange={setPage} />
     </div>
   );
 }

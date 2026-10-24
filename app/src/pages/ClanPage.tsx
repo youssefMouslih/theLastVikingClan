@@ -11,6 +11,7 @@ import { listCompetitions } from '../services/competitionService';
 import { listMembers } from '../services/playerService';
 import { getClanTotals, getHallOfFame } from '../services/statisticsService';
 import { useAuthStore } from '../stores/authStore';
+import Pagination, { PAGE_SIZE } from '../components/ui/Pagination';
 
 export default function ClanPage() {
   const { t , tError} = useLocale();
@@ -20,6 +21,7 @@ export default function ClanPage() {
   const [form, setForm] = useState({ name: '', tag: '', description: '', rules: '', quest_names: 'classic' as 'classic' | 'norse' });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
 
   const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
   const membersQuery = useQuery({ queryKey: ['members'], queryFn: listMembers });
@@ -31,6 +33,9 @@ export default function ClanPage() {
   const clan = clanQuery.data;
   const members = membersQuery.data ?? [];
   const activeCount = members.filter((m) => m.status === 'ACTIVE').length;
+  const pageCount = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = members.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function startEdit() {
     setForm({
@@ -124,9 +129,12 @@ export default function ClanPage() {
         ) : members.length === 0 ? (
           <p className="card text-sm opacity-70">{t('clan.noMembers')}</p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {members.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 40, 320)}><MemberRow member={m} /></FadeIn>)}
-          </div>
+          <>
+            <div className="flex flex-col gap-2">
+              {pageRows.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 40, 320)}><MemberRow member={m} /></FadeIn>)}
+            </div>
+            <Pagination page={safePage} pageCount={pageCount} onChange={setPage} />
+          </>
         )}
       </section>
       <section aria-label="Clan records" className="card mt-4">

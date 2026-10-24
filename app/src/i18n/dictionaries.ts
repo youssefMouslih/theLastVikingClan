@@ -34,6 +34,10 @@ const en = {
   'common.copied': 'Copied',
   'common.viewPhoto': 'View photo of {name}',
   'common.inviteLink': 'Copy invite link',
+  'common.prev': 'Previous',
+  'common.next': 'Next',
+  'common.page': 'Page {cur} of {total}',
+  'common.pagination': 'Pagination',
 
   'pwa.update': 'New version available',
   'pwa.refresh': 'Refresh',
@@ -1370,6 +1374,10 @@ const fr: Dict = {
   'common.copied': 'Copié',
   'common.viewPhoto': 'Voir la photo de {name}',
   'common.inviteLink': 'Copier le lien',
+  'common.prev': 'Précédent',
+  'common.next': 'Suivant',
+  'common.page': 'Page {cur} sur {total}',
+  'common.pagination': 'Pagination',
 
   'pwa.update': 'Nouvelle version disponible',
   'pwa.refresh': 'Actualiser',
@@ -2704,6 +2712,10 @@ const ar: Dict = {
   'common.copied': 'تم النسخ',
   'common.viewPhoto': 'عرض صورة {name}',
   'common.inviteLink': 'نسخ رابط الدعوة',
+  'common.prev': 'السابق',
+  'common.next': 'التالي',
+  'common.page': 'صفحة {cur} من {total}',
+  'common.pagination': 'ترقيم الصفحات',
 
   'pwa.update': 'نسخة جديدة متوفرة',
   'pwa.refresh': 'تحديث',
