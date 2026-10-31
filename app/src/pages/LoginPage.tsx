@@ -50,6 +50,17 @@ export default function LoginPage() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+  // Magic/invite links can land here when Supabase falls back to the Site URL
+  // (redirect_to not allow-listed). The session is already established by the
+  // time the auth store finishes loading, so send the user on instead of
+  // leaving them on a login form they don't need.
+  const profile = useAuthStore((s) => s.profile);
+  const authLoading = useAuthStore((s) => s.loading);
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    if (mode === 'update') return; // password recovery: stay and set a new one
+    nav(profile.must_change_password ? '/password' : '/home', { replace: true });
+  }, [authLoading, mode, nav, profile]);
   // Admin-controlled platform access: null = still loading, default open.
   const [regOpen, setRegOpen] = useState<boolean | null>(null);
   useEffect(() => {

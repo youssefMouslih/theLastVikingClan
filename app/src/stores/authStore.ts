@@ -12,50 +12,90 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   loading: true,
   initialized: false,
   setProfile: (profile) => set({ profile }),
   init: async () => {
     set({ loading: true });
-    const { data } = await supabase.auth.getSession();
-    const user = data.session?.user ?? null;
-    if (!user) {
-      set({ profile: null, loading: false, initialized: true });
-      return;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
+      if (!user) {
+        set({ profile: null, loading: false, initialized: true });
+        return;
+      }
+
+      let profile: Profile | null;
+      try {
+        profile = await fetchProfile(user.id);
+      } catch (err) {
+        // Transient DB/network failure: keep the session and any profile we
+        // already have. Signing out here wiped valid sessions on a hiccup.
+        console.warn('Profile fetch failed; keeping session.', err);
+        const current = get().profile;
+        if (current && current.id !== user.id) set({ profile: null });
+        set({ loading: false, initialized: true });
+        return;
+      }
+
+      // Rule 1: only clan members access app. Suspended/removed -> treat as logged out.
+      if (!profile || profile.status === 'SUSPENDED' || profile.status === 'REMOVED') {
+        try {
+          await supabase.auth.signOut();
+        } catch (err) {
+          console.warn('Sign-out after denied profile failed.', err);
+        }
+        set({ profile: null, loading: false, initialized: true });
+        return;
+      }
+      set({ profile, loading: false, initialized: true });
+      // Last-seen heartbeat (fire-and-forget): powers presence dot + "last seen".
+      void supabase
+        .from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', user.id)
+        .then(() => {});
+    } catch (err) {
+      console.warn('Auth init failed; keeping session.', err);
+      set({ loading: false, initialized: true });
     }
-    const profile = await fetchProfile(user.id);
-    // Rule 1: only clan members access app. Suspended/removed -> treat as logged out.
-    if (!profile || profile.status === 'SUSPENDED' || profile.status === 'REMOVED') {
-      await supabase.auth.signOut();
-      set({ profile: null, loading: false, initialized: true });
-      return;
-    }
-    set({ profile, loading: false, initialized: true });
-    // Last-seen heartbeat (fire-and-forget): powers presence dot + "last seen".
-    void supabase
-      .from('profiles')
-      .update({ last_login_at: new Date().toISOString() })
-      .eq('id', user.id)
-      .then(() => {});
   },
   logout: async () => {
-    await supabase.auth.signOut();
-    set({ profile: null });
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      // A dead session makes signOut throw "Auth session missing!". Clear the
+      // local copy too so the app doesn't keep a half-authenticated state.
+      console.warn('Sign-out failed; clearing local session.', err);
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch { /* already gone */ }
+    } finally {
+      // Clear the UI even if the server sign-out fails (dead/revoked session).
+      set({ profile: null });
+    }
   },
 }));
 
 // Keep profile in sync across tabs / refresh (§Definition of Done: survives refresh)
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  const { profile, initialized } = useAuthStore.getState();
-  if (!initialized) return;
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'TOKEN_REFRESHED') return; // same user, same profile
+  const { profile } = useAuthStore.getState();
   if (!session?.user) {
     if (profile) useAuthStore.getState().setProfile(null);
     return;
   }
   if (!profile || profile.id !== session.user.id) {
-    const p = await fetchProfile(session.user.id);
-    useAuthStore.getState().setProfile(p);
+    // Defer the REST call: Supabase holds its auth lock while notifying
+    // subscribers, and calling the client synchronously can deadlock.
+    window.setTimeout(() => {
+      fetchProfile(session.user.id)
+        .then((p) => {
+          if (p) useAuthStore.getState().setProfile(p);
+        })
+        .catch((err) => console.warn('Profile sync failed; keeping state.', err));
+    }, 0);
   }
 });

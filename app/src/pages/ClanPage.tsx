@@ -203,8 +203,14 @@ export default function ClanPage() {
             {membersQuery.isFetching && !membersQuery.isError && (
               <p role="status" className="mb-2 text-xs text-(--muted)">{t('common.loading')}</p>
             )}
-            <div className="flex flex-col gap-2">
-              {pageRows.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 40, 320)}><MemberRow member={m} /></FadeIn>)}
+            <div className="card overflow-hidden !p-0">
+              <div className="hidden grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-(--border) px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-(--muted) sm:grid">
+                <span>{t('members.player')}</span>
+                <span className="text-end">{t('members.status')}</span>
+              </div>
+              <div className="divide-y divide-(--border)">
+                {pageRows.map((m, i) => <FadeIn key={m.id} delay={Math.min(i * 40, 320)}><MemberRow member={m} /></FadeIn>)}
+              </div>
             </div>
             <Pagination page={safePage} pageCount={pageCount} onChange={setPage} />
           </>

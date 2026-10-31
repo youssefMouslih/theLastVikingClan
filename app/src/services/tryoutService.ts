@@ -71,21 +71,113 @@ export async function listMyTesterTasks(userId: string): Promise<TryoutRequest[]
   return (data ?? []) as TryoutRequest[];
 }
 
-export async function acceptWithAccount(tryoutId: string): Promise<{ user_id: string; username: string; temp_password: string }> {
-  const { data, error } = await supabase.functions.invoke('accept-tryout', { body: { tryout_id: tryoutId } });
-  if (error) {
-    const ctx = (error as { context?: unknown }).context;
-    if (ctx instanceof Response) {
-      try {
-        const body = (await ctx.clone().json()) as { error?: string };
-        if (body?.error) throw new Error(body.error);
-      } catch { /* fall through to generic message */ }
-    }
-    throw new Error(error.message);
+export interface AcceptedTryout {
+  user_id: string;
+  username: string;
+  email: string;
+  // True when the email already had a VIK Clan account and got a login link.
+  existing?: boolean;
+  email_sent: boolean;
+  email_error?: string | null;
+  // True when the provider's daily allowance / rate limit blocked delivery.
+  // The one-time link is still valid — the admin copies or sends it manually.
+  email_quota_reached?: boolean;
+  invite_link: string;
+  // False when the account/link worked but the tryout row could not be marked
+  // accepted (e.g. the admin's session lacks the role at update time).
+  resolved?: boolean;
+  status_error?: string | null;
+  already_accepted?: boolean;
+}
+
+// Thrown when the browser has no usable Supabase session (expired/cleared).
+// The admin UI logs out and redirects to /login when this surfaces.
+export class AuthSessionError extends Error {
+  constructor() {
+    super('Auth session missing!');
+    this.name = 'AuthSessionError';
   }
-  const err = (data as { error?: string } | null)?.error;
+}
+
+// Provisions a new account (set-password invite) or links the existing account
+// (magic login link), then emails the one-time link. No temp password exists.
+export async function acceptWithAccount(tryoutId: string): Promise<AcceptedTryout> {
+  // Attach the user JWT explicitly: if the client session was stale/lost, the
+  // SDK would omit Authorization and the function would answer 401 Unauthorized.
+  const { data: { session } } = await supabase.auth.getSession();
+  let token = session?.access_token ?? (await refreshedToken());
+  if (!token) {
+    console.warn('accept-tryout: no Supabase session at accept time.', {
+      hadStoredSession: !!session,
+      storageKeys: typeof localStorage === 'undefined'
+        ? []
+        : Object.keys(localStorage).filter((k) => k.startsWith('sb-')),
+    });
+    throw new AuthSessionError();
+  }
+
+  let result = await invokeAccept(token, tryoutId);
+  let status = errorStatus(result.error);
+  if (status === 401) {
+    // One silent retry with a refreshed token covers expired access tokens.
+    console.warn('accept-tryout: function rejected the access token; refreshing once.');
+    const fresh = await refreshedToken();
+    if (fresh && fresh !== token) {
+      token = fresh;
+      result = await invokeAccept(token, tryoutId);
+      status = errorStatus(result.error);
+    }
+  }
+
+  if (result.error) {
+    if (status === 401) throw new AuthSessionError();
+    throw new Error((await errorDetail(result.error)) ?? result.error.message);
+  }
+  const err = (result.data as { error?: string } | null)?.error;
   if (err) throw new Error(err);
-  return data as { user_id: string; username: string; temp_password: string };
+  const created = result.data as Partial<AcceptedTryout> | null;
+  if (!created?.invite_link) {
+    // The deployed function is still the old temp-password build.
+    throw new Error('The accept-tryout function is out of date — deploy the latest version and try again.');
+  }
+  return created as AcceptedTryout;
+}
+
+function invokeAccept(token: string, tryoutId: string) {
+  return supabase.functions.invoke('accept-tryout', {
+    body: { tryout_id: tryoutId },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+async function refreshedToken(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.warn('accept-tryout: session refresh failed.', error.message);
+      return null;
+    }
+    return data.session?.access_token ?? null;
+  } catch (err) {
+    console.warn('accept-tryout: session refresh threw.', err);
+    return null;
+  }
+}
+
+function errorStatus(error: unknown): number | null {
+  const ctx = (error as { context?: unknown } | null)?.context;
+  return ctx instanceof Response ? ctx.status : null;
+}
+
+async function errorDetail(error: unknown): Promise<string | null> {
+  const ctx = (error as { context?: unknown } | null)?.context;
+  if (!(ctx instanceof Response)) return null;
+  try {
+    const body = (await ctx.clone().json()) as { error?: string };
+    return body?.error ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export const tryoutService = { submitTryout, listTryouts, resolveTryout, assignTester, submitVerdict, listMyTesterTasks, acceptWithAccount, client: supabase };

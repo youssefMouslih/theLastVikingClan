@@ -14,6 +14,7 @@ const exact: Record<string, Entry> = {
   'Already answered.': ['Déjà répondu.', 'تمت الإجابة بالفعل.'],
   'Already claimed.': ['Déjà réclamé.', 'تمت المطالبة بالفعل.'],
   'Already in this squad.': ['Déjà dans cette équipe.', 'موجود بالفعل في هذا الفريق.'],
+  'Already resolved': ['Déjà résolu.', 'تم الحل بالفعل.'],
   'Already taken.': ['Déjà pris.', 'محجوز بالفعل.'],
   'Ask between 5 and 500 GP.': ['Demandez entre 5 et 500 GP.', 'اطلب بين 5 و500 GP.'],
   'Avatar must be JPG, PNG or WEBP.': [
@@ -158,6 +159,18 @@ const exact: Record<string, Entry> = {
   ],
   'Squad needs a name.': ['L’équipe a besoin d’un nom.', 'يحتاج الفريق إلى اسم.'],
   'That is your own call.': ['C’est votre propre appel.', 'هذا نداؤك أنت.'],
+  'This account is suspended or removed — restore it before accepting the tryout.': [
+    'Ce compte est suspendu ou supprimé — restaurez-le avant d’accepter l’essai.',
+    'هذا الحساب موقوف أو محذوف — استعده قبل قبول التجربة.',
+  ],
+  'This email is linked to a different login account — repair the profile first.': [
+    'Cet e-mail est lié à un autre compte de connexion — réparez d’abord le profil.',
+    'هذا البريد مرتبط بحساب دخول آخر — أصلح الملف الشخصي أولًا.',
+  ],
+  'Tryout has no valid email — ask the candidate first.': [
+    'L’essai n’a pas d’e-mail valide — demandez-le au candidat d’abord.',
+    'لا تحتوي التجربة على بريد صالح — اطلبه من المرشح أولًا.',
+  ],
   'The owner keeps their position — this role cannot be changed.': [
     'Le propriétaire conserve sa position — ce rôle ne peut pas être modifié.',
     'يحتفظ المالك بمنصبه — لا يمكن تغيير هذا الدور.',

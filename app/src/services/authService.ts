@@ -41,7 +41,13 @@ export async function signUpWithInvite(email: string, password: string, username
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-  if (error) return null;
+  if (error) {
+    // PGRST116 = no row. Treat only that as "no profile": a transient network
+    // or RLS error must not be mistaken for a missing account, because the
+    // caller used to sign the user out — destroying a perfectly valid session.
+    if (error.code === 'PGRST116') return null;
+    throw new Error(error.message);
+  }
   return data as Profile;
 }
 

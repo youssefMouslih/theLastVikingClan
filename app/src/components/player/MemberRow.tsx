@@ -8,7 +8,7 @@ export default function MemberRow({ member }: { member: Profile }) {
   return (
     <Link
       to={`/players/${member.id}`}
-      className={`card flex items-center gap-3 p-3 ${inactive ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-3 px-3 py-2.5 text-sm ${inactive ? 'opacity-60' : ''}`}
     >
       <Avatar path={member.avatar_url} name={member.display_name ?? member.username} />
       <div className="min-w-0 flex-1">

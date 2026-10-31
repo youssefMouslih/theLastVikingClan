@@ -2,23 +2,37 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useLocale } from '../../i18n/LocaleContext';
-import { listTryouts, resolveTryout, assignTester, acceptWithAccount } from '../../services/tryoutService';
+import { listTryouts, resolveTryout, assignTester, acceptWithAccount, AuthSessionError } from '../../services/tryoutService';
 import { listActiveMembers } from '../../services/playerService';
 import type { TryoutStatus } from '../../types/database';
+import { useAuthStore } from '../../stores/authStore';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import CopyButton from '../ui/CopyButton';
 
 // Admin tryout queue: pending requests first, each with a WhatsApp contact
-// button, tester assignment, verdict review, then accept/decline. Accepting
-// means the admin reaches out — the candidate joins later through the normal
-// signup/invite flow.
+// button, tester assignment, verdict review, then accept/decline. Accepting a
+// tryout provisions the account (or links the existing one) and emails a
+// one-time set-password invite or login link.
 export default function TryoutsTab() {
   const { t , tError} = useLocale();
   const [params] = useSearchParams();
   const requestId = params.get('request');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [prov, setProv] = useState<{ name: string; username: string; email: string; temp: string; contact: string } | null>(null);
+  const logout = useAuthStore((s) => s.logout);
+  const [prov, setProv] = useState<{
+    name: string;
+    username: string;
+    email: string;
+    sent: boolean;
+    link: string;
+    contact: string;
+    existing: boolean;
+    resolved: boolean;
+    emailError?: string | null;
+    quota: boolean;
+    statusError?: string | null;
+  } | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
   const query = useQuery({ queryKey: ['tryouts'], queryFn: listTryouts });
   const membersQuery = useQuery({ queryKey: ['tryout-testers'], queryFn: listActiveMembers });
@@ -34,14 +48,27 @@ export default function TryoutsTab() {
     try {
       if (r.email) {
         const created = await acceptWithAccount(r.id);
-        setMsg(`${t('tryout.invited')} @${created.username}`);
-        setProv({ name: r.name, username: created.username, email: r.email ?? '', temp: created.temp_password, contact: r.contact });
+        setProv({
+          name: r.name,
+          username: created.username,
+          email: created.email,
+          sent: created.email_sent,
+          link: created.invite_link,
+          contact: r.contact,
+          existing: !!created.existing,
+          resolved: created.resolved !== false,
+          emailError: created.email_error ?? null,
+          quota: !!created.email_quota_reached,
+          statusError: created.status_error ?? null,
+        });
       } else {
         await resolveTryout(r.id, 'ACCEPTED');
       }
       await query.refetch();
     } catch (err) {
       setMsg(tError(err));
+      // Dead session: clear the stale profile so the router sends us to /login.
+      if (err instanceof AuthSessionError) void logout();
     } finally {
       setBusyId(null);
     }
@@ -144,6 +171,16 @@ export default function TryoutsTab() {
               </button>
             </>
           )}
+          {r.status === 'ACCEPTED' && r.email && (
+            <button
+              disabled={busyId === r.id}
+              onClick={() => accept(r)}
+              className="btn-ghost h-10 flex-1 text-xs"
+              title={t('tryout.resendHint')}
+            >
+              {t('tryout.resendLink')}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -154,20 +191,62 @@ export default function TryoutsTab() {
       {msg && <p className="text-sm font-medium">{msg}</p>}
       {prov && (
         <div className="card border-brand-500/50 p-3 text-sm">
-          <p className="font-bold">{t('tryout.provisioned')}</p>
-          <p className="mt-1 font-mono" dir="ltr">@{prov.username} · {prov.email} · {t('tryout.tempPassword')}: {prov.temp}</p>
-          <div className="mt-2 flex gap-2">
-            <CopyButton text={`Login: ${prov.email} / Temp password: ${prov.temp}`} label={t('common.copy')} />
-            {prov.contact.replace(/[^\d]/g, '') && (
-              <a
-                href={`https://wa.me/${prov.contact.replace(/[^\d]/g, '')}?text=${encodeURIComponent(t('tryout.waCreds', { name: prov.name, email: prov.email, temp: prov.temp }))}`}
-                target="_blank" rel="noreferrer"
-                className="flex h-9 flex-1 items-center justify-center gap-1 rounded-xl bg-[#25d366] px-3 text-xs font-bold text-white"
-              >
-                <WhatsAppIcon className="h-5 w-5" /> {t('tryout.chat')}
-              </a>
-            )}
-          </div>
+          <p className="font-bold">
+            {prov.existing
+              ? t('tryout.existingAccount', { username: prov.username })
+              : t('tryout.accountCreated', { username: prov.username })}
+          </p>
+          <p className={`mt-1 text-xs font-semibold ${prov.sent ? 'text-green-400' : 'text-amber-400'}`}>
+            {prov.sent
+              ? (prov.existing
+                ? t('tryout.magicSent', { email: prov.email })
+                : t('tryout.inviteSent', { email: prov.email }))
+              : (prov.existing ? t('tryout.magicFailed') : t('tryout.inviteFailed'))}
+          </p>
+          {prov.quota && (
+            <p className="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs font-semibold text-amber-400">
+              {t('tryout.quotaReached')}
+            </p>
+          )}
+          {!prov.sent && prov.emailError && !prov.quota && (
+            <p className="mt-1 break-words text-[11px] opacity-60">{prov.emailError}</p>
+          )}
+          {!prov.resolved && (
+            <p className="mt-2 rounded-lg bg-amber-500/10 p-2 text-xs font-semibold text-amber-400">
+              {t('tryout.resolveFailed')}
+              {prov.statusError && <span className="mt-1 block break-words font-normal opacity-70">{prov.statusError}</span>}
+            </p>
+          )}
+          {prov.link && (
+            <>
+              {!prov.sent && !prov.quota && (
+                <p className="mt-1 text-xs opacity-70">
+                  {prov.existing ? t('tryout.magicLinkHint') : t('tryout.inviteLinkHint')}
+                </p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <CopyButton
+                  text={prov.link}
+                  label={prov.quota
+                    ? t('tryout.copyForWhatsApp')
+                    : (prov.existing ? t('tryout.copyMagicLink') : t('tryout.copyInviteLink'))}
+                />
+                {prov.contact.replace(/[^\d]/g, '') && (
+                  <a
+                    href={`https://wa.me/${prov.contact.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                      prov.existing
+                        ? t('tryout.waMagic', { name: prov.name, link: prov.link })
+                        : t('tryout.waInvite', { name: prov.name, link: prov.link }),
+                    )}`}
+                    target="_blank" rel="noreferrer"
+                    className="flex h-9 flex-1 items-center justify-center gap-1 rounded-xl bg-[#25d366] px-3 text-xs font-bold text-white"
+                  >
+                    <WhatsAppIcon className="h-5 w-5" /> {prov.quota ? t('tryout.waSend') : t('tryout.chat')}
+                  </a>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
       {rows.length === 0 && <p className="card text-sm opacity-70">{t('tryout.empty')}</p>}

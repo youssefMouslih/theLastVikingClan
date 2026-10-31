@@ -9,6 +9,7 @@ import { crownHolder, getCurrentReign, vacateThrone } from '../../services/thron
 import type { MemberStatus, Profile, Role } from '../../types/database';
 import { useAuthStore } from '../../stores/authStore';
 import Pagination, { PAGE_SIZE } from '../ui/Pagination';
+import Avatar from '../ui/Avatar';
 
 const EDITABLE_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN'];
 // No REMOVED — members can be suspended/left but never deleted from here.
@@ -158,60 +159,84 @@ export default function MembersTab() {
         className="input text-sm"
       />
       {msg && <p className="text-sm font-medium">{msg}</p>}
-      {pageRows.map((m) => {
-        const d = drafts[m.id] ?? { role: m.role, status: m.status };
-        const set = (patch: Partial<typeof d>) => setDrafts({ ...drafts, [m.id]: { ...d, ...patch } });
-        const dirty = d.role !== m.role || d.status !== m.status;
-        const isHolder = throneQuery.data?.holder_id === m.id;
-        const isOwnerTarget = m.role === 'OWNER';
-        // OWNER is gone from the dropdown for everyone — the owner keeps
-        // their position no matter what (role locked + never grantable).
-        // Admins get PLAYER/MODERATOR only (enforced server-side too).
-        const availableRoles: Role[] =
-          me?.role === 'OWNER' ? EDITABLE_ROLES : (['PLAYER', 'MODERATOR'] as Role[]);
-        const roleOptions = availableRoles.includes(d.role)
-          ? availableRoles
-          : [d.role, ...availableRoles];
-        return (
-          <div key={m.id} className="card p-3 text-sm">
-            <Link to={`/players/${m.id}`} className="font-semibold">{m.display_name ?? m.username} <span className="opacity-60">@{m.username}</span></Link>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <label className="label">{t('members.role')}
-                <select
-                  value={d.role}
-                  disabled={isOwnerTarget}
-                  title={isOwnerTarget ? 'Owner keeps their position' : undefined}
-                  onChange={(e) => set({ role: e.target.value as Role })}
-                  className="input text-sm disabled:opacity-60"
-                >
-                  {roleOptions.map((r) => (
-                    <option key={r} value={r} disabled={!availableRoles.includes(r)}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="label">{t('members.status')}
-                <select value={d.status} onChange={(e) => set({ status: e.target.value as MemberStatus })} className="input text-sm">
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
-            </div>
-            {dirty && (
-              <button disabled={busyId === m.id} onClick={() => save(m)} className="btn-primary mt-2 h-10 text-xs">
-                {busyId === m.id ? t('common.saving') : t('members.save')}
-              </button>
-            )}
-            {isHolder ? (
-              <span className="mt-1 inline-block rounded-full bg-brand-500/15 px-2 py-1 text-[11px] font-bold text-brand-300">{t('throne.holder')}</span>
-            ) : (
-              <button disabled={busyId === m.id} onClick={() => crown(m)} className="btn-ghost mt-1 h-9 text-xs">
-                {t('throne.crown')}
-              </button>
-            )}
+      <div className="card overflow-hidden !p-0">
+        <div className="hidden grid-cols-[minmax(0,1.6fr)_7rem_7rem_minmax(0,1fr)] items-center gap-2 border-b border-(--border) px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-(--muted) sm:grid">
+          <span>{t('members.player')}</span>
+          <span>{t('members.role')}</span>
+          <span>{t('members.status')}</span>
+          <span className="text-end">{t('members.actions')}</span>
+        </div>
+        {pageRows.length === 0 ? (
+          <p className="p-3 text-sm text-(--muted)">{t('members.noResults')}</p>
+        ) : (
+          <div className="divide-y divide-(--border)">
+            {pageRows.map((m) => {
+              const d = drafts[m.id] ?? { role: m.role, status: m.status };
+              const set = (patch: Partial<typeof d>) => setDrafts({ ...drafts, [m.id]: { ...d, ...patch } });
+              const dirty = d.role !== m.role || d.status !== m.status;
+              const isHolder = throneQuery.data?.holder_id === m.id;
+              const isOwnerTarget = m.role === 'OWNER';
+              // OWNER is gone from the dropdown for everyone — the owner keeps
+              // their position no matter what (role locked + never grantable).
+              // Admins get PLAYER/MODERATOR only (enforced server-side too).
+              const availableRoles: Role[] =
+                me?.role === 'OWNER' ? EDITABLE_ROLES : (['PLAYER', 'MODERATOR'] as Role[]);
+              const roleOptions = availableRoles.includes(d.role)
+                ? availableRoles
+                : [d.role, ...availableRoles];
+              return (
+                <div key={m.id} className="grid gap-2 px-3 py-2.5 text-sm sm:grid-cols-[minmax(0,1.6fr)_7rem_7rem_minmax(0,1fr)] sm:items-center">
+                  <Link to={`/players/${m.id}`} className="flex min-w-0 items-center gap-2">
+                    <Avatar path={m.avatar_url} name={m.display_name ?? m.username} className="h-9 w-9 text-sm" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{m.display_name ?? m.username}</span>
+                      <span className="block truncate text-xs text-(--muted)">@{m.username}</span>
+                    </span>
+                  </Link>
+                  <div className="grid grid-cols-2 gap-2 sm:contents">
+                    <select
+                      value={d.role}
+                      disabled={isOwnerTarget}
+                      aria-label={t('members.role')}
+                      title={isOwnerTarget ? 'Owner keeps their position' : undefined}
+                      onChange={(e) => set({ role: e.target.value as Role })}
+                      className="input text-xs disabled:opacity-60"
+                    >
+                      {roleOptions.map((r) => (
+                        <option key={r} value={r} disabled={!availableRoles.includes(r)}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={d.status}
+                      aria-label={t('members.status')}
+                      onChange={(e) => set({ status: e.target.value as MemberStatus })}
+                      className="input text-xs"
+                    >
+                      {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {dirty && (
+                      <button disabled={busyId === m.id} onClick={() => save(m)} className="btn-primary h-10 px-3 text-xs">
+                        {busyId === m.id ? t('common.saving') : t('members.save')}
+                      </button>
+                    )}
+                    {isHolder ? (
+                      <span className="inline-block rounded-full bg-brand-500/15 px-2 py-1 text-[11px] font-bold text-brand-300">{t('throne.holder')}</span>
+                    ) : (
+                      <button disabled={busyId === m.id} onClick={() => crown(m)} className="btn-ghost h-10 px-3 text-xs">
+                        {t('throne.crown')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        )}
+      </div>
       <Pagination page={safePage} pageCount={pageCount} onChange={setPage} />
     </div>
   );
