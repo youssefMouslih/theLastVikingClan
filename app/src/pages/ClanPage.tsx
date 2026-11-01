@@ -7,6 +7,7 @@ import Icon from '../components/ui/Icon';
 import { FadeIn, SkeletonList } from '../components/ui/Motion';
 import { useLocale } from '../i18n/LocaleContext';
 import { getClanSettings, updateClanSettings } from '../services/clanService';
+import { uploadClanBanner } from '../services/storageService';
 import { listCompetitions } from '../services/competitionService';
 import { listMembers } from '../services/playerService';
 import { getClanTotals, getHallOfFame } from '../services/statisticsService';
@@ -18,10 +19,24 @@ export default function ClanPage() {
   const me = useAuthStore((s) => s.profile);
   const canEdit = me?.role === 'OWNER' || me?.role === 'ADMIN';
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', tag: '', description: '', rules: '', quest_names: 'classic' as 'classic' | 'norse' });
+  const [form, setForm] = useState({ name: '', tag: '', description: '', rules: '', quest_names: 'classic' as 'classic' | 'norse', banner_color: '' });
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [clearBanner, setClearBanner] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  // Screen eyedropper (same as the profile banner editor).
+  const eyeDropperSupported = typeof window !== 'undefined' &&
+    !!(window as Window & { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+
+  async function pickFromScreen() {
+    const Ctor = (window as Window & { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+    if (!Ctor) return;
+    try {
+      const result = await new Ctor().open();
+      if (result?.sRGBHex) setForm((f) => ({ ...f, banner_color: result.sRGBHex }));
+    } catch { /* user cancelled the sampler */ }
+  }
 
   const clanQuery = useQuery({ queryKey: ['clan-settings'], queryFn: getClanSettings });
   const membersQuery = useQuery({ queryKey: ['members'], queryFn: listMembers });
@@ -44,7 +59,10 @@ export default function ClanPage() {
       description: clan?.description ?? '',
       rules: clan?.rules ?? '',
       quest_names: clan?.quest_names ?? 'classic',
+      banner_color: clan?.banner_color ?? '',
     });
+    setBannerFile(null);
+    setClearBanner(false);
     setSaveError(null);
     setEditing(true);
   }
@@ -53,8 +71,24 @@ export default function ClanPage() {
     e.preventDefault();
     setSaving(true); setSaveError(null);
     try {
-      await updateClanSettings({ name: form.name.trim() || 'VIK', tag: form.tag.trim() || null, description: form.description || null, rules: form.rules || null, quest_names: form.quest_names });
+      const patch: Parameters<typeof updateClanSettings>[0] = {
+        name: form.name.trim() || 'VIK',
+        tag: form.tag.trim() || null,
+        description: form.description || null,
+        rules: form.rules || null,
+        quest_names: form.quest_names,
+        banner_color: form.banner_color || null,
+      };
+      if (bannerFile) {
+        patch.banner_url = await uploadClanBanner(bannerFile);
+        setClearBanner(false);
+      } else if (clearBanner) {
+        patch.banner_url = null;
+      }
+      await updateClanSettings(patch);
       await clanQuery.refetch();
+      setBannerFile(null);
+      setClearBanner(false);
       setEditing(false);
     } catch (err) {
       setSaveError(tError(err));
@@ -86,7 +120,8 @@ export default function ClanPage() {
       ) : (
         <header className="card overflow-hidden p-0!">
           <div
-            className={`relative min-h-36 overflow-hidden border-b border-(--border) ${clan?.banner_url ? '' : 'efoot-banner'}`}
+            className={`relative min-h-36 overflow-hidden border-b border-(--border) ${clan?.banner_url || clan?.banner_color ? '' : 'efoot-banner'}`}
+            style={!clan?.banner_url && clan?.banner_color ? { background: clan.banner_color } : undefined}
           >
             {clan?.banner_url && (
               <>
@@ -154,6 +189,49 @@ export default function ClanPage() {
               <option value="norse">{t('clan.questNorse')}</option>
             </select>
           </label>
+          <section className="flex flex-col gap-3 border-t border-(--border) pt-3" aria-labelledby="clan-banner-title">
+            <h3 id="clan-banner-title" className="card-title">{t('clan.bannerTitle')}</h3>
+            <div>
+              <p className="text-sm font-semibold">{t('profile.bannerColor')}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  type="color"
+                  aria-label={t('profile.bannerCustom')}
+                  value={/^#[0-9a-fA-F]{6}$/.test(form.banner_color) ? form.banner_color : '#0b1120'}
+                  onChange={(e) => setForm({ ...form, banner_color: e.target.value })}
+                  className="h-11 w-14 cursor-pointer rounded-lg border border-(--border) bg-transparent p-1"
+                />
+                <div aria-hidden className="h-9 w-9 rounded-lg border border-(--border)" style={{ background: form.banner_color || 'linear-gradient(115deg,#d5ad62 10%,#162743 60%,#0b1120)' }} />
+                {form.banner_color && (
+                  <button type="button" onClick={() => setForm({ ...form, banner_color: '' })} className="btn-ghost px-2 text-xs">
+                    {t('profile.bannerDefault')}
+                  </button>
+                )}
+              </div>
+              {eyeDropperSupported && (
+                <button type="button" onClick={pickFromScreen} className="btn-ghost mt-2 px-2 text-xs">
+                  {t('profile.eyedropper')}
+                </button>
+              )}
+            </div>
+            <label className="label">{t('clan.bannerImage')}
+              <span className="file-upload text-xs">
+                <span>{t('profile.uploadImage')}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => { setBannerFile(e.target.files?.[0] ?? null); setClearBanner(false); }}
+                />
+                {bannerFile && <span className="file-name">{bannerFile.name}</span>}
+              </span>
+              <span className="text-xs font-normal opacity-60">{t('clan.bannerHint')}</span>
+            </label>
+            {clan?.banner_url && !clearBanner && !bannerFile && (
+              <button type="button" onClick={() => setClearBanner(true)} className="btn-ghost self-start px-3 text-xs">
+                {t('clan.bannerRemove')}
+              </button>
+            )}
+          </section>
           {saveError && <p role="alert" className="text-sm text-red-500">{saveError}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary h-11 flex-1">{saving ? t('clan.saving') : t('clan.save')}</button>

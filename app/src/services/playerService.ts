@@ -77,6 +77,7 @@ export async function manageMember(args: {
   status: MemberStatus;
   actorId: string;
   actorRole: Role;
+  banReason?: string | null;
 }): Promise<void> {
   const { target, role, status, actorId, actorRole } = args;
   if (target.id === actorId) throw new Error('You cannot change your own role or status.');
@@ -84,9 +85,17 @@ export async function manageMember(args: {
   if (target.role === 'OWNER' && role !== 'OWNER') {
     throw new Error('The owner keeps their position — this role cannot be changed.');
   }
+  // The owner is untouchable: never banned, never suspended.
+  if (target.role === 'OWNER' && (status === 'BANNED' || status === 'SUSPENDED')) {
+    throw new Error('The owner cannot be banned or suspended.');
+  }
+  const banReason = args.banReason?.trim().slice(0, 400) ?? '';
+  if (status === 'BANNED' && !banReason) {
+    throw new Error('Write a reason for the ban first.');
+  }
   // Members are never deleted — not even by the owner.
   if (status === 'REMOVED') {
-    throw new Error('Members cannot be removed — use Suspended or Left instead.');
+    throw new Error('Members cannot be removed — use Suspended, Banned or Left instead.');
   }
   // The owner role is never granted through the app — one permanent owner.
   if (role === 'OWNER') {
@@ -99,7 +108,16 @@ export async function manageMember(args: {
   }
   const { error } = await supabase
     .from('profiles')
-    .update({ role, status, updated_at: new Date().toISOString() })
+    .update({
+      role,
+      status,
+      ban_reason: status === 'BANNED' ? banReason : null,
+      // A fresh ban starts with no appeal; the member can send one afterwards.
+      ...(status === 'BANNED' && target.status !== 'BANNED'
+        ? { ban_request: null, ban_requested_at: null }
+        : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', target.id);
   if (error) throw new Error(error.message);
   // Best-effort audit: never block the change if the audit table/RLS is missing.

@@ -132,6 +132,30 @@ export async function getBannerUrl(filePath: string | null): Promise<string | nu
   return data.signedUrl;
 }
 
+// Clan page banner. Bucket: clan-assets (private, admin-write).
+// Fixed path + upsert so re-uploading replaces the banner without orphans.
+export async function uploadClanBanner(file: File): Promise<string> {
+  if (!ALLOWED.includes(file.type)) throw new Error('Banner must be JPG, PNG or WEBP.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Banner must be under 5 MB.');
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'webp';
+  const path = `clan/banner.${ext}`;
+  const { error } = await supabase.storage.from('clan-assets').upload(path, file, {
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) throw new Error(`Banner upload failed: ${error.message}`);
+  return path;
+}
+
+// Resolve a stored clan-asset path (or pass an absolute URL through).
+export async function getClanAssetUrl(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  const { data, error } = await supabase.storage.from('clan-assets').createSignedUrl(path, 7 * 24 * 3600);
+  if (error) return null;
+  return data.signedUrl;
+}
+
 // Badge template per honour type. Bucket: clan-assets (private).
 // Path: badge-templates/{TYPE}.png — fixed path + upsert, so re-uploading
 // replaces the picture for every award of that type, past and future.

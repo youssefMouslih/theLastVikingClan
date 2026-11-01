@@ -40,6 +40,7 @@ const STYLES: Record<string, string> = {
   OPEN: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
   FULL: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100',
   CLOSED: 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300',
+  BANNED: 'bg-red-600 text-white',
 };
 
 export default function StatusBadge({ value, className = '' }: { value: string; className?: string }) {

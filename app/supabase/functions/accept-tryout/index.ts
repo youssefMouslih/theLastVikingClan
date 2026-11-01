@@ -330,14 +330,16 @@ Deno.serve(async (req: Request) => {
 
   const { data: row, error: tErr } = await supabase
     .from('tryout_requests')
-    .select('id,name,email,status')
+    .select('id,name,known_name,email,contact,status')
     .eq('id', tryoutId)
     .maybeSingle();
   if (tErr) return fail(tErr.message, 500);
   const tryout = row as {
     id: string;
     name: string;
+    known_name: string | null;
     email: string | null;
+    contact: string | null;
     status: string;
   } | null;
   if (!tryout) return fail('Not found', 404);
@@ -407,16 +409,32 @@ Deno.serve(async (req: Request) => {
     const username = await pickUsername(supabase, tryout.name);
     if (!username) return fail('Could not pick a username.', 500);
 
-    const { error: pErr } = await supabase.from('profiles').insert({
+    const knownName = (tryout.known_name ?? '').trim().slice(0, 24) || null;
+    const whatsapp = (tryout.contact ?? '').replace(/[^\d+]/g, '').slice(0, 20) || null;
+    const baseProfile = {
       id: link.userId,
       username,
       display_name: tryout.name.trim().slice(0, 40),
       email,
       role: 'PLAYER',
       status: 'ACTIVE',
+      whatsapp,
       // No password exists yet — the app blocks entry until one is set.
       must_change_password: true,
-    });
+    };
+    let { error: pErr } = await supabase.from('profiles').insert({ ...baseProfile, known_name: knownName });
+    if (pErr?.code === '23505' && knownName) {
+      // The VIK name may already belong to another member. Keep the account and
+      // let the onboarding gate ask the candidate for a free name instead.
+      const { data: byId } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', link.userId)
+        .maybeSingle();
+      if (!byId) {
+        ({ error: pErr } = await supabase.from('profiles').insert({ ...baseProfile, known_name: null }));
+      }
+    }
     if (pErr) {
       // Another profile may already own this auth id; reuse it rather than
       // destroying a possibly pre-existing account.

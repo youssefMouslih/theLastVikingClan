@@ -6,6 +6,8 @@ import OfflineBanner from './components/ui/OfflineBanner';
 import UpdateBanner from './components/ui/UpdateBanner';
 import { ToastProvider } from './components/ui/Toast';
 import OnboardingGate from './components/onboarding/OnboardingGate';
+import OathGate from './components/onboarding/OathGate';
+import BanGate from './components/auth/BanGate';
 import { LocaleProvider, useLocale } from './i18n/LocaleContext';
 import { ThemeProvider } from './theme';
 import './index.css';
@@ -45,7 +47,9 @@ export default function App() {
           <OfflineBanner />
           <ToastProvider>
             <ConfirmHost />
+            <BanGate />
             <OnboardingGate />
+            <OathGate />
             <div id="main-content" tabIndex={-1} className="focus:outline-none">
               <RouterProvider router={router} />
             </div>

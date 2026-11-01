@@ -2,7 +2,7 @@
 // Timezone: Africa/Casablanca, DB stores UTC (§14).
 
 export type Role = 'OWNER' | 'ADMIN' | 'MODERATOR' | 'PLAYER';
-export type MemberStatus = 'INVITED' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'LEFT' | 'REMOVED';
+export type MemberStatus = 'INVITED' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'LEFT' | 'REMOVED' | 'BANNED';
 
 export type CompetitionType = 'LEAGUE' | 'CUP' | 'TOURNAMENT' | 'SPECIAL_EVENT';
 export type CompetitionStatus =
@@ -50,6 +50,10 @@ export interface Profile {
   must_change_password: boolean;
   banner_color: string | null;
   banner_image: string | null;
+  // Ban + appeal (§migration 0055)
+  ban_reason: string | null;
+  ban_request: string | null;
+  ban_requested_at: string | null;
   instagram: string | null;
   tiktok: string | null;
   kick: string | null;
@@ -66,6 +70,7 @@ export interface ClanSettings {
   tag: string | null;
   logo_url: string | null;
   banner_url: string | null;
+  banner_color: string | null;
   description: string | null;
   rules: string | null;
   country: string | null;
@@ -90,6 +95,7 @@ export interface TryoutRequest {
   contact: string;
   email: string | null;
   note: string | null;
+  known_name: string | null;
   status: TryoutStatus;
   admin_note: string | null;
   assigned_tester_id: string | null;

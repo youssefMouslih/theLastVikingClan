@@ -72,6 +72,7 @@ export default function LoginPage() {
   // Tryout request (always available, even when signup is closed).
   const [tryoutOpen, setTryoutOpen] = useState(false);
   const [tName, setTName] = useState('');
+  const [tKnown, setTKnown] = useState('VIK ');
   const [tContact, setTContact] = useState('');
   const [tEmail, setTEmail] = useState('');
   const [tNote, setTNote] = useState('');
@@ -98,16 +99,17 @@ export default function LoginPage() {
       if (tWeb.trim() !== '') {
         // Bot trap sprung: pretend it worked, store nothing.
         setTSent(true);
-        setTName(''); setTContact(''); setTEmail(''); setTNote(''); setTWeb('');
+        setTName(''); setTKnown('VIK '); setTContact(''); setTEmail(''); setTNote(''); setTWeb('');
         return;
       }
       const digits = tContact.replace(/[^\d+]/g, '');
       if (tName.trim().length < 2) throw new Error(t('auth.usernameShort'));
+      if (!/vik/i.test(tKnown.trim()) || tKnown.trim().length < 5) throw new Error(t('onboard.needTag'));
       if (digits.replace(/\D/g, '').length < 7) throw new Error(t('tryout.failed'));
       if (!/.+@.+\..+/.test(tEmail.trim())) throw new Error(t('tryout.failed'));
-      await submitTryout({ name: tName.trim(), contact: digits, email: tEmail.trim(), note: tNote.trim() || null, website: null });
+      await submitTryout({ name: tName.trim(), known_name: tKnown.trim(), contact: digits, email: tEmail.trim(), note: tNote.trim() || null, website: null });
       setTSent(true);
-      setTName(''); setTContact(''); setTEmail(''); setTNote('');
+      setTName(''); setTKnown('VIK '); setTContact(''); setTEmail(''); setTNote('');
     } catch (err) {
       setTErr(tError(err));
     } finally {
@@ -355,6 +357,10 @@ export default function LoginPage() {
               <p className="-mt-1 text-xs opacity-70">{t('tryout.desc')}</p>
               <label className="label">{t('tryout.name')}
                 <input className="input h-11 text-base" required minLength={2} maxLength={40} value={tName} onChange={(e) => setTName(e.target.value.slice(0, 40))} />
+              </label>
+              <label className="label">{t('tryout.knownName')}
+                <input className="input h-11 text-base" required minLength={5} maxLength={24} dir="ltr" value={tKnown} onChange={(e) => setTKnown(e.target.value.slice(0, 24))} placeholder="VIK Pride" />
+                <span className="text-xs font-normal opacity-60">{t('onboard.tagHint')}</span>
               </label>
               <label className="label">{t('tryout.contact')}
                 <input type="tel" inputMode="tel" dir="ltr" className="input h-11 text-base" required value={tContact} onChange={(e) => setTContact(e.target.value.replace(/[^\d+]/g, '').slice(0, 20))} placeholder="+212600000000" />

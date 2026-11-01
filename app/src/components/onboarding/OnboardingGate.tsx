@@ -27,6 +27,8 @@ export default function OnboardingGate() {
   const [busy, setBusy] = useState(false);
 
   if (!needsOnboarding(me)) return null;
+  // A banned member sees only the ban screen + appeal box.
+  if (me?.status === 'BANNED') return null;
   // Forced password rotation takes precedence (router already confines
   // flagged users to /password, where this gate must not overlay).
   if (me?.must_change_password) return null;

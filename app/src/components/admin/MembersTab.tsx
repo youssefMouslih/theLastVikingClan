@@ -13,7 +13,7 @@ import Avatar from '../ui/Avatar';
 
 const EDITABLE_ROLES: Role[] = ['PLAYER', 'MODERATOR', 'ADMIN'];
 // No REMOVED — members can be suspended/left but never deleted from here.
-const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT'];
+const STATUSES: MemberStatus[] = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'LEFT', 'BANNED'];
 
 // Owner-managed user permissions (§10): who may create leagues/cups (ADMIN),
 // moderate disputes (MODERATOR), or play (PLAYER). Owner-only guards inside.
@@ -21,6 +21,7 @@ export default function MembersTab() {
   const { t , tError} = useLocale();
   const me = useAuthStore((s) => s.profile);
   const [drafts, setDrafts] = useState<Record<string, { role: Role; status: MemberStatus }>>({});
+  const [banReasons, setBanReasons] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState('');
   const [page, setPage] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
@@ -50,7 +51,14 @@ export default function MembersTab() {
     const d = drafts[m.id] ?? { role: m.role, status: m.status };
     setBusyId(m.id); setMsg(null);
     try {
-      await manageMember({ target: m, role: d.role, status: d.status, actorId: me!.id, actorRole: me!.role });
+      await manageMember({
+        target: m,
+        role: d.role,
+        status: d.status,
+        actorId: me!.id,
+        actorRole: me!.role,
+        banReason: banReasons[m.id] ?? m.ban_reason ?? '',
+      });
       setMsg(t('members.saved'));
       await query.refetch();
     } catch (err) {
@@ -173,7 +181,9 @@ export default function MembersTab() {
             {pageRows.map((m) => {
               const d = drafts[m.id] ?? { role: m.role, status: m.status };
               const set = (patch: Partial<typeof d>) => setDrafts({ ...drafts, [m.id]: { ...d, ...patch } });
-              const dirty = d.role !== m.role || d.status !== m.status;
+              const reason = banReasons[m.id] ?? m.ban_reason ?? '';
+              const dirty = d.role !== m.role || d.status !== m.status ||
+                (d.status === 'BANNED' && reason.trim() !== (m.ban_reason ?? '').trim());
               const isHolder = throneQuery.data?.holder_id === m.id;
               const isOwnerTarget = m.role === 'OWNER';
               // OWNER is gone from the dropdown for everyone — the owner keeps
@@ -210,11 +220,15 @@ export default function MembersTab() {
                     </select>
                     <select
                       value={d.status}
+                      disabled={isOwnerTarget}
                       aria-label={t('members.status')}
+                      title={isOwnerTarget ? t('ban.ownerUntouchable') : undefined}
                       onChange={(e) => set({ status: e.target.value as MemberStatus })}
-                      className="input text-xs"
+                      className="input text-xs disabled:opacity-60"
                     >
-                      {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      {STATUSES.filter((s) => !(isOwnerTarget && s === 'BANNED')).map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -231,6 +245,25 @@ export default function MembersTab() {
                       </button>
                     )}
                   </div>
+                  {(d.status === 'BANNED' || m.status === 'BANNED') && (
+                    <div className="flex flex-col gap-1 sm:col-span-4">
+                      <label className="label text-xs">{t('ban.motif')}
+                        <input
+                          value={reason}
+                          onChange={(e) => setBanReasons({ ...banReasons, [m.id]: e.target.value.slice(0, 400) })}
+                          className="input h-10 text-xs"
+                          placeholder={t('ban.motifPlaceholder')}
+                          maxLength={400}
+                        />
+                      </label>
+                      {m.status === 'BANNED' && m.ban_request && (
+                        <div className="rounded-lg border border-(--border) bg-(--surface-2) p-2 text-xs">
+                          <p className="font-bold text-amber-400">{t('ban.appealFromMember')}</p>
+                          <p className="mt-0.5 whitespace-pre-line opacity-80">{m.ban_request}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
