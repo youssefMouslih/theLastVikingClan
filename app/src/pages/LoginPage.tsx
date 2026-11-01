@@ -414,6 +414,9 @@ export default function LoginPage() {
           </button>
         ))}
       </div>
+      <p className="mt-3 text-center text-[11px] opacity-50" title={__APP_BUILT_AT__}>
+        v{__APP_VERSION__} · {__APP_COMMIT__} · {new Date(__APP_BUILT_AT__).toISOString().slice(0, 16).replace('T', ' ')} UTC
+      </p>
       </div>
       </FadeIn>
     </main>
