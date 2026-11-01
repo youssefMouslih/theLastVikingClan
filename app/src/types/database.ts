@@ -54,6 +54,10 @@ export interface Profile {
   ban_reason: string | null;
   ban_request: string | null;
   ban_requested_at: string | null;
+  // Suspension reason + reactivation request (§migration 0056)
+  suspend_reason: string | null;
+  suspend_request: string | null;
+  suspend_requested_at: string | null;
   instagram: string | null;
   tiktok: string | null;
   kick: string | null;

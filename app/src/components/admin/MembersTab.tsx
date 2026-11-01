@@ -57,7 +57,7 @@ export default function MembersTab() {
         status: d.status,
         actorId: me!.id,
         actorRole: me!.role,
-        banReason: banReasons[m.id] ?? m.ban_reason ?? '',
+        reason: banReasons[m.id] ?? (d.status === 'SUSPENDED' ? m.suspend_reason : m.ban_reason) ?? '',
       });
       setMsg(t('members.saved'));
       await query.refetch();
@@ -181,9 +181,12 @@ export default function MembersTab() {
             {pageRows.map((m) => {
               const d = drafts[m.id] ?? { role: m.role, status: m.status };
               const set = (patch: Partial<typeof d>) => setDrafts({ ...drafts, [m.id]: { ...d, ...patch } });
-              const reason = banReasons[m.id] ?? m.ban_reason ?? '';
+              const storedReason = d.status === 'SUSPENDED' ? m.suspend_reason : m.ban_reason;
+              const reason = banReasons[m.id] ?? storedReason ?? '';
+              const restricted = d.status === 'BANNED' || d.status === 'SUSPENDED' ||
+                m.status === 'BANNED' || m.status === 'SUSPENDED';
               const dirty = d.role !== m.role || d.status !== m.status ||
-                (d.status === 'BANNED' && reason.trim() !== (m.ban_reason ?? '').trim());
+                (restricted && reason.trim() !== (storedReason ?? '').trim());
               const isHolder = throneQuery.data?.holder_id === m.id;
               const isOwnerTarget = m.role === 'OWNER';
               // OWNER is gone from the dropdown for everyone — the owner keeps
@@ -226,7 +229,7 @@ export default function MembersTab() {
                       onChange={(e) => set({ status: e.target.value as MemberStatus })}
                       className="input text-xs disabled:opacity-60"
                     >
-                      {STATUSES.filter((s) => !(isOwnerTarget && s === 'BANNED')).map((s) => (
+                      {STATUSES.filter((s) => !(isOwnerTarget && (s === 'BANNED' || s === 'SUSPENDED'))).map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -245,14 +248,14 @@ export default function MembersTab() {
                       </button>
                     )}
                   </div>
-                  {(d.status === 'BANNED' || m.status === 'BANNED') && (
+                  {(d.status === 'BANNED' || d.status === 'SUSPENDED' || m.status === 'BANNED' || m.status === 'SUSPENDED') && (
                     <div className="flex flex-col gap-1 sm:col-span-4">
-                      <label className="label text-xs">{t('ban.motif')}
+                      <label className="label text-xs">{d.status === 'SUSPENDED' ? t('suspend.motif') : t('ban.motif')}
                         <input
                           value={reason}
                           onChange={(e) => setBanReasons({ ...banReasons, [m.id]: e.target.value.slice(0, 400) })}
                           className="input h-10 text-xs"
-                          placeholder={t('ban.motifPlaceholder')}
+                          placeholder={d.status === 'SUSPENDED' ? t('suspend.motifPlaceholder') : t('ban.motifPlaceholder')}
                           maxLength={400}
                         />
                       </label>
@@ -260,6 +263,12 @@ export default function MembersTab() {
                         <div className="rounded-lg border border-(--border) bg-(--surface-2) p-2 text-xs">
                           <p className="font-bold text-amber-400">{t('ban.appealFromMember')}</p>
                           <p className="mt-0.5 whitespace-pre-line opacity-80">{m.ban_request}</p>
+                        </div>
+                      )}
+                      {m.status === 'SUSPENDED' && m.suspend_request && (
+                        <div className="rounded-lg border border-(--border) bg-(--surface-2) p-2 text-xs">
+                          <p className="font-bold text-amber-400">{t('suspend.appealFromMember')}</p>
+                          <p className="mt-0.5 whitespace-pre-line opacity-80">{m.suspend_request}</p>
                         </div>
                       )}
                     </div>

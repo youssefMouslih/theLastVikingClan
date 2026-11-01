@@ -40,9 +40,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      // Rule 1: only clan members access app. Suspended/removed -> treat as logged out.
-      // BANNED keeps the session so the app can show the ban screen + appeal box.
-      if (!profile || profile.status === 'SUSPENDED' || profile.status === 'REMOVED') {
+      // Rule 1: only clan members access app. Removed -> treat as logged out.
+      // BANNED and SUSPENDED keep the session so the app can show the blocking
+      // screen with the reason + appeal box instead of a silent login redirect.
+      if (!profile || profile.status === 'REMOVED') {
         try {
           await supabase.auth.signOut();
         } catch (err) {

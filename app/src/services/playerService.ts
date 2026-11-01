@@ -77,7 +77,7 @@ export async function manageMember(args: {
   status: MemberStatus;
   actorId: string;
   actorRole: Role;
-  banReason?: string | null;
+  reason?: string | null;
 }): Promise<void> {
   const { target, role, status, actorId, actorRole } = args;
   if (target.id === actorId) throw new Error('You cannot change your own role or status.');
@@ -89,9 +89,12 @@ export async function manageMember(args: {
   if (target.role === 'OWNER' && (status === 'BANNED' || status === 'SUSPENDED')) {
     throw new Error('The owner cannot be banned or suspended.');
   }
-  const banReason = args.banReason?.trim().slice(0, 400) ?? '';
-  if (status === 'BANNED' && !banReason) {
+  const reason = args.reason?.trim().slice(0, 400) ?? '';
+  if (status === 'BANNED' && !reason) {
     throw new Error('Write a reason for the ban first.');
+  }
+  if (status === 'SUSPENDED' && !reason) {
+    throw new Error('Write a reason for the suspension first.');
   }
   // Members are never deleted — not even by the owner.
   if (status === 'REMOVED') {
@@ -111,10 +114,14 @@ export async function manageMember(args: {
     .update({
       role,
       status,
-      ban_reason: status === 'BANNED' ? banReason : null,
-      // A fresh ban starts with no appeal; the member can send one afterwards.
+      ban_reason: status === 'BANNED' ? reason : null,
+      suspend_reason: status === 'SUSPENDED' ? reason : null,
+      // A fresh ban/suspension starts with no appeal; the member can send one afterwards.
       ...(status === 'BANNED' && target.status !== 'BANNED'
         ? { ban_request: null, ban_requested_at: null }
+        : {}),
+      ...(status === 'SUSPENDED' && target.status !== 'SUSPENDED'
+        ? { suspend_request: null, suspend_requested_at: null }
         : {}),
       updated_at: new Date().toISOString(),
     })

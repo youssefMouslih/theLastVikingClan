@@ -16,7 +16,7 @@ export default function OathGate() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!me || me.status === 'BANNED' || me.must_change_password) return null;
+  if (!me || me.status === 'BANNED' || me.status === 'SUSPENDED' || me.must_change_password) return null;
   // Name + VIK tag + phone come first; the oath follows.
   if (needsOnboarding(me)) return null;
   if (me.oath_accepted_at) return null;
