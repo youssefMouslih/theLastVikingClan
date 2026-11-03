@@ -101,7 +101,7 @@ export default function GalleryPage() {
     setQuery('');
     window.setTimeout(() => {
       const el = document.getElementById(`book-member-${id}`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.scrollIntoView({ block: 'center' });
       el?.querySelector<HTMLAnchorElement>('a')?.focus({ preventScroll: true });
     }, 50);
   }
@@ -184,7 +184,7 @@ export default function GalleryPage() {
                       onClick={() => jumpToMember(m.id)}
                       className="flex min-w-0 flex-1 items-center gap-2 text-start"
                     >
-                      <Avatar path={m.avatar_url} name={m.display_name ?? m.username} className="h-9 w-9 text-xs" />
+                      <Avatar path={m.avatar_url} name={m.display_name ?? m.username} className="h-9 w-9 text-xs" zoomable={false} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{m.known_name ?? m.display_name ?? m.username}</span>
                         <span className="block text-[11px] opacity-60">{m.role}</span>
@@ -233,11 +233,12 @@ function GridCards({ members }: {
           const name = m.known_name ?? m.display_name ?? m.username;
           return (
             <div key={m.id} id={`book-member-${m.id}`} role="listitem" className="war-card group relative rounded-xl p-2 text-center">
-              <span aria-hidden className="absolute start-1.5 top-1 text-[10px] text-[#6b5320]/70 transition group-hover:text-[#6b5320]">ᚱᚢᚾ</span>
-              <Link to={`/players/${m.id}`} className="flex h-full flex-col items-center gap-1.5" aria-label={name}>
-                <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" />
+              <Link to={`/players/${m.id}`} className="absolute inset-0 z-10 rounded-xl" aria-label={name} />
+              <div aria-hidden className="flex h-full flex-col items-center gap-1.5">
+                <span className="absolute start-1.5 top-1 text-[10px] text-[#6b5320]/70 transition group-hover:text-[#6b5320]">ᚱᚢᚾ</span>
+                <Avatar path={m.avatar_url} name={name} className="h-16 w-16 text-xl" zoomable={false} />
                 <span className="font-display w-full truncate text-xs tracking-wide">{name}</span>
-              </Link>
+              </div>
             </div>
           );
         })}
